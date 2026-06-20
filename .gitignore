@@ -47,7 +47,8 @@ uv.lock
 .env.*.local
 
 # Chainlit
-.chainlit/
+.chainlit/*
+!.chainlit/config.toml
 .files/
 *.db
 
