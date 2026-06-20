@@ -11,7 +11,7 @@ from .settings import settings
 # OpenRouter app attribution headers (https://openrouter.ai/docs/app-attribution).
 # Other OpenAI-compatible providers ignore unknown headers.
 _OPENROUTER_HEADERS = {
-    "HTTP-Referer": "https://github.com/ralfbecher/orionbelt-chat",
+    "HTTP-Referer": "https://github.com/ralforion/orionbelt-chat",
     "X-Title": "OrionBelt Chat",
 }
 

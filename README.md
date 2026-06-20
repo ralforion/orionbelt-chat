@@ -1,15 +1,15 @@
-<!-- mcp-name: io.github.ralfbecher/orionbelt-chat -->
+<!-- mcp-name: io.github.ralforion/orionbelt-chat -->
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ralfbecher/orionbelt-chat/main/assets/ORIONBELT_Logo.png" alt="OrionBelt Logo" width="400">
+  <img src="https://raw.githubusercontent.com/ralforion/orionbelt-chat/main/assets/ORIONBELT_Logo.png" alt="OrionBelt Logo" width="400">
 </p>
 
 <h1 align="center">OrionBelt Chat</h1>
 
 <p align="center"><strong>AI-powered chat interface for OrionBelt Analytics & Semantic Layer</strong></p>
 
-[![Version](https://img.shields.io/badge/version-1.1.4-brightgreen.svg)](https://github.com/ralfbecher/orionbelt-chat)
+[![Version](https://img.shields.io/badge/version-1.1.4-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralfbecher/orionbelt-chat/blob/main/LICENSE)
+[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
 [![Pydantic AI](https://img.shields.io/badge/Pydantic_AI-1.77+-blue)](https://ai.pydantic.dev)
 
@@ -22,17 +22,17 @@ A production-ready chat application that connects to OrionBelt Analytics and Ori
 > **Better Together:** Works seamlessly with [**OrionBelt Analytics**](https://github.com/ralfbecher/orionbelt-analytics) and [**OrionBelt Semantic Layer**](https://github.com/ralfbecher/orionbelt-semantic-layer). Connect to both MCP servers simultaneously for schema-aware ontology generation, semantic modeling, guaranteed-correct SQL compilation, and interactive chart rendering.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ralfbecher/orionbelt-chat/main/assets/OrionBelt_Chat_1_Start.jpg" alt="OrionBelt Chat — Startup with connected MCP servers" width="800">
+  <img src="https://raw.githubusercontent.com/ralforion/orionbelt-chat/main/assets/OrionBelt_Chat_1_Start.jpg" alt="OrionBelt Chat — Startup with connected MCP servers" width="800">
 </p>
 <p align="center"><em>Startup — connected MCP servers, provider & model selection</em></p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ralfbecher/orionbelt-chat/main/assets/OrionBelt_Chat_2_Ontology.jpg" alt="OrionBelt Chat — Ontology generation pipeline with file download" width="800">
+  <img src="https://raw.githubusercontent.com/ralforion/orionbelt-chat/main/assets/OrionBelt_Chat_2_Ontology.jpg" alt="OrionBelt Chat — Ontology generation pipeline with file download" width="800">
 </p>
 <p align="center"><em>Full pipeline — schema analysis, ontology generation, semantic enrichment & file download</em></p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ralfbecher/orionbelt-chat/main/assets/OrionBelt_Chat_3_Charts.jpg" alt="OrionBelt Chat — Interactive Plotly charts" width="800">
+  <img src="https://raw.githubusercontent.com/ralforion/orionbelt-chat/main/assets/OrionBelt_Chat_3_Charts.jpg" alt="OrionBelt Chat — Interactive Plotly charts" width="800">
 </p>
 <p align="center"><em>Interactive charts — heatmap, line & grouped bar rendered natively via Plotly.js</em></p>
 
@@ -231,7 +231,7 @@ Create an OBML model for customer analytics with metrics for revenue, order coun
 ## Architecture
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ralfbecher/orionbelt-chat/main/assets/architecture.png" alt="OrionBelt Chat Architecture" width="800">
+  <img src="https://raw.githubusercontent.com/ralforion/orionbelt-chat/main/assets/architecture.png" alt="OrionBelt Chat Architecture" width="800">
 </p>
 
 ```
@@ -419,6 +419,6 @@ See [LICENSE](./LICENSE) for full terms.
 
 <p align="center">
   <a href="https://ralforion.com">
-    <img src="https://raw.githubusercontent.com/ralfbecher/orionbelt-chat/main/assets/RALFORION_doo_Logo.png" alt="RALFORION d.o.o." width="200">
+    <img src="https://raw.githubusercontent.com/ralforion/orionbelt-chat/main/assets/RALFORION_doo_Logo.png" alt="RALFORION d.o.o." width="200">
   </a>
 </p>
