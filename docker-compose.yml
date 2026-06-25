@@ -1,0 +1,16 @@
+# OrionBelt Chat — local container orchestration.
+#
+#   docker compose up --build      # build & run
+#   docker compose up -d           # run in the background
+#
+# Configuration is read from a local .env file (copy from .env.example).
+services:
+  orionbelt-chat:
+    build: .
+    image: orionbelt-chat:latest
+    container_name: orionbelt-chat
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    restart: unless-stopped
