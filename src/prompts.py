@@ -45,9 +45,7 @@ def load_system_prompt() -> str:
     try:
         text = path.read_text(encoding="utf-8").strip()
     except FileNotFoundError:
-        logger.warning(
-            "System prompt file not found at %s — using embedded fallback.", path
-        )
+        logger.warning("System prompt file not found at %s — using embedded fallback.", path)
         return FALLBACK_SYSTEM_PROMPT
     except OSError as exc:
         logger.warning(
@@ -58,9 +56,7 @@ def load_system_prompt() -> str:
         return FALLBACK_SYSTEM_PROMPT
 
     if not text:
-        logger.warning(
-            "System prompt file %s is empty — using embedded fallback.", path
-        )
+        logger.warning("System prompt file %s is empty — using embedded fallback.", path)
         return FALLBACK_SYSTEM_PROMPT
 
     return text

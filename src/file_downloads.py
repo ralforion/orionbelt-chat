@@ -61,7 +61,9 @@ def extract_downloads_from_response(response_text: str) -> list[cl.File]:
         seen += 1
         name = f"download{ext}" if seen == 1 else f"download_{seen}{ext}"
 
-        files.append(cl.File(name=name, content=content.encode("utf-8"), mime=mime, display="inline"))
+        files.append(
+            cl.File(name=name, content=content.encode("utf-8"), mime=mime, display="inline")
+        )
         logger.info("Download from code block: %s (%d chars, %s)", name, len(content), lang)
 
     return files
@@ -93,7 +95,9 @@ def extract_downloads_from_tool_results(result_messages: list) -> list[cl.File]:
             tool_name = getattr(part, "tool_name", "download")
             name = f"{tool_name}{ext}" if seen == 1 else f"{tool_name}_{seen}{ext}"
 
-            files.append(cl.File(name=name, content=text.encode("utf-8"), mime=mime, display="inline"))
+            files.append(
+                cl.File(name=name, content=text.encode("utf-8"), mime=mime, display="inline")
+            )
             logger.info("Download from tool result: %s (%d chars, %s)", name, len(text), tool_name)
 
     return files

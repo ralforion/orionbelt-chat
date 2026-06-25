@@ -26,7 +26,9 @@ class TestIsMermaid:
         assert is_mermaid("classDiagram\n  Animal <|-- Duck") is True
 
     def test_gantt(self):
-        assert is_mermaid("gantt\n  title A Gantt\n  section A\n  task1 :a1, 2024-01-01, 30d") is True
+        assert (
+            is_mermaid("gantt\n  title A Gantt\n  section A\n  task1 :a1, 2024-01-01, 30d") is True
+        )
 
     def test_pie(self):
         assert is_mermaid('pie title Pets\n  "Dogs" : 386\n  "Cats" : 85') is True
@@ -83,10 +85,12 @@ class TestExtractMermaidFromToolResults:
         assert extract_mermaid_from_tool_results([]) == []
 
     def test_multiple_diagrams(self):
-        msgs = self._make_messages([
-            "erDiagram\n  A ||--o{ B : has",
-            "flowchart LR\n  X --> Y",
-        ])
+        msgs = self._make_messages(
+            [
+                "erDiagram\n  A ||--o{ B : has",
+                "flowchart LR\n  X --> Y",
+            ]
+        )
         result = extract_mermaid_from_tool_results(msgs)
         assert len(result) == 2
 

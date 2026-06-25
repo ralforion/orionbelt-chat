@@ -9,15 +9,13 @@ import logging
 import re
 from typing import ClassVar
 
-from pydantic.dataclasses import dataclass
-
 from chainlit.element import Element, ElementType
+from pydantic.dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
 UI_URI_PATTERN = re.compile(r"ui://[^\s\"']+")
 CHART_JSON_URI_PATTERN = re.compile(r"ui://\S*chart-json/[^\s\"']+")
-
 
 
 @dataclass
@@ -57,7 +55,7 @@ def _extract_plotly_json(text: str) -> str | None:
     # Strategy 2: Plotly.newPlot(element, data, layout) in JS/HTML
     newplot_match = re.search(r"Plotly\.newPlot\s*\(\s*['\"]?\w+['\"]?\s*,\s*", text)
     if newplot_match:
-        rest = text[newplot_match.end():]
+        rest = text[newplot_match.end() :]
         try:
             data, end = json.JSONDecoder().raw_decode(rest)
             if isinstance(data, list):
@@ -124,7 +122,9 @@ async def render_chart_if_present(
         json_uri = json_match.group(0)
         try:
             resource_content = await mcp_server.read_resource(json_uri)
-            content_str = str(resource_content) if not isinstance(resource_content, str) else resource_content
+            content_str = (
+                str(resource_content) if not isinstance(resource_content, str) else resource_content
+            )
             fig = json.loads(content_str)
             if isinstance(fig, dict) and "data" in fig:
                 fig_json = _apply_defaults(fig)
@@ -156,10 +156,12 @@ async def render_chart_if_present(
             len(str(resource_content)),
             str(resource_content)[:300],
         )
-        content_str = str(resource_content) if not isinstance(resource_content, str) else resource_content
-        fig_json = _extract_plotly_json(content_str)
-        if fig_json:
-            fig = json.loads(fig_json)
+        content_str = (
+            str(resource_content) if not isinstance(resource_content, str) else resource_content
+        )
+        extracted = _extract_plotly_json(content_str)
+        if extracted:
+            fig = json.loads(extracted)
             fig_json = _apply_defaults(fig)
             logger.info("Plotly JSON extracted from HTML (%d chars)", len(fig_json))
             return PlotlyChart(name="chart", content=fig_json, display="inline")

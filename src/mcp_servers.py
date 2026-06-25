@@ -2,9 +2,9 @@
 
 import logging
 
-from . import mcp_sampling  # noqa: F401  — patches ClientSession to advertise sampling.tools
 from pydantic_ai.mcp import MCPServerStdio, MCPServerStreamableHTTP
 
+from . import mcp_sampling  # noqa: F401  — patches ClientSession to advertise sampling.tools
 from .providers import default_model_for, resolve_model
 from .settings import settings
 
