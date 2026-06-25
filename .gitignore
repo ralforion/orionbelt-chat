@@ -31,7 +31,7 @@ venv.bak/
 
 # uv
 .uv/
-uv.lock
+# uv.lock is committed for reproducible installs (app, not a library).
 
 # IDEs
 .vscode/

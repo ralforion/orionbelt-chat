@@ -27,15 +27,15 @@ WORKDIR /app
 
 # ── Dependency layer ──────────────────────────────────────────────
 # Copy only the dependency manifests first so this layer is cached across
-# source-only changes. uv.lock is optional (glob) since it is git-ignored.
-COPY pyproject.toml uv.lock* ./
+# source-only changes. uv.lock is committed for reproducible installs.
+COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-install-project --no-dev
+    uv sync --frozen --no-install-project --no-dev
 
 # ── Application layer ─────────────────────────────────────────────
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-dev
+    uv sync --frozen --no-dev
 
 # Run as a non-root user.
 RUN useradd --create-home --uid 10001 appuser \
