@@ -13,6 +13,10 @@
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
 [![Pydantic AI](https://img.shields.io/badge/Pydantic_AI-1.77+-blue)](https://ai.pydantic.dev)
 
+[![Docker Hub](https://img.shields.io/docker/v/ralforion/orionbelt-chat?logo=docker&logoColor=white&label=Docker%20Hub&color=2496ED&sort=semver)](https://hub.docker.com/r/ralforion/orionbelt-chat)
+[![Docker pulls](https://img.shields.io/docker/pulls/ralforion/orionbelt-chat?logo=docker&logoColor=white&color=2496ED)](https://hub.docker.com/r/ralforion/orionbelt-chat)
+[![Image size](https://img.shields.io/docker/image-size/ralforion/orionbelt-chat/latest?logo=docker&logoColor=white&color=2496ED)](https://hub.docker.com/r/ralforion/orionbelt-chat)
+
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-300%2B_Models-blueviolet)](https://openrouter.ai)
 [![MLX](https://img.shields.io/badge/MLX-Apple_Silicon-black)](https://github.com/ml-explore/mlx)
 [![Ollama](https://img.shields.io/badge/Ollama-Local_LLMs-green)](https://ollama.com)
