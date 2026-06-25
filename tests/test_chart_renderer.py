@@ -1,11 +1,16 @@
 """Tests for src.chart_renderer."""
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.chart_renderer import UI_URI_PATTERN, PlotlyChart, _extract_plotly_json, render_chart_if_present
+from src.chart_renderer import (
+    UI_URI_PATTERN,
+    PlotlyChart,
+    _extract_plotly_json,
+    render_chart_if_present,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -24,7 +29,7 @@ def _mock_chainlit_context():
 
 class TestUiUriPattern:
     def test_matches_ui_uri(self):
-        text = 'Chart available at ui://chart/sales-2024 for review'
+        text = "Chart available at ui://chart/sales-2024 for review"
         match = UI_URI_PATTERN.search(text)
         assert match is not None
         assert match.group(0) == "ui://chart/sales-2024"

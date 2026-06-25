@@ -32,9 +32,7 @@ class _SamplingToolsClientSession(ClientSession):
         **kwargs,
     ):
         if sampling_callback is not None and sampling_capabilities is None:
-            sampling_capabilities = SamplingCapability(
-                tools=SamplingToolsCapability()
-            )
+            sampling_capabilities = SamplingCapability(tools=SamplingToolsCapability())
         super().__init__(
             *args,
             sampling_callback=sampling_callback,
@@ -43,4 +41,5 @@ class _SamplingToolsClientSession(ClientSession):
         )
 
 
-_pa_mcp.ClientSession = _SamplingToolsClientSession
+# Intentional monkeypatch of the module's `ClientSession` symbol (a type).
+_pa_mcp.ClientSession = _SamplingToolsClientSession  # type: ignore[misc]
