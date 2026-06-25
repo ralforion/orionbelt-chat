@@ -1,0 +1,47 @@
+# Version control / CI
+.git
+.github
+.gitignore
+
+# Python caches & build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtual environments (rebuilt inside the image)
+.venv/
+venv/
+env/
+
+# Secrets & local runtime state
+.env
+.env.local
+.env.*.local
+.files/
+*.db
+*.log
+
+# Docs / assets not needed at runtime
+# (README.md is kept: pyproject.toml references it as the package readme.)
+design/
+assets/
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Claude Code
+.claude/
+
+# Docker itself
+Dockerfile
+.dockerignore
+docker-compose.yml

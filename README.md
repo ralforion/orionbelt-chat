@@ -190,6 +190,37 @@ uv run chainlit run app.py --watch
 
 Open **http://localhost:8080** in your browser.
 
+### Run with Docker
+
+The app ships with a `Dockerfile` and `docker-compose.yml` so you can run it
+without a local Python/uv toolchain.
+
+**Using Docker Compose (recommended):**
+
+```bash
+# Configure your API keys first
+cp .env.example .env   # then edit .env
+
+docker compose up --build
+```
+
+**Using plain Docker:**
+
+```bash
+docker build -t orionbelt-chat .
+docker run --rm -p 8080:8080 --env-file .env orionbelt-chat
+```
+
+**Using the published image from Docker Hub:**
+
+```bash
+docker run --rm -p 8080:8080 --env-file .env ralforion/orionbelt-chat:latest
+```
+
+Open **http://localhost:8080** in your browser. Configuration is read from the
+environment (see `.env.example`); pass it via `--env-file .env` or individual
+`-e KEY=value` flags.
+
 ## Usage Examples
 
 **Connect to database:**
