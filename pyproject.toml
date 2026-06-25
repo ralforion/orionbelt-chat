@@ -2,7 +2,7 @@
 name = "orionbelt-chat"
 version = "1.1.4"
 description = "OrionBelt Chat - Chainlit + Pydantic AI chat client for OrionBelt Analytics"
-authors = [{name = "Ralf Becher, RALFORION d.o.o.", email = "ralf.becher@web.de"}]
+authors = [{name = "Ralf Becher, RALFORION d.o.o.", email = "info@ralforion.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
 keywords = ["chainlit", "pydantic-ai", "mcp", "chat", "analytics", "ai"]
