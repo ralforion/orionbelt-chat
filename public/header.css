@@ -44,6 +44,29 @@
   user-select: none;
 }
 
+/* Copyright / trademark footer */
+.orionbelt-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.5rem 1rem calc(0.5rem + env(safe-area-inset-bottom));
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: #9ca3af;
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+.dark .orionbelt-footer {
+  color: #6b7280;
+}
+
+.orionbelt-footer-line {
+  white-space: normal;
+}
+
 /* Invert GitHub SVG icons so they appear white on dark header */
 a img[src*="github"] {
   filter: invert(1);

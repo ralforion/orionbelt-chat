@@ -98,6 +98,39 @@
   }
 })();
 
+// Inject the copyright / trademark footer at the bottom of the page
+(function injectFooter() {
+  function insert() {
+    if (document.querySelector(".orionbelt-footer")) return true;
+    if (!document.body) return false;
+
+    var footer = document.createElement("footer");
+    footer.className = "orionbelt-footer";
+
+    var copyright = document.createElement("span");
+    copyright.className = "orionbelt-footer-line";
+    copyright.textContent = "Copyright © 2026 RALFORION d.o.o.";
+
+    var trademark = document.createElement("span");
+    trademark.className = "orionbelt-footer-line";
+    trademark.textContent = "OrionBelt® is a registered trademark of RALFORION d.o.o.";
+
+    footer.appendChild(copyright);
+    footer.appendChild(trademark);
+    document.body.appendChild(footer);
+
+    return true;
+  }
+
+  if (!insert()) {
+    var observer = new MutationObserver(function () {
+      if (insert()) observer.disconnect();
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    setTimeout(function () { observer.disconnect(); }, 15000);
+  }
+})();
+
 // Pulse the avatar of the last assistant message while it has no text content
 (function thinkingIndicator() {
   new MutationObserver(function () {
