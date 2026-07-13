@@ -3,7 +3,7 @@
   <img src="https://raw.githubusercontent.com/ralforion/orionbelt-chat/main/assets/ORIONBELT_Logo.png" alt="OrionBelt Logo" width="400">
 </p>
 
-<h1 align="center">OrionBelt Chat</h1>
+<h1 align="center">OrionBelt® Chat</h1>
 
 <p align="center"><strong>AI-powered chat interface for OrionBelt Analytics & Semantic Layer</strong></p>
 
@@ -456,4 +456,9 @@ See [LICENSE](./LICENSE) for full terms.
   <a href="https://ralforion.com">
     <img src="https://raw.githubusercontent.com/ralforion/orionbelt-chat/main/assets/RALFORION_doo_Logo.png" alt="RALFORION d.o.o." width="200">
   </a>
+</p>
+
+<p align="center">
+  Copyright © 2026 RALFORION d.o.o.<br>
+  OrionBelt® is a registered trademark of RALFORION d.o.o.
 </p>

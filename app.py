@@ -140,7 +140,7 @@ async def on_start():
         mcp_info = cl.user_session.get("mcp_info", "")
         status_msg = cl.Message(
             content=(
-                f"**OrionBelt Analytics Assistant** ready.\n\n"
+                f"**OrionBelt® Analytics Assistant** ready.\n\n"
                 f"Provider: `{provider}` | Model: `{model}`\n\n"
                 f"{mcp_info}\n\n"
                 f"Ask me anything about your data."
@@ -362,7 +362,7 @@ async def on_settings_update(settings_values: dict):
         mcp_info = cl.user_session.get("mcp_info", "")
         if status_msg:
             status_msg.content = (
-                f"**OrionBelt Analytics Assistant** ready.\n\n"
+                f"**OrionBelt® Analytics Assistant** ready.\n\n"
                 f"Provider: `{provider}` | Model: `{model}`\n\n"
                 f"{mcp_info}\n\n"
                 f"Ask me anything about your data."

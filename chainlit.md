@@ -1,4 +1,4 @@
-# OrionBelt Analytics Assistant
+# OrionBelt® Analytics Assistant
 
 Ask questions about your data in natural language.
 
@@ -11,3 +11,9 @@ Ask questions about your data in natural language.
 - "Show me revenue by product category for last quarter as a bar chart"
 - "Analyze the schema of the orionbelt_1 database"
 - "Generate an ontology for the sales schema"
+
+---
+
+Copyright © 2026 RALFORION d.o.o.
+
+OrionBelt® is a registered trademark of RALFORION d.o.o.
