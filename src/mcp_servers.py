@@ -1,10 +1,11 @@
 """MCP server configuration and lifecycle management."""
 
 import logging
+from typing import Any
 
-from pydantic_ai.mcp import MCPServerStdio, MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset, StdioTransport, StreamableHttpTransport
 
-from . import mcp_sampling  # noqa: F401  — patches ClientSession to advertise sampling.tools
+from .mcp_sampling import enable_sampling_tools
 from .providers import default_model_for, resolve_model
 from .settings import settings
 
@@ -43,26 +44,25 @@ def get_sampling_model_label() -> str | None:
     return f"{provider}/{default_model_for(provider)}"
 
 
-def _make_server(
-    endpoint: str, module: str, sampling_model
-) -> MCPServerStreamableHTTP | MCPServerStdio:
-    request_timeout = settings.mcp_request_timeout_seconds
-    allow_sampling = settings.mcp_allow_sampling
+def _make_server(endpoint: str, module: str, sampling_model) -> MCPToolset[Any]:
+    # Sampling is enabled purely by passing a model: `_resolve_sampling_model`
+    # already returns None when MCP_ALLOW_SAMPLING is false, which is what the
+    # dropped `allow_sampling=` flag used to express.
+    transport: StreamableHttpTransport | StdioTransport
     if _is_url(endpoint):
-        return MCPServerStreamableHTTP(
-            url=endpoint,
-            timeout=request_timeout,
+        transport = StreamableHttpTransport(url=endpoint)
+    else:
+        transport = StdioTransport(
+            command="uv",
+            args=["run", "--directory", endpoint, "python", "-m", module],
+        )
+    return enable_sampling_tools(
+        MCPToolset(
+            transport,
+            read_timeout=settings.mcp_request_timeout_seconds,
             max_retries=3,
-            allow_sampling=allow_sampling,
             sampling_model=sampling_model,
         )
-    return MCPServerStdio(
-        "uv",
-        args=["run", "--directory", endpoint, "python", "-m", module],
-        timeout=request_timeout,
-        max_retries=3,
-        allow_sampling=allow_sampling,
-        sampling_model=sampling_model,
     )
 
 
@@ -76,7 +76,7 @@ _SERVER_DEFS: list[tuple[str, str, str]] = [
 SERVERS_USING_SAMPLING: frozenset[str] = frozenset({"OrionBelt Analytics"})
 
 
-def get_mcp_servers_named() -> list[tuple[str, MCPServerStreamableHTTP | MCPServerStdio]]:
+def get_mcp_servers_named() -> list[tuple[str, MCPToolset[Any]]]:
     """Return (display_name, server) pairs for configured MCP servers."""
     sampling_model = _resolve_sampling_model()
     servers = []

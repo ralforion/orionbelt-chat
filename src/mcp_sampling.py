@@ -1,45 +1,36 @@
-"""Enable MCP `sampling.tools` capability in pydantic-ai's MCP client.
+"""Enable the MCP `sampling.tools` capability in pydantic-ai's MCP client.
 
-Pydantic-AI 1.77.0 constructs `mcp.ClientSession` without
-`sampling_capabilities`, so the server side rejects sampling calls that
-include tools (`mcp/server/validation.py:55`). We patch the
-`ClientSession` symbol in `pydantic_ai.mcp` to a subclass that defaults
-`sampling_capabilities` to advertise `sampling.tools`. Importing this
-module is enough — pydantic-ai's existing call site picks up the
-subclass via the module's global lookup at session-open time.
+When given a `sampling_model`, pydantic-ai builds its FastMCP client with a
+bare `SamplingCapability()` (`pydantic_ai.mcp.MCPToolset.__init__`), leaving
+`sampling.tools` unadvertised. Servers then reject sampling calls that carry
+tools (`mcp/server/validation.py:55`) and fall back to a manual review path.
+
+FastMCP accepts a `sampling_capabilities` session kwarg, so we upgrade it in
+place on the already-constructed client. This deliberately leaves
+pydantic-ai's own sampling callback and message handler untouched — the
+latter drives `MCPToolset` cache invalidation and is skipped entirely if a
+pre-built client is passed to `MCPToolset` instead.
 """
 
-import pydantic_ai.mcp as _pa_mcp
-from mcp import ClientSession
+from typing import Any
+
 from mcp.types import SamplingCapability, SamplingToolsCapability
+from pydantic_ai.mcp import MCPToolset
+
+_SAMPLING_TOOLS = SamplingCapability(tools=SamplingToolsCapability())
 
 
-class _SamplingToolsClientSession(ClientSession):
-    """ClientSession that advertises `sampling.tools` when a callback is set.
+def enable_sampling_tools(toolset: MCPToolset[Any]) -> MCPToolset[Any]:
+    """Advertise `sampling.tools` on `toolset`, if it does sampling at all.
 
-    Servers can issue `sampling/createMessage` with a `tools` parameter
-    (per the MCP spec) instead of falling back to a manual review path.
-    If pydantic-ai constructs us with `sampling_callback=None` (i.e.
-    `allow_sampling=False`), we keep the capability unset so we don't
-    advertise something we can't fulfill.
+    No-op when sampling is disabled (no callback installed), so we never
+    advertise a capability we cannot fulfill. Returns `toolset` for chaining.
     """
-
-    def __init__(
-        self,
-        *args,
-        sampling_callback=None,
-        sampling_capabilities=None,
-        **kwargs,
-    ):
-        if sampling_callback is not None and sampling_capabilities is None:
-            sampling_capabilities = SamplingCapability(tools=SamplingToolsCapability())
-        super().__init__(
-            *args,
-            sampling_callback=sampling_callback,
-            sampling_capabilities=sampling_capabilities,
-            **kwargs,
-        )
-
-
-# Intentional monkeypatch of the module's `ClientSession` symbol (a type).
-_pa_mcp.ClientSession = _SamplingToolsClientSession  # type: ignore[misc]
+    # `_session_kwargs` is private; FastMCP exposes no read path for the
+    # already-wrapped sampling callback, and re-setting it via the public
+    # `set_sampling_callback()` would double-wrap it.
+    session_kwargs = toolset.client._session_kwargs
+    if session_kwargs.get("sampling_callback") is None:
+        return toolset
+    session_kwargs["sampling_capabilities"] = _SAMPLING_TOOLS
+    return toolset

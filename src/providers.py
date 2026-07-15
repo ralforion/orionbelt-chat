@@ -2,7 +2,7 @@
 
 from openai import AsyncOpenAI
 from pydantic_ai.models.anthropic import AnthropicModel
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -92,7 +92,7 @@ def resolve_model(provider: str, model: str):
         case "openrouter":
             if not settings.openrouter_api_key:
                 raise ValueError("OPENROUTER_API_KEY not set in environment")
-            return OpenAIModel(
+            return OpenAIChatModel(
                 model,
                 provider=OpenAIProvider(
                     openai_client=AsyncOpenAI(
@@ -105,7 +105,7 @@ def resolve_model(provider: str, model: str):
 
         case "mlx":
             # mlx-openai-server exposes an OpenAI-compatible endpoint
-            return OpenAIModel(
+            return OpenAIChatModel(
                 model,
                 provider=OpenAIProvider(
                     base_url=settings.mlx_base_url,
@@ -114,7 +114,7 @@ def resolve_model(provider: str, model: str):
             )
 
         case "ollama":
-            return OpenAIModel(
+            return OpenAIChatModel(
                 model,
                 provider=OpenAIProvider(
                     base_url=settings.ollama_base_url,
@@ -135,7 +135,7 @@ def resolve_model(provider: str, model: str):
         case "openai":
             if not settings.openai_api_key:
                 raise ValueError("OPENAI_API_KEY not set in environment")
-            return OpenAIModel(
+            return OpenAIChatModel(
                 model,
                 provider=OpenAIProvider(
                     api_key=settings.openai_api_key,
