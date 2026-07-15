@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  check:
+  # Style is version-independent — running it once keeps the matrix to signal.
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -16,9 +17,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-
-      - name: Set up Python
-        run: uv python install 3.12
+          python-version: "3.12"
 
       - name: Install dependencies
         run: uv sync --frozen --extra dev
@@ -28,6 +27,28 @@ jobs:
 
       - name: Format check (ruff)
         run: uv run ruff format --check src/ tests/
+
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      # One version failing shouldn't mask the others' results.
+      fail-fast: false
+      matrix:
+        # Floor is pyproject's requires-python; 3.14 is what the Docker image
+        # runs, which previously went untested here.
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
 
       - name: Type check (mypy)
         run: uv run mypy src/
