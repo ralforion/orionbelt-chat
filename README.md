@@ -7,11 +7,11 @@
 
 <p align="center"><strong>AI-powered chat interface for OrionBelt Analytics & Semantic Layer</strong></p>
 
-[![Version](https://img.shields.io/badge/version-1.1.6-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
+[![Version](https://img.shields.io/badge/version-1.1.7-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
-[![Pydantic AI](https://img.shields.io/badge/Pydantic_AI-1.77+-blue)](https://ai.pydantic.dev)
+[![Pydantic AI](https://img.shields.io/badge/Pydantic_AI-2.10+-blue)](https://ai.pydantic.dev)
 
 [![Docker Hub](https://img.shields.io/docker/v/ralforion/orionbelt-chat?logo=docker&logoColor=white&label=Docker%20Hub&color=2496ED&sort=semver)](https://hub.docker.com/r/ralforion/orionbelt-chat)
 [![Docker pulls](https://img.shields.io/docker/pulls/ralforion/orionbelt-chat?logo=docker&logoColor=white&color=2496ED)](https://hub.docker.com/r/ralforion/orionbelt-chat)
@@ -298,7 +298,7 @@ Create an OBML model for customer analytics with metrics for revenue, order coun
 **Key Components:**
 
 - **Chainlit 2.10+** - Chat UI framework with streaming, steps, and settings
-- **Pydantic AI 1.77+** - Agent framework with node-by-node iteration (`agent.iter()`)
+- **Pydantic AI 2.10+** - Agent framework with node-by-node iteration (`agent.iter()`)
 - **MCP Transport** - Stdio (local subprocess) or Streamable HTTP (remote) per server
 - **Chart Renderer** - Native Plotly rendering from FastMCP Apps `ui://` resources
 - **Mermaid Renderer** - Client-side diagram rendering via Mermaid.js CDN

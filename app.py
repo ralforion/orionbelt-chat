@@ -21,9 +21,12 @@ from pydantic_ai.messages import (
     TextPartDelta,
 )
 
+from mcp.types import ErrorData
+
 from src.agent import make_agent
 from src.chart_renderer import UI_URI_PATTERN, render_chart_if_present
 from src.file_downloads import extract_downloads_from_response, extract_downloads_from_tool_results
+from src.mcp_sampling import get_sampling_callback, set_sampling_callback
 from src.mcp_servers import SERVERS_USING_SAMPLING, get_mcp_servers_named, get_sampling_model_label
 from src.mermaid_renderer import extract_mermaid_from_tool_results
 from src.providers import PROVIDER_LABELS, default_model_for, models_for
@@ -151,13 +154,17 @@ async def on_start():
 
 
 def _wrap_sampling_for_chainlit(server, server_name: str) -> None:
-    """Wrap the MCP server's sampling callback to render a Chainlit Step.
+    """Wrap the MCP toolset's sampling callback to render a Chainlit Step.
 
-    Must be called BEFORE ``server.__aenter__()`` so the underlying
-    ClientSession captures the wrapped callback (the original is bound
-    by reference inside the session constructor).
+    Must be called BEFORE ``server.__aenter__()``: the callback is read out
+    of the session kwargs when the session opens.
+
+    No-op when the server does no sampling (``MCP_ALLOW_SAMPLING=false``, or
+    no default model resolved), so there is nothing to render.
     """
-    original = server._sampling_callback
+    original = get_sampling_callback(server)
+    if original is None:
+        return
 
     async def wrapped(context, params):
         try:
@@ -175,14 +182,20 @@ def _wrap_sampling_for_chainlit(server, server_name: str) -> None:
 
         # Prefer the in-flight tool step (sampling is fired from inside the
         # tool's execution); fall back to the run step if no tool is active.
-        parent_id = (
-            cl.user_session.get("active_tool_step_id")
-            or cl.user_session.get("run_step_id")
-        )
+        parent_id = cl.user_session.get("active_tool_step_id") or cl.user_session.get("run_step_id")
         step = cl.Step(name=f"Sampling: {server_name}", type="tool", parent_id=parent_id)
         await step.send()
         try:
             result = await original(context, params)
+            # FastMCP's callback swallows handler exceptions and returns
+            # ErrorData instead of raising, so failures arrive here, not in
+            # the except branch below.
+            if isinstance(result, ErrorData):
+                step.output = (
+                    f"**Prompt sent to model:**\n\n{question}\n\n---\n\n**Error:** {result.message}"
+                )
+                await step.update()
+                return result
             content = getattr(result, "content", None)
             text = getattr(content, "text", None) if content is not None else None
             answer = text or str(result)
@@ -190,22 +203,16 @@ def _wrap_sampling_for_chainlit(server, server_name: str) -> None:
                 answer = answer[:STEP_OUTPUT_LIMIT] + f"\n\n… (truncated — {len(answer):,} chars)"
             # Render as markdown (wraps naturally) instead of step.input (code block)
             step.output = (
-                f"**Prompt sent to model:**\n\n{question}\n\n"
-                f"---\n\n"
-                f"**Model response:**\n\n{answer}"
+                f"**Prompt sent to model:**\n\n{question}\n\n---\n\n**Model response:**\n\n{answer}"
             )
             await step.update()
             return result
         except Exception as e:
-            step.output = (
-                f"**Prompt sent to model:**\n\n{question}\n\n"
-                f"---\n\n"
-                f"**Error:** {e}"
-            )
+            step.output = f"**Prompt sent to model:**\n\n{question}\n\n---\n\n**Error:** {e}"
             await step.update()
             raise
 
-    server._sampling_callback = wrapped
+    set_sampling_callback(server, wrapped)
 
 
 async def _init_agent(provider: str, model: str) -> bool:
@@ -261,7 +268,9 @@ async def _init_agent(provider: str, model: str) -> bool:
         return False
 
 
-def _update_mcp_info(connected_names: list[str], failed_names: list[tuple[str, Exception]] | None = None):
+def _update_mcp_info(
+    connected_names: list[str], failed_names: list[tuple[str, Exception]] | None = None
+):
     """Update the mcp_info session variable."""
     parts = []
     if connected_names:
@@ -455,8 +464,7 @@ def _trim_history(messages: list) -> list:
                     content = getattr(part, "content", "")
                     if isinstance(content, str) and len(content) > limit:
                         part.content = (
-                            content[:limit]
-                            + f"\n\n… (trimmed — {len(content):,} chars total)"
+                            content[:limit] + f"\n\n… (trimmed — {len(content):,} chars total)"
                         )
                         trimmed_count += 1
             new_parts.append(part)
@@ -652,7 +660,9 @@ async def _full_reconnect_mcp() -> bool:
         mcp_info = cl.user_session.get("mcp_info", "")
         await cl.Message(content=f"Reconnected. {mcp_info}", author="System").send()
         return True
-    await cl.Message(content="Reconnection failed. Check that MCP servers are running.", author="System").send()
+    await cl.Message(
+        content="Reconnection failed. Check that MCP servers are running.", author="System"
+    ).send()
     return False
 
 
@@ -752,14 +762,18 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                     await thinking_step.send()
                     async with node.stream(agent_run.ctx) as stream:
                         async for event in stream:
-                            if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+                            if isinstance(event, PartStartEvent) and isinstance(
+                                event.part, TextPart
+                            ):
                                 if thinking_step:
                                     thinking_step.output = ""
                                     await thinking_step.update()
                                     thinking_step = None
                                 if event.part.content:
                                     text_parts.append(event.part.content)
-                            elif isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+                            elif isinstance(event, PartDeltaEvent) and isinstance(
+                                event.delta, TextPartDelta
+                            ):
                                 if thinking_step:
                                     thinking_step.output = ""
                                     await thinking_step.update()
@@ -780,7 +794,10 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                 elif Agent.is_call_tools_node(node):
                     logger.info("Processing tool calls …")
                     try:
-                        async with asyncio.timeout(TOOL_CALL_TIMEOUT), node.stream(agent_run.ctx) as stream:
+                        async with (
+                            asyncio.timeout(TOOL_CALL_TIMEOUT),
+                            node.stream(agent_run.ctx) as stream,
+                        ):
                             async for event in stream:
                                 if isinstance(event, FunctionToolCallEvent):
                                     tool_name = event.part.tool_name
@@ -792,17 +809,27 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                         except (json.JSONDecodeError, TypeError):
                                             pass
 
-                                    logger.info("Tool call [%s]: %s(%s)", call_id, tool_name, tool_args)
+                                    logger.info(
+                                        "Tool call [%s]: %s(%s)", call_id, tool_name, tool_args
+                                    )
                                     if isinstance(tool_args, dict):
                                         for k, v in tool_args.items():
                                             vlen = len(str(v)) if v else 0
-                                            logger.info("  arg %s: %s (%d chars)", k, type(v).__name__, vlen)
+                                            logger.info(
+                                                "  arg %s: %s (%d chars)", k, type(v).__name__, vlen
+                                            )
                                     if tool_name == "load_model" and not tool_args:
-                                        logger.warning("load_model called with EMPTY args — model failed to compose YAML")
+                                        logger.warning(
+                                            "load_model called with EMPTY args — model failed to compose YAML"
+                                        )
 
-                                    step = cl.Step(name=tool_name, type="tool", parent_id=_run_step_id)
+                                    step = cl.Step(
+                                        name=tool_name, type="tool", parent_id=_run_step_id
+                                    )
                                     step.input = (
-                                        json.dumps(tool_args, indent=2) if isinstance(tool_args, dict) else str(tool_args)
+                                        json.dumps(tool_args, indent=2)
+                                        if isinstance(tool_args, dict)
+                                        else str(tool_args)
                                     )
                                     await step.send()
                                     tool_steps[call_id] = step
@@ -812,7 +839,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                     cl.user_session.set("active_tool_step_id", step.id)
 
                                 elif isinstance(event, FunctionToolResultEvent):
-                                    result_text, result_binaries = _split_tool_content(event.result.content)
+                                    result_text, result_binaries = _split_tool_content(
+                                        event.result.content
+                                    )
                                     result_content = result_text or str(event.result.content)
                                     call_id = event.result.tool_call_id
                                     logger.info(
@@ -823,8 +852,13 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                         result_content[:200],
                                     )
 
-                                    if any(phrase in result_content for phrase in _MCP_ERROR_PHRASES):
-                                        logger.warning("MCP session error detected in tool result — will reconnect: %s", result_content[:200])
+                                    if any(
+                                        phrase in result_content for phrase in _MCP_ERROR_PHRASES
+                                    ):
+                                        logger.warning(
+                                            "MCP session error detected in tool result — will reconnect: %s",
+                                            result_content[:200],
+                                        )
                                         step = tool_steps.pop(call_id, None)
                                         if step:
                                             step.output = result_content
@@ -839,7 +873,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                     step = tool_steps.pop(call_id, None)
                                     cl.user_session.set("active_tool_step_id", None)
                                     if step:
-                                        display_text = result_text or ("(image)" if result_binaries else "")
+                                        display_text = result_text or (
+                                            "(image)" if result_binaries else ""
+                                        )
                                         if len(display_text) > STEP_OUTPUT_LIMIT:
                                             step.output = (
                                                 display_text[:STEP_OUTPUT_LIMIT]
@@ -851,12 +887,14 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
 
                                     for binary in result_binaries:
                                         if binary.is_image:
-                                            fallback_images.append(cl.Image(
-                                                name="chart",
-                                                content=binary.data,
-                                                display="inline",
-                                                mime=binary.media_type,
-                                            ))
+                                            fallback_images.append(
+                                                cl.Image(
+                                                    name="chart",
+                                                    content=binary.data,
+                                                    display="inline",
+                                                    mime=binary.media_type,
+                                                )
+                                            )
                     except TimeoutError:
                         logger.warning("Tool call timed out after %ds", TOOL_CALL_TIMEOUT)
                         for call_id, step in list(tool_steps.items()):
@@ -888,13 +926,20 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
             try:
                 result_messages = agent_run.all_messages()
                 if agent_run.result is not None:
-                    logger.info("Agent run finished — %d messages in history.", len(result_messages))
+                    logger.info(
+                        "Agent run finished — %d messages in history.", len(result_messages)
+                    )
                 else:
-                    logger.info("Agent run incomplete — preserving %d messages in history.", len(result_messages))
+                    logger.info(
+                        "Agent run incomplete — preserving %d messages in history.",
+                        len(result_messages),
+                    )
             except Exception:
                 logger.warning("Agent run ended without recoverable history.")
 
-        logger.info("Agent context closed. needs_reconnect=%s, _retried=%s", needs_reconnect, _retried)
+        logger.info(
+            "Agent context closed. needs_reconnect=%s, _retried=%s", needs_reconnect, _retried
+        )
 
         if needs_reconnect:
             logger.info("Triggering full MCP reconnection …")
@@ -911,7 +956,8 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
             mcp_servers = [s for s in current_agent.toolsets if hasattr(s, "read_resource")]
             logger.info(
                 "Chart scan: %d messages, %d MCP servers with read_resource",
-                len(result_messages), len(mcp_servers),
+                len(result_messages),
+                len(mcp_servers),
             )
             for msg in result_messages:
                 for part in getattr(msg, "parts", []):
@@ -933,7 +979,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                             else:
                                 # All servers failed — likely stale session
                                 if not _retried:
-                                    logger.warning("Chart rendering failed on all servers — reconnecting and retrying")
+                                    logger.warning(
+                                        "Chart rendering failed on all servers — reconnecting and retrying"
+                                    )
                                     if await _reconnect_mcp():
                                         await on_message(message, _retried=True)
                                         return
