@@ -8,7 +8,7 @@
 # Run:    docker run --rm -p 8080:8080 --env-file .env orionbelt-chat
 # ───────────────────────────────────────────────────────────────────────────
 
-FROM python:3.14-slim AS base
+FROM python:3.13-slim AS base
 
 # uv binary, pulled from the official distroless image.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

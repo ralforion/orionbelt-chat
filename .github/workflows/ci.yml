@@ -35,9 +35,10 @@ jobs:
       # One version failing shouldn't mask the others' results.
       fail-fast: false
       matrix:
-        # Floor is pyproject's requires-python; 3.14 is what the Docker image
-        # runs, which previously went untested here.
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        # The full range pyproject's requires-python declares. 3.14 is excluded
+        # deliberately: Chainlit's static-file serving raises
+        # anyio.NoEventLoopError there, so the app cannot serve its UI.
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v7
 
@@ -55,3 +56,19 @@ jobs:
 
       - name: Test (pytest)
         run: uv run pytest
+
+      # pytest never starts the server, so a runtime-only failure to serve the
+      # UI passes every other check. Boot the app and fetch a static asset:
+      # "/" returns the shell even when assets 500, so probe an asset, not "/".
+      - name: Smoke (serve and fetch a static asset)
+        env:
+          OPENROUTER_API_KEY: sk-smoke-test-not-a-real-key
+        run: |
+          uv run chainlit run app.py --port 8765 --headless &
+          for _ in $(seq 1 30); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8765/ || true)" = "200" ] && break
+            sleep 2
+          done
+          status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8765/public/header.js || true)
+          echo "GET /public/header.js -> $status"
+          test "$status" = "200"

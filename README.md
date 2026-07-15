@@ -7,7 +7,7 @@
 
 <p align="center"><strong>AI-powered chat interface for OrionBelt Analytics & Semantic Layer</strong></p>
 
-[![Version](https://img.shields.io/badge/version-1.1.7-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
+[![Version](https://img.shields.io/badge/version-1.1.8-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
