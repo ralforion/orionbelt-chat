@@ -1,0 +1,49 @@
+name: Release
+
+# Create a GitHub Release when a version tag is pushed. The Docker image is
+# built separately by docker-publish.yml (also on v* tags); this workflow owns
+# the GitHub Release object, which tagging alone does NOT create.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # full history so --generate-notes can diff prior tag
+
+      # Enforce the "version bumped in three places" rule (CLAUDE.md) at the
+      # point it actually ships. A tag whose code disagrees with itself must
+      # not become a release.
+      - name: Verify version consistency
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pyproject=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/')
+          header=$(grep -m1 'var VERSION' public/header.js | sed -E 's/.*"v([^"]+)".*/\1/')
+          badge=$(grep -m1 'badge/version-' README.md | sed -E 's#.*badge/version-([0-9][0-9.]*)-.*#\1#')
+          echo "tag=$tag pyproject=$pyproject header=$header badge=$badge"
+          rc=0
+          [ "$pyproject" = "$tag" ] || { echo "::error file=pyproject.toml::version is '$pyproject', expected '$tag'"; rc=1; }
+          [ "$header"    = "$tag" ] || { echo "::error file=public/header.js::VERSION is '$header', expected '$tag'"; rc=1; }
+          [ "$badge"     = "$tag" ] || { echo "::error file=README.md::version badge is '$badge', expected '$tag'"; rc=1; }
+          exit $rc
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists — nothing to do."
+            exit 0
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            --latest
