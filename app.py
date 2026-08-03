@@ -47,6 +47,14 @@ logger.info("OrionBelt Chat v%s starting up", _APP_VERSION)
 STEP_OUTPUT_LIMIT = 10_000
 TOOL_CALL_TIMEOUT = settings.tool_call_timeout_seconds
 
+# EU AI Act Art. 50(1): a natural person interacting with an AI system must be
+# informed of that fact at the time of the first interaction.  Kept as a
+# constant so the UI, the welcome screen and the tests all state it identically.
+AI_DISCLOSURE = (
+    "You are interacting with an AI assistant. "
+    "Responses may contain errors and should be verified where appropriate."
+)
+
 
 def _split_tool_content(raw) -> tuple[str, list[BinaryContent]]:
     """Split tool return content into a text string and binary parts.
@@ -126,6 +134,11 @@ async def on_start():
     """
     # Show settings panel
     await cl.ChatSettings(build_chat_settings()).send()
+
+    # AI Act Art. 50(1) disclosure — sent before any agent work so it reaches
+    # the user at the time of first interaction even when the agent or its
+    # MCP servers fail to come up and no ready message follows.
+    await cl.Message(content=AI_DISCLOSURE, author="System").send()
 
     # Read initial values
     provider = settings.default_provider

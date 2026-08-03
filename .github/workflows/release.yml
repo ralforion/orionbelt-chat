@@ -18,9 +18,10 @@ jobs:
         with:
           fetch-depth: 0  # full history so --generate-notes can diff prior tag
 
-      # Enforce the "version bumped in three places" rule (CLAUDE.md) at the
-      # point it actually ships. A tag whose code disagrees with itself must
-      # not become a release.
+      # Enforce the version-bump rule (CLAUDE.md) at the point it actually
+      # ships. A tag whose code disagrees with itself must not become a
+      # release. uv.lock is the fourth place, but it is already guarded by
+      # CI's `uv sync --frozen`, so it is not re-checked here.
       - name: Verify version consistency
         run: |
           tag="${GITHUB_REF_NAME#v}"

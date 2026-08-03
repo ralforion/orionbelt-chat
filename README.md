@@ -7,7 +7,7 @@
 
 <p align="center"><strong>AI-powered chat interface for OrionBelt Analytics & Semantic Layer</strong></p>
 
-[![Version](https://img.shields.io/badge/version-1.1.8-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
+[![Version](https://img.shields.io/badge/version-1.2.0-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
@@ -418,6 +418,21 @@ The app starts even when some servers are unreachable — it will show which con
 - Verify tool calls are completing successfully (expand steps in the UI)
 - Increase timeout settings if using slow local models
 - Check the server console for detailed logs (each node transition is logged)
+
+## AI Transparency
+
+OrionBelt Chat is an AI system. Under **Article 50(1) of the EU AI Act**, users
+must be told they are interacting with an AI unless it is obvious from the
+context. The app discloses this in three places:
+
+- **UI chrome** — the assistant is named "OrionBelt Chat – AI Assistant"
+  (`.chainlit/config.toml`, `public/header.js`)
+- **Welcome screen** — the notice in [`chainlit.md`](./chainlit.md)
+- **First interaction** — a message sent at the start of every session, before
+  any agent work, so it appears even when the agent or its MCP servers fail to
+  start (`AI_DISCLOSURE` in [`app.py`](./app.py))
+
+`tests/test_ai_disclosure.py` pins all three so a UI change cannot drop them.
 
 ## License
 
