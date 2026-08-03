@@ -12,6 +12,7 @@ import struct
 import zlib
 from pathlib import Path
 from unittest.mock import MagicMock
+from xml.etree import ElementTree
 
 import pytest
 
@@ -149,6 +150,13 @@ class TestPngMarking:
         end = struct.pack(">I", 0) + b"IEND" + struct.pack(">I", zlib.crc32(b"IEND"))
         return b"\x89PNG\r\n\x1a\n" + chunk + end
 
+    @classmethod
+    def _with_xmp(cls, packet: str) -> bytes:
+        """A PNG already carrying the given XMP packet, as a tool might emit."""
+        png = cls._minimal_png()
+        at = provenance._after_ihdr(png)
+        return png[:at] + provenance._itxt_chunk(packet) + png[at:]
+
     def test_embeds_an_xmp_packet(self, record):
         marked = provenance.mark_png(self._minimal_png(), record)
         assert b"XML:com.adobe.xmp" in marked
@@ -180,6 +188,55 @@ class TestPngMarking:
     def test_marking_is_idempotent(self, record):
         once = provenance.mark_png(self._minimal_png(), record)
         assert provenance.mark_png(once, record) == once
+
+    def test_unrelated_existing_xmp_still_gets_marked(self, record):
+        # A tool may emit a PNG carrying its own metadata.  Treating any XMP
+        # as "already marked" would leave such images unmarked.
+        png = self._with_xmp(
+            '<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>'
+            '<x:xmpmeta xmlns:x="adobe:ns:meta/">'
+            '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+            '<rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/"'
+            ' tiff:Make="ACME Charts"/>'
+            '</rdf:RDF></x:xmpmeta><?xpacket end="w"?>'
+        )
+        marked = provenance.mark_png(png, record)
+        assert b"trainedAlgorithmicMedia" in marked
+
+    def test_merging_preserves_the_existing_metadata(self, record):
+        png = self._with_xmp(
+            '<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>'
+            '<x:xmpmeta xmlns:x="adobe:ns:meta/">'
+            '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+            '<rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/"'
+            ' tiff:Make="ACME Charts"/>'
+            '</rdf:RDF></x:xmpmeta><?xpacket end="w"?>'
+        )
+        marked = provenance.mark_png(png, record)
+        assert b"ACME Charts" in marked
+        # PNG allows one XMP packet; a second chunk would be ignored by readers.
+        assert marked.count(b"XML:com.adobe.xmp") == 1
+        assert marked.count(b"</rdf:RDF>") == 1
+
+    def test_merged_packet_is_well_formed_xml(self, record):
+        png = self._with_xmp(
+            '<x:xmpmeta xmlns:x="adobe:ns:meta/">'
+            '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+            '<rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/"'
+            ' tiff:Make="ACME Charts"/>'
+            "</rdf:RDF></x:xmpmeta>"
+        )
+        marked = provenance.mark_png(png, record)
+        start = marked.index(b"<x:xmpmeta")
+        end = marked.index(b"</x:xmpmeta>") + len(b"</x:xmpmeta>")
+        ElementTree.fromstring(marked[start:end].decode())  # raises if malformed
+
+    def test_unreadable_existing_xmp_is_marked_anyway(self, record):
+        # Ours goes first; readers take the first packet they find.
+        png = self._with_xmp("not an xmp packet at all")
+        marked = provenance.mark_png(png, record)
+        assert b"trainedAlgorithmicMedia" in marked
+        assert marked.index(b"trainedAlgorithmicMedia") < marked.index(b"not an xmp packet")
 
 
 class TestChartMarking:

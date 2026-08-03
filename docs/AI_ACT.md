@@ -84,9 +84,18 @@ the frontend receives, but Plotly's modebar PNG export is entirely client-side
 and drops it. The visible caption is the only marking that survives that
 export path.
 
-**PNG XMP is written by hand.** A `iTXt` chunk with the `XML:com.adobe.xmp`
-keyword is ~30 lines of `struct` and `zlib`, so image marking adds no runtime
-dependency. Marking is idempotent — an already-marked PNG is returned as-is.
+**PNG XMP is written by hand.** An `iTXt` chunk with the `XML:com.adobe.xmp`
+keyword is a short amount of `struct` and `zlib`, so image marking adds no
+runtime dependency.
+
+Idempotence keys off the AI marker (`trainedAlgorithmicMedia`), **not** off the
+presence of XMP: a tool may emit a chart PNG that already carries unrelated
+metadata, and treating any XMP as "already marked" would leave such images
+unmarked. When an unrelated packet is present the marking is merged into it,
+because PNG permits only one XMP packet and a second chunk would be ignored by
+readers. If the existing packet cannot be parsed, ours is written first —
+readers take the first packet they find, so marking never depends on metadata
+we did not write being well-formed.
 
 **DOM markers are a supplement, not the primary mechanism.** They make the
 rendered page machine-inspectable, but they do not survive copy-paste. Content

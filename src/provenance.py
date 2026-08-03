@@ -167,8 +167,8 @@ def _mark_json(content: str, ext: str, record: dict) -> str:
     return json.dumps(doc, indent=2)
 
 
-def xmp_packet(record: dict) -> str:
-    """Build an XMP packet asserting the content is model-generated.
+def rdf_description(record: dict) -> str:
+    """The RDF statement carrying the marking, for embedding in an XMP packet.
 
     Record values reach the packet as XML attributes, so they are escaped —
     a model or producer name is free text and must not be able to break the
@@ -179,9 +179,6 @@ def xmp_packet(record: dict) -> str:
     source_type = escape(record["digitalSourceType"], quote=True)
     created = escape(record["generatedAt"], quote=True)
     return (
-        '<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>'
-        '<x:xmpmeta xmlns:x="adobe:ns:meta/">'
-        '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
         '<rdf:Description rdf:about=""'
         ' xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/"'
         ' xmlns:xmp="http://ns.adobe.com/xap/1.0/"'
@@ -192,42 +189,117 @@ def xmp_packet(record: dict) -> str:
         f' dc:creator="{model}">'
         f'<dc:description><rdf:Alt><rdf:li xml:lang="x-default">{NOTICE}'
         "</rdf:li></rdf:Alt></dc:description>"
-        "</rdf:Description></rdf:RDF></x:xmpmeta>"
+        "</rdf:Description>"
+    )
+
+
+def xmp_packet(record: dict) -> str:
+    """Build a standalone XMP packet asserting the content is model-generated."""
+    return (
+        '<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>'
+        '<x:xmpmeta xmlns:x="adobe:ns:meta/">'
+        '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+        f"{rdf_description(record)}"
+        "</rdf:RDF></x:xmpmeta>"
         '<?xpacket end="w"?>'
     )
 
 
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _XMP_KEYWORD = b"XML:com.adobe.xmp"
+# Idempotence keys off the marking itself, not off the presence of XMP — a
+# PNG may already carry unrelated metadata and still need marking.
+_AI_SOURCE_MARKER = b"trainedAlgorithmicMedia"
+_RDF_CLOSE = "</rdf:RDF>"
 
 
 def mark_png(data: bytes, record: dict) -> bytes:
-    """Return the PNG with an XMP iTXt chunk describing its provenance.
+    """Return the PNG with an XMP packet describing its provenance.
 
-    Non-PNG bytes and PNGs that already carry an XMP packet are returned
+    A PNG that already carries unrelated XMP has the marking merged into that
+    packet — PNG allows only one XMP packet, so a second chunk would simply be
+    ignored by readers.  Non-PNG bytes and already-marked PNGs are returned
     unchanged.  Written by hand rather than via an imaging library so the
     marking adds no runtime dependency.
     """
     if not data.startswith(_PNG_SIGNATURE):
         return data
-    if _XMP_KEYWORD in data:
+    if _AI_SOURCE_MARKER in data:
         return data
 
-    # Chunk layout after the signature: length(4) type(4) payload crc(4).
-    # IHDR must come first, so the XMP chunk is inserted directly after it.
-    ihdr_len = struct.unpack(">I", data[8:12])[0]
-    insert_at = 8 + 12 + ihdr_len
+    existing = _find_xmp_chunk(data)
+    if existing is not None:
+        start, end, packet = existing
+        if packet is not None and _RDF_CLOSE in packet:
+            merged = packet.replace(_RDF_CLOSE, rdf_description(record) + _RDF_CLOSE, 1)
+            return data[:start] + _itxt_chunk(merged) + data[end:]
+        # Unreadable or malformed packet: place ours first, since readers take
+        # the first packet they find.  Marking must not depend on metadata we
+        # did not write being well-formed.
+        logger.warning("PNG carries an unreadable XMP packet; prepending our own")
 
+    return data[: _after_ihdr(data)] + _itxt_chunk(xmp_packet(record)) + data[_after_ihdr(data) :]
+
+
+def _after_ihdr(data: bytes) -> int:
+    """Offset just past IHDR, which the spec requires to be the first chunk."""
+    # Chunk layout after the signature: length(4) type(4) payload crc(4).
+    return 8 + 12 + struct.unpack(">I", data[8:12])[0]
+
+
+def _itxt_chunk(text: str) -> bytes:
+    """Build an uncompressed iTXt chunk holding an XMP packet."""
     # iTXt payload: keyword\0 compression_flag compression_method
     #               language_tag\0 translated_keyword\0 text
-    payload = _XMP_KEYWORD + b"\x00\x00\x00\x00\x00" + xmp_packet(record).encode("utf-8")
-    chunk = (
+    payload = _XMP_KEYWORD + b"\x00\x00\x00\x00\x00" + text.encode("utf-8")
+    return (
         struct.pack(">I", len(payload))
         + b"iTXt"
         + payload
         + struct.pack(">I", zlib.crc32(b"iTXt" + payload) & 0xFFFFFFFF)
     )
-    return data[:insert_at] + chunk + data[insert_at:]
+
+
+def _find_xmp_chunk(data: bytes) -> tuple[int, int, str | None] | None:
+    """Locate the XMP iTXt chunk: ``(start, end, packet)``, or None if absent.
+
+    ``packet`` is None when the chunk exists but cannot be decoded.
+    """
+    pos = len(_PNG_SIGNATURE)
+    while pos + 12 <= len(data):
+        length = struct.unpack(">I", data[pos : pos + 4])[0]
+        end = pos + 12 + length
+        if end > len(data):
+            return None
+        if data[pos + 4 : pos + 8] == b"iTXt":
+            payload = data[pos + 8 : pos + 8 + length]
+            if payload.startswith(_XMP_KEYWORD + b"\x00"):
+                return pos, end, _itxt_text(payload)
+        pos = end
+    return None
+
+
+def _itxt_text(payload: bytes) -> str | None:
+    """Decode the text field of an iTXt payload, or None if it is unreadable."""
+    rest = payload[len(_XMP_KEYWORD) + 1 :]
+    if len(rest) < 2:
+        return None
+    compressed = rest[0]
+    # Skip the compression method byte, then the language and translated
+    # keyword fields, both null-terminated.
+    fields = rest[2:].split(b"\x00", 2)
+    if len(fields) < 3:
+        return None
+    text = fields[2]
+    if compressed:
+        try:
+            text = zlib.decompress(text)
+        except zlib.error:
+            return None
+    try:
+        return text.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
 
 
 def mark_figure(fig: dict, record: dict) -> None:
