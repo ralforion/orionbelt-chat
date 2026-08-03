@@ -4,11 +4,13 @@ import asyncio
 import copy
 import json
 import logging
-from importlib.metadata import PackageNotFoundError, version as _pkg_version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 
 import chainlit as cl
 from chainlit.context import local_steps
 from chainlit.input_widget import Select, TextInput
+from mcp.types import ErrorData
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import (
@@ -20,8 +22,6 @@ from pydantic_ai.messages import (
     TextPart,
     TextPartDelta,
 )
-
-from mcp.types import ErrorData
 
 from src.agent import make_agent
 from src.chart_renderer import UI_URI_PATTERN, render_chart_if_present
