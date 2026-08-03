@@ -94,8 +94,9 @@ reaction_on_message_received = false
     allowed_executables = [ "npx", "uvx" ]
 
 [UI]
-# Name of the assistant.
-name = "OrionBelt Chat"
+# Name of the assistant. The "AI Assistant" suffix is the EU AI Act Art. 50(1)
+# disclosure surfaced in the UI chrome — keep it.
+name = "OrionBelt Chat – AI Assistant"
 
 default_theme = "light"
 layout = "wide"
@@ -116,7 +117,7 @@ language = "en-US"
 confirm_new_chat = true
 
 # Description of the assistant. This is used for HTML tags.
-# description = ""
+description = "AI assistant for OrionBelt Analytics. You are interacting with an AI system; responses may contain errors."
 
 # Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full".
 cot = "full"

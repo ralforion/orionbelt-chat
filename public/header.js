@@ -30,7 +30,10 @@
   var VERSION = "v1.1.8";
   var LOGO_DARK = "/public/logo_w.png";
   var LOGO_LIGHT = "/public/logo.png";
-  var APP_NAME = "Chat";
+  // Rendered next to the OrionBelt wordmark, so this reads
+  // "OrionBelt Chat – AI Assistant". The suffix is the AI Act Art. 50(1)
+  // disclosure in the UI chrome — keep it.
+  var APP_NAME = "Chat – AI Assistant";
 
   function insert() {
     if (document.querySelector(".orionbelt-header-brand")) return true;

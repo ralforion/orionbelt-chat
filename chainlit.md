@@ -1,5 +1,8 @@
 # OrionBelt® Analytics Assistant
 
+> **You are interacting with an AI assistant.** Responses may contain errors
+> and should be verified where appropriate.
+
 Ask questions about your data in natural language.
 
 **Connected tools:**

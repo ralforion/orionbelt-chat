@@ -419,6 +419,21 @@ The app starts even when some servers are unreachable — it will show which con
 - Increase timeout settings if using slow local models
 - Check the server console for detailed logs (each node transition is logged)
 
+## AI Transparency
+
+OrionBelt Chat is an AI system. Under **Article 50(1) of the EU AI Act**, users
+must be told they are interacting with an AI unless it is obvious from the
+context. The app discloses this in three places:
+
+- **UI chrome** — the assistant is named "OrionBelt Chat – AI Assistant"
+  (`.chainlit/config.toml`, `public/header.js`)
+- **Welcome screen** — the notice in [`chainlit.md`](./chainlit.md)
+- **First interaction** — a message sent at the start of every session, before
+  any agent work, so it appears even when the agent or its MCP servers fail to
+  start (`AI_DISCLOSURE` in [`app.py`](./app.py))
+
+`tests/test_ai_disclosure.py` pins all three so a UI change cannot drop them.
+
 ## License
 
 Licensed under the **Business Source License 1.1** (BSL 1.1).
