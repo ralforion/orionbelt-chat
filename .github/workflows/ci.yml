@@ -22,11 +22,13 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --extra dev
 
+      # Whole tree, not just src/ tests/ — app.py lives at the root and was
+      # going unchecked.
       - name: Lint (ruff)
-        run: uv run ruff check src/ tests/
+        run: uv run ruff check .
 
       - name: Format check (ruff)
-        run: uv run ruff format --check src/ tests/
+        run: uv run ruff format --check .
 
   test:
     name: test (py${{ matrix.python-version }})
