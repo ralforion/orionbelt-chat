@@ -27,7 +27,7 @@
 
 // Inject OrionBelt logo, app name, and version badge into the Chainlit header
 (function injectHeader() {
-  var VERSION = "v1.2.0";
+  var VERSION = "v1.3.0";
   var LOGO_DARK = "/public/logo_w.png";
   var LOGO_LIGHT = "/public/logo.png";
   // Rendered next to the OrionBelt wordmark, so this reads
@@ -409,4 +409,43 @@
       }
     }
   }, true);
+})();
+
+// EU AI Act Art. 50(2): mark model-authored output in the DOM so the rendered
+// page is machine-inspectable. This is a supplement, not the primary marking —
+// it does not survive copy-paste, so payloads that leave the app are marked
+// in-band instead (src/provenance.py).
+(function markGeneratedContent() {
+  var SOURCE_TYPE = "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia";
+
+  function tagDocument() {
+    if (document.querySelector('meta[name="ai-generated"]')) return;
+    var flag = document.createElement("meta");
+    flag.name = "ai-generated";
+    flag.content = "true";
+    document.head.appendChild(flag);
+
+    var source = document.createElement("meta");
+    source.name = "digital-source-type";
+    source.content = SOURCE_TYPE;
+    document.head.appendChild(source);
+  }
+
+  // Chainlit tags every rendered step with its type; everything that is not a
+  // user message is produced by the model or its tools.
+  function tagMessages() {
+    document.querySelectorAll("[data-step-type]").forEach(function (el) {
+      if (el.getAttribute("data-step-type") === "user_message") return;
+      if (el.dataset.aiGenerated === "true") return;
+      el.dataset.aiGenerated = "true";
+      el.dataset.digitalSourceType = SOURCE_TYPE;
+    });
+  }
+
+  tagDocument();
+  tagMessages();
+  new MutationObserver(tagMessages).observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
 })();

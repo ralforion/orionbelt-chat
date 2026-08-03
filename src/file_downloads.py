@@ -2,12 +2,18 @@
 
 Scans LLM response code blocks and MCP tool results for content that
 can be offered as file downloads (TTL ontologies, JSON, CSV, SQL, etc.).
+
+Every file produced here carries an AI Act Art. 50(2) provenance marking —
+in-band for formats with a comment or metadata slot, as a ``.prov.json``
+sidecar for CSV/TSV.  See src/provenance.py.
 """
 
 import logging
 import re
 
 import chainlit as cl
+
+from src.provenance import mark_text, needs_sidecar, provenance_record, sidecar_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -44,9 +50,17 @@ MIN_DOWNLOAD_SIZE = 200
 _CODE_BLOCK_RE = re.compile(r"```(\w+)\s*\n(.*?)```", re.DOTALL)
 
 
-def extract_downloads_from_response(response_text: str) -> list[cl.File]:
-    """Extract fenced code blocks with known file types as downloadable File elements."""
+def extract_downloads_from_response(
+    response_text: str, record: dict | None = None
+) -> list[cl.File]:
+    """Extract fenced code blocks with known file types as downloadable File elements.
+
+    ``record`` is the provenance marking to embed.  Callers that emit several
+    batches for one turn should build it once and share it, so identical
+    payloads mark identically and stay deduplicable.
+    """
     files: list[cl.File] = []
+    record = record or provenance_record()
     seen = 0
     for match in _CODE_BLOCK_RE.finditer(response_text):
         lang = match.group(1).lower()
@@ -61,20 +75,21 @@ def extract_downloads_from_response(response_text: str) -> list[cl.File]:
         seen += 1
         name = f"download{ext}" if seen == 1 else f"download_{seen}{ext}"
 
-        files.append(
-            cl.File(name=name, content=content.encode("utf-8"), mime=mime, display="inline")
-        )
+        files.extend(_marked_files(name, ext, mime, content, record))
         logger.info("Download from code block: %s (%d chars, %s)", name, len(content), lang)
 
     return files
 
 
-def extract_downloads_from_tool_results(result_messages: list) -> list[cl.File]:
+def extract_downloads_from_tool_results(
+    result_messages: list, record: dict | None = None
+) -> list[cl.File]:
     """Scan tool return parts for content that looks like a downloadable file.
 
     Handles both bare strings and dicts (e.g. ``{'success': True, 'content': '...'}``).
     """
     files: list[cl.File] = []
+    record = record or provenance_record()
     seen = 0
     for msg in result_messages:
         for part in getattr(msg, "parts", []):
@@ -95,12 +110,31 @@ def extract_downloads_from_tool_results(result_messages: list) -> list[cl.File]:
             tool_name = getattr(part, "tool_name", "download")
             name = f"{tool_name}{ext}" if seen == 1 else f"{tool_name}_{seen}{ext}"
 
-            files.append(
-                cl.File(name=name, content=text.encode("utf-8"), mime=mime, display="inline")
-            )
+            files.extend(_marked_files(name, ext, mime, text, record))
             logger.info("Download from tool result: %s (%d chars, %s)", name, len(text), tool_name)
 
     return files
+
+
+def _marked_files(name: str, ext: str, mime: str, content: str, record: dict) -> list[cl.File]:
+    """Build the download element(s) for one payload, carrying its provenance.
+
+    Formats without a safe comment syntax (CSV/TSV) get a second file holding
+    the record, so the marking never risks corrupting the payload itself.
+    """
+    if needs_sidecar(ext):
+        return [
+            cl.File(name=name, content=content.encode("utf-8"), mime=mime, display="inline"),
+            cl.File(
+                name=f"{name}.prov.json",
+                content=sidecar_bytes(record, name),
+                mime="application/json",
+                display="inline",
+            ),
+        ]
+
+    marked = mark_text(content, ext, record)
+    return [cl.File(name=name, content=marked.encode("utf-8"), mime=mime, display="inline")]
 
 
 def _extract_text(raw) -> str | None:

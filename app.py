@@ -4,8 +4,6 @@ import asyncio
 import copy
 import json
 import logging
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _pkg_version
 
 import chainlit as cl
 from chainlit.context import local_steps
@@ -29,16 +27,13 @@ from src.file_downloads import extract_downloads_from_response, extract_download
 from src.mcp_sampling import get_sampling_callback, set_sampling_callback
 from src.mcp_servers import SERVERS_USING_SAMPLING, get_mcp_servers_named, get_sampling_model_label
 from src.mermaid_renderer import extract_mermaid_from_tool_results
+from src.provenance import APP_VERSION, mark_png, provenance_record
 from src.providers import PROVIDER_LABELS, default_model_for, models_for
 from src.settings import settings
 
 logger = logging.getLogger(__name__)
 
-try:
-    _APP_VERSION = _pkg_version("orionbelt-chat")
-except PackageNotFoundError:
-    _APP_VERSION = "unknown"
-logger.info("OrionBelt Chat v%s starting up", _APP_VERSION)
+logger.info("OrionBelt Chat v%s starting up", APP_VERSION)
 
 # Maximum characters to display in a Chainlit tool-call step output.
 # Large MCP tool responses (e.g. SQL query results with many rows) can
@@ -54,6 +49,19 @@ AI_DISCLOSURE = (
     "You are interacting with an AI assistant. "
     "Responses may contain errors and should be verified where appropriate."
 )
+
+
+def _current_model_label() -> str | None:
+    """``provider/model`` for the active session, for provenance marking.
+
+    Returns None outside a session (or before the model is chosen) so the
+    record simply omits the field rather than naming a wrong model.
+    """
+    provider = cl.user_session.get("provider")
+    model = cl.user_session.get("model")
+    if not provider or not model:
+        return None
+    return f"{provider}/{model}"
 
 
 def _split_tool_content(raw) -> tuple[str, list[BinaryContent]]:
@@ -728,6 +736,10 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
     chart_elements: list = []
     fallback_images: list = []
     needs_reconnect = False
+    # AI Act Art. 50(2): one provenance record per turn, shared by every
+    # output channel so the same payload always marks identically (the
+    # download dedup below compares marked bytes).
+    provenance = provenance_record(_current_model_label())
     response_msg = cl.Message(content="")
     response_sent = False
     tool_steps: dict[str, cl.Step] = {}  # tool_call_id → Step
@@ -903,7 +915,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                             fallback_images.append(
                                                 cl.Image(
                                                     name="chart",
-                                                    content=binary.data,
+                                                    content=mark_png(binary.data, provenance),
                                                     display="inline",
                                                     mime=binary.media_type,
                                                 )
@@ -985,7 +997,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                         )
                         if UI_URI_PATTERN.search(content):
                             for server in mcp_servers:
-                                chart_el = await render_chart_if_present(content, server)
+                                chart_el = await render_chart_if_present(
+                                    content, server, provenance
+                                )
                                 if chart_el:
                                     chart_elements.append(chart_el)
                                     break
@@ -1006,9 +1020,11 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
         response_msg.content = "".join(text_parts)
 
         # Attach downloadable files from code blocks in the response
-        download_elements = extract_downloads_from_response(response_msg.content)
+        download_elements = extract_downloads_from_response(response_msg.content, provenance)
         if result_messages:
-            download_elements.extend(extract_downloads_from_tool_results(result_messages))
+            download_elements.extend(
+                extract_downloads_from_tool_results(result_messages, provenance)
+            )
         if download_elements:
             # Deduplicate by content (code block and tool result may overlap)
             seen_content: set[bytes] = set()
