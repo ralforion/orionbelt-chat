@@ -45,6 +45,13 @@ TRAINED_ALGORITHMIC_MEDIA = "http://cv.iptc.org/newscodes/digitalsourcetype/trai
 # Human-readable half of the marking, kept identical across every channel.
 NOTICE = "AI-generated content"
 
+# JSON-LD marking uses the absolute PROV IRI as its key rather than a compact
+# ``prov:`` term.  A compact term would depend on the document's ``@context``,
+# which may be a dict, a string, a list, absent, or already bind ``prov`` to
+# some other namespace — an absolute IRI expands identically under all of them
+# and requires no edit to a context we did not author.
+_PROV_WAS_GENERATED_BY = "http://www.w3.org/ns/prov#wasGeneratedBy"
+
 # Comment syntax per file extension.  Extensions absent here have no comment
 # form that is safe to inject (CSV/TSV) or need structural marking (JSON).
 _LINE_COMMENT: dict[str, str] = {
@@ -158,12 +165,7 @@ def _mark_json(content: str, ext: str, record: dict) -> str:
     if not isinstance(doc, dict):
         return content
 
-    if ext == ".jsonld" and isinstance(doc.get("@context"), dict):
-        doc["@context"].setdefault("prov", "http://www.w3.org/ns/prov#")
-        doc["prov:wasGeneratedBy"] = record
-    else:
-        doc["_provenance"] = record
-
+    doc[_PROV_WAS_GENERATED_BY if ext == ".jsonld" else "_provenance"] = record
     return json.dumps(doc, indent=2)
 
 

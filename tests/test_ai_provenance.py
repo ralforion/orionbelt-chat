@@ -29,6 +29,8 @@ REPO_ROOT = Path(app.__file__).resolve().parent
 # Comfortably over MIN_DOWNLOAD_SIZE so the extractors emit a file.
 PADDING = "x" * 250
 
+PROV_GENERATED_BY = "http://www.w3.org/ns/prov#wasGeneratedBy"
+
 
 @pytest.fixture(autouse=True)
 def _mock_chainlit_context():
@@ -121,11 +123,37 @@ class TestJsonMarking:
         assert marked["_provenance"]["aiGenerated"] is True
         assert marked["a"] == 1
 
-    def test_json_ld_uses_the_prov_vocabulary(self, record):
-        doc = '{"@context": {"ex": "http://e/"}, "ex:name": "n"}'
+    @pytest.mark.parametrize(
+        ("label", "context"),
+        [
+            ("dict", '{"ex": "http://e/"}'),
+            ("string", '"https://schema.org"'),
+            ("list", '["https://schema.org", {"ex": "http://e/"}]'),
+        ],
+    )
+    def test_json_ld_marker_survives_every_context_form(self, label, context, record):
+        # A compact prov: term would only expand correctly under a dict
+        # context; the absolute IRI expands identically under all of them.
+        doc = f'{{"@context": {context}, "name": "n"}}'
         marked = json.loads(provenance.mark_text(doc, ".jsonld", record))
-        assert marked["@context"]["prov"] == "http://www.w3.org/ns/prov#"
-        assert marked["prov:wasGeneratedBy"]["aiGenerated"] is True
+        assert marked[PROV_GENERATED_BY]["aiGenerated"] is True
+
+    def test_json_ld_marker_survives_a_missing_context(self, record):
+        marked = json.loads(provenance.mark_text('{"name": "n"}', ".jsonld", record))
+        assert marked[PROV_GENERATED_BY]["aiGenerated"] is True
+
+    def test_json_ld_context_is_left_untouched(self, record):
+        doc = '{"@context": {"ex": "http://e/"}, "name": "n"}'
+        marked = json.loads(provenance.mark_text(doc, ".jsonld", record))
+        assert marked["@context"] == {"ex": "http://e/"}
+
+    def test_json_ld_marker_ignores_a_conflicting_prov_prefix(self, record):
+        # Binding prov: elsewhere would silently expand a compact term to the
+        # wrong IRI.  The absolute key cannot be rebound.
+        doc = '{"@context": {"prov": "http://example.invalid/not-prov#"}, "name": "n"}'
+        marked = json.loads(provenance.mark_text(doc, ".jsonld", record))
+        assert marked[PROV_GENERATED_BY]["aiGenerated"] is True
+        assert marked["@context"]["prov"] == "http://example.invalid/not-prov#"
 
     def test_array_document_is_not_reshaped(self, record):
         # Wrapping a top-level array would change how consumers parse it.

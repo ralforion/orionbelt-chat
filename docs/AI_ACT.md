@@ -59,7 +59,7 @@ and timestamp.
 | SQL downloads | `--` comment header | `mark_text` |
 | XML, RDF downloads | XML comment, after the declaration | `_mark_xml` |
 | JSON downloads | `_provenance` object | `_mark_json` |
-| JSON-LD downloads | `prov:wasGeneratedBy`, with the `prov` prefix added to `@context` | `_mark_json` |
+| JSON-LD downloads | `http://www.w3.org/ns/prov#wasGeneratedBy` | `_mark_json` |
 | CSV, TSV downloads | adjacent `.prov.json` sidecar | `_marked_files` |
 | PNG images from tools | XMP packet in an `iTXt` chunk | `mark_png` |
 | Plotly charts | figure `meta` block plus a visible caption | `mark_figure` |
@@ -78,6 +78,14 @@ construct in a document.
 
 **CSV and TSV get a sidecar, not a header.** A leading `#` line breaks strict
 CSV parsers. Marking a data file by making it unreadable is not "effective".
+
+**JSON-LD is marked with an absolute IRI, not a compact `prov:` term.** A
+compact term only expands correctly when `@context` is a mapping, and a
+JSON-LD context may equally be a remote URL string, a list, absent entirely, or
+already bind `prov` to a different namespace — in which case a compact term
+expands to the wrong IRI, silently. The absolute IRI expands identically under
+all of them and requires no edit to a context this app did not author.
+Confirmed by expanding each context form with a JSON-LD processor.
 
 **Charts are marked twice.** The `meta` block rides along in the figure JSON
 the frontend receives, but Plotly's modebar PNG export is entirely client-side

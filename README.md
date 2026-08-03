@@ -441,7 +441,8 @@ provenance record built in [`src/provenance.py`](./src/provenance.py), using the
 IPTC `digitalSourceType` term `trainedAlgorithmicMedia`:
 
 - **Downloads** — comment header for TTL/SPARQL/SQL/YAML/XML, a `_provenance`
-  key for JSON, `prov:wasGeneratedBy` for JSON-LD
+  key for JSON, and the absolute PROV IRI `…prov#wasGeneratedBy` for JSON-LD,
+  which expands correctly whatever form the document's `@context` takes
 - **CSV/TSV** — an adjacent `.prov.json` sidecar, since a comment line would
   break strict parsers
 - **Images** — an XMP packet embedded in the PNG, no extra dependency
