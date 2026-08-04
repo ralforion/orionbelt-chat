@@ -7,7 +7,7 @@
 
 <p align="center"><strong>AI-powered chat interface for OrionBelt Analytics & Semantic Layer</strong></p>
 
-[![Version](https://img.shields.io/badge/version-1.2.0-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
+[![Version](https://img.shields.io/badge/version-1.3.0-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
@@ -421,9 +421,11 @@ The app starts even when some servers are unreachable — it will show which con
 
 ## AI Transparency
 
-OrionBelt Chat is an AI system. Under **Article 50(1) of the EU AI Act**, users
-must be told they are interacting with an AI unless it is obvious from the
-context. The app discloses this in three places:
+OrionBelt Chat is an AI system, and meets both transparency obligations of
+**Article 50 of the EU AI Act** out of the box. Full reasoning, including who
+carries responsibility when you self-host, is in [docs/AI_ACT.md](./docs/AI_ACT.md).
+
+### Art. 50(1) — you are told it is an AI
 
 - **UI chrome** — the assistant is named "OrionBelt Chat – AI Assistant"
   (`.chainlit/config.toml`, `public/header.js`)
@@ -432,7 +434,28 @@ context. The app discloses this in three places:
   any agent work, so it appears even when the agent or its MCP servers fail to
   start (`AI_DISCLOSURE` in [`app.py`](./app.py))
 
-`tests/test_ai_disclosure.py` pins all three so a UI change cannot drop them.
+### Art. 50(2) — generated output is marked
+
+Every channel by which content leaves the app carries a machine-readable
+provenance record built in [`src/provenance.py`](./src/provenance.py), using the
+IPTC `digitalSourceType` term `trainedAlgorithmicMedia`:
+
+- **Downloads** — comment header for TTL/SPARQL/SQL/YAML/XML, a `_provenance`
+  key for JSON, and the absolute PROV IRI `…prov#wasGeneratedBy` for JSON-LD,
+  which expands correctly whatever form the document's `@context` takes
+- **CSV/TSV** — an adjacent `.prov.json` sidecar, since a comment line would
+  break strict parsers
+- **Images** — an XMP packet embedded in the PNG, no extra dependency
+- **Charts** — a Plotly `meta` block plus a visible caption, which is the only
+  marking that survives the modebar's client-side PNG export
+- **Rendered page** — `<meta name="ai-generated">` and `data-ai-generated`
+  attributes on non-user steps
+
+Marking is never applied where it would corrupt the payload, and C2PA signing
+is left to deployers with their own certificate — no signing key ships here.
+
+`tests/test_ai_disclosure.py` and `tests/test_ai_provenance.py` pin every
+channel so a refactor cannot silently drop the marking.
 
 ## License
 

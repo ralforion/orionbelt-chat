@@ -12,6 +12,8 @@ from typing import ClassVar
 from chainlit.element import Element, ElementType
 from pydantic.dataclasses import dataclass
 
+from src.provenance import mark_figure, provenance_record
+
 logger = logging.getLogger(__name__)
 
 UI_URI_PATTERN = re.compile(r"ui://[^\s\"']+")
@@ -89,28 +91,35 @@ def _extract_plotly_json(text: str) -> str | None:
     return None
 
 
-def _apply_defaults(fig: dict) -> str:
-    """Apply display defaults and return serialised JSON."""
+def _apply_defaults(fig: dict, record: dict | None = None) -> str:
+    """Apply display defaults and the AI Act Art. 50(2) marking, return JSON."""
     layout = fig.setdefault("layout", {})
     layout.setdefault("autosize", True)
     layout.setdefault("width", 900)
     layout.setdefault("height", 550)
     margin = layout.setdefault("margin", {})
     margin.setdefault("t", 40)
+    # Room below the plot for the provenance caption mark_figure adds.
+    margin.setdefault("b", 80)
     layout.setdefault("legend", {})
     fig.setdefault("config", {"displaylogo": False})
+    mark_figure(fig, record or provenance_record())
     return json.dumps(fig)
 
 
 async def render_chart_if_present(
     tool_result_text: str,
     mcp_server,
+    record: dict | None = None,
 ) -> PlotlyChart | None:
     """Render a Plotly chart from MCP tool result text.
 
     Tries the ``chart-json`` resource URI first (direct JSON, no parsing),
     then falls back to fetching the ``ui://`` HTML resource and extracting
     the Plotly figure data.
+
+    ``record`` is the AI Act Art. 50(2) provenance marking applied to the
+    figure; one is built per call when the caller does not supply it.
     """
     if not hasattr(mcp_server, "read_resource"):
         logger.warning("Server %s has no read_resource method", type(mcp_server).__name__)
@@ -127,7 +136,7 @@ async def render_chart_if_present(
             )
             fig = json.loads(content_str)
             if isinstance(fig, dict) and "data" in fig:
-                fig_json = _apply_defaults(fig)
+                fig_json = _apply_defaults(fig, record)
                 logger.info("Plotly JSON from chart-json resource (%d chars)", len(fig_json))
                 return PlotlyChart(name="chart", content=fig_json, display="inline")
         except Exception as e:
@@ -162,7 +171,7 @@ async def render_chart_if_present(
         extracted = _extract_plotly_json(content_str)
         if extracted:
             fig = json.loads(extracted)
-            fig_json = _apply_defaults(fig)
+            fig_json = _apply_defaults(fig, record)
             logger.info("Plotly JSON extracted from HTML (%d chars)", len(fig_json))
             return PlotlyChart(name="chart", content=fig_json, display="inline")
         else:
