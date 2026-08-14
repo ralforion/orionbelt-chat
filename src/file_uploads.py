@@ -20,6 +20,8 @@ the notice, so the model can reason about them directly without a tool call.
 
 from __future__ import annotations
 
+import base64
+import datetime
 import json
 import logging
 import re
@@ -209,27 +211,31 @@ def _sanitize(name: str) -> str:
     return cleaned or "upload"
 
 
-def _allocate_handle_name(name: str, registry: dict[str, UploadedFile]) -> str:
+def _allocate_handle_name(name: str, registry: dict[str, UploadedFile], claimed: set[str]) -> str:
     """Pick a free handle for *name*, keeping distinct files distinguishable.
 
-    Sanitising is lossy — ``my model.yaml`` and ``my@model.yaml`` both reduce to
-    ``my_model.yaml`` — so a raw sanitised name could silently rebind an
-    existing handle to a different file.  Re-uploading the *same* filename
-    still reuses its handle (that is the intended "newest version wins"), but a
-    genuinely different file gets a suffixed handle instead.
+    Two ways a handle could otherwise be rebound to the wrong file:
+
+    * Sanitising is lossy — ``my model.yaml`` and ``my@model.yaml`` both reduce
+      to ``my_model.yaml``.
+    * One upload batch can carry two files with the *same* basename, picked
+      from different folders.
+
+    Both get a suffixed handle (``my_model_2.yaml``) so every uploaded file
+    stays reachable.  Re-uploading the same filename in a *later* batch still
+    reuses its handle — that is the intended "newest version wins" — which is
+    why handles already ``claimed`` by this batch are never reused.
     """
     base = _sanitize(name)
-    existing = registry.get(base)
-    if existing is None or existing.original_name == name:
-        return base
-
     stem, dot, suffix = base.partition(".")
-    for counter in range(2, len(registry) + 3):
-        candidate = f"{stem}_{counter}{dot}{suffix}"
+    for counter in range(1, len(registry) + len(claimed) + 2):
+        candidate = base if counter == 1 else f"{stem}_{counter}{dot}{suffix}"
+        if candidate in claimed:
+            continue
         taken = registry.get(candidate)
         if taken is None or taken.original_name == name:
             return candidate
-    raise AssertionError("unreachable: the loop bound exceeds the registry size")
+    raise AssertionError("unreachable: the loop bound exceeds the number of handles in play")
 
 
 def _read_element(element: Any) -> str | None:
@@ -302,6 +308,7 @@ def register_uploads(elements: list[Any] | None) -> list[UploadedFile]:
 
     registry = _registry()
     added: list[UploadedFile] = []
+    claimed: set[str] = set()
     for element in elements:
         name = getattr(element, "name", None)
         if not name:
@@ -311,11 +318,12 @@ def register_uploads(elements: list[Any] | None) -> list[UploadedFile]:
             continue
 
         upload = UploadedFile(
-            handle_name=_allocate_handle_name(name, registry),
+            handle_name=_allocate_handle_name(name, registry, claimed),
             original_name=name,
             kind=detect_kind(name, content),
             content=content,
         )
+        claimed.add(upload.handle_name)
         registry[upload.handle_name] = upload
         added.append(upload)
         logger.info(
@@ -459,7 +467,33 @@ def _as_json(upload: UploadedFile) -> str:
             f"cannot be passed as a structured model argument. Use the plain "
             f"`{upload.handle}` handle if the tool expects raw text."
         )
-    return json.dumps(parsed)
+    try:
+        return json.dumps(parsed, default=_json_scalar)
+    except TypeError as exc:  # a YAML tag `_json_scalar` does not cover
+        raise ModelRetry(
+            f"{upload.original_name} contains a value that has no JSON equivalent "
+            f"({exc}). Tell the user which YAML construct to remove rather than "
+            f"retrying."
+        ) from exc
+
+
+def _json_scalar(value: Any) -> Any:
+    """Coerce a YAML-native scalar that JSON has no type for.
+
+    ``yaml.safe_load`` resolves several tags to Python objects `json` cannot
+    serialise — an unquoted ``since: 2026-01-01`` becomes a ``date``, ``!!set``
+    becomes a ``set``, ``!!binary`` becomes ``bytes``.  Each maps to the form
+    the author would have written by hand in JSON.
+    """
+    if isinstance(value, (datetime.date, datetime.time)):
+        # date, datetime and time all satisfy this; isoformat is the ISO 8601
+        # spelling a JSON document would carry anyway.
+        return value.isoformat()
+    if isinstance(value, (set, frozenset, tuple)):
+        return list(value)
+    if isinstance(value, bytes):
+        return base64.b64encode(value).decode("ascii")
+    raise TypeError(f"object of type {type(value).__name__} is not JSON serializable")
 
 
 def substitute_handles(value: Any, registry: dict[str, UploadedFile]) -> Any:

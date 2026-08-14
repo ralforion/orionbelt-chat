@@ -212,6 +212,53 @@ class TestHandleCollisions:
         )
         assert set(mock_session["uploaded_files"]) == {"my_model.yaml", "my_model_2.yaml"}
 
+    def test_same_basename_twice_in_one_batch_stays_reachable(self, mock_session):
+        # A multi-file pick can carry two files with the same basename from
+        # different folders; both must keep their own handle.
+        added = register_uploads(
+            [
+                SimpleNamespace(name="m.yaml", path=None, content=b"first: 1\n"),
+                SimpleNamespace(name="m.yaml", path=None, content=b"second: 2\n"),
+            ]
+        )
+
+        assert [u.handle_name for u in added] == ["m.yaml", "m_2.yaml"]
+        registry = session_uploads()
+        assert substitute_handles("@upload:m.yaml", registry) == "first: 1\n"
+        assert substitute_handles("@upload:m_2.yaml", registry) == "second: 2\n"
+
+    def test_same_basename_in_one_batch_gives_the_notice_distinct_handles(self, mock_session):
+        added = register_uploads(
+            [
+                SimpleNamespace(name="m.yaml", path=None, content=b"first: 1\n"),
+                SimpleNamespace(name="m.yaml", path=None, content=b"second: 2\n"),
+            ]
+        )
+        notice = build_upload_notice(added)
+
+        assert len({u.handle for u in added}) == 2
+        assert "@upload:m.yaml" in notice
+        assert "@upload:m_2.yaml" in notice
+
+    def test_later_batch_with_the_same_name_still_replaces(self, mock_session):
+        # Across batches the same filename means a new version, not a new file.
+        register_uploads([SimpleNamespace(name="m.yaml", path=None, content=b"v: 1\n")])
+        added = register_uploads([SimpleNamespace(name="m.yaml", path=None, content=b"v: 2\n")])
+
+        assert [u.handle_name for u in added] == ["m.yaml"]
+        assert list(session_uploads()) == ["m.yaml"]
+        assert substitute_handles("@upload:m.yaml", session_uploads()) == "v: 2\n"
+
+    def test_suffixed_handle_is_reused_on_reupload(self, mock_session):
+        register_uploads([SimpleNamespace(name="my model.yaml", path=None, content=b"a: 1\n")])
+        register_uploads([SimpleNamespace(name="my@model.yaml", path=None, content=b"b: 1\n")])
+        added = register_uploads(
+            [SimpleNamespace(name="my@model.yaml", path=None, content=b"b: 2\n")]
+        )
+
+        assert added[0].handle_name == "my_model_2.yaml"
+        assert set(session_uploads()) == {"my_model.yaml", "my_model_2.yaml"}
+
     def test_extensionless_names_collide_safely(self, mock_session):
         register_uploads([SimpleNamespace(name="my model", path=None, content=b"a: 1\n")])
         register_uploads([SimpleNamespace(name="my@model", path=None, content=b"b: 2\n")])
@@ -241,6 +288,41 @@ class TestJsonModifier:
         args = {"model": f"@upload:model.yaml{JSON_MODIFIER}", "dedup": True}
         substituted = substitute_handles(args, registry)
         assert isinstance(json.loads(substituted["model"]), dict)
+
+    def test_unquoted_date_becomes_an_iso_string(self):
+        # PyYAML resolves `since: 2026-01-01` to datetime.date, which json
+        # cannot serialise — this used to raise a bare TypeError.
+        upload = _upload("model.yaml", "dataObjects: []\nsince: 2026-01-01\n")
+        result = substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", _registry(upload))
+        assert json.loads(result)["since"] == "2026-01-01"
+
+    def test_timestamp_becomes_an_iso_string(self):
+        upload = _upload("model.yaml", "dataObjects: []\nat: 2026-01-01T10:00:00Z\n")
+        result = substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", _registry(upload))
+        assert json.loads(result)["at"].startswith("2026-01-01T10:00:00")
+
+    def test_yaml_set_becomes_an_array(self):
+        upload = _upload("model.yaml", "dataObjects: []\ntags: !!set {a: null}\n")
+        result = substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", _registry(upload))
+        assert json.loads(result)["tags"] == ["a"]
+
+    def test_binary_becomes_base64(self):
+        upload = _upload("model.yaml", "dataObjects: []\nblob: !!binary aGk=\n")
+        result = substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", _registry(upload))
+        assert json.loads(result)["blob"] == "aGk="
+
+    def test_quoted_date_is_untouched(self):
+        upload = _upload("model.yaml", 'dataObjects: []\nsince: "2026-01-01"\n')
+        result = substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", _registry(upload))
+        assert json.loads(result)["since"] == "2026-01-01"
+
+    def test_result_is_always_valid_json(self):
+        upload = _upload(
+            "model.yaml",
+            "dataObjects: []\nsince: 2026-01-01\nat: 2026-01-01T10:00:00Z\ntags: !!set {a: null}\n",
+        )
+        result = substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", _registry(upload))
+        assert isinstance(json.loads(result), dict)
 
     def test_malformed_yaml_raises_model_retry(self):
         upload = _upload("broken.yaml", "a:\n  - b\n - c\n")
