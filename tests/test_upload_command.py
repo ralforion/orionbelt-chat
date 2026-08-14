@@ -4,9 +4,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from chainlit.server import validate_file_mime_type
+from chainlit.types import AskFileSpec
 
 import app
-from src.file_uploads import UploadedFile
+from src.file_uploads import MAX_UPLOAD_MB, UPLOAD_ACCEPT, UploadedFile
 
 
 @pytest.fixture
@@ -51,6 +53,72 @@ class TestUploadCommand:
             await app.on_start()
 
         composer.set_commands.assert_awaited_once()
+
+
+class TestUploadAccept:
+    """The picker's accept filter, checked against Chainlit's own validator.
+
+    Chainlit requires the browser-reported content type to fnmatch the dict key
+    *and* the filename to match an extension.  A concrete MIME key silently
+    rejected every format the button exists for, so these assert the real
+    server-side outcome rather than the shape of the config.
+    """
+
+    @staticmethod
+    def _accepts(filename, content_type):
+        spec = AskFileSpec(
+            accept=UPLOAD_ACCEPT,
+            max_size_mb=MAX_UPLOAD_MB,
+            max_files=5,
+            timeout=300,
+            type="file",
+            step_id="test",
+        )
+        upload = SimpleNamespace(filename=filename, content_type=content_type)
+        try:
+            validate_file_mime_type(upload, spec)
+            return True
+        except ValueError:
+            return False
+
+    @pytest.mark.parametrize(
+        ("filename", "content_type"),
+        [
+            ("model.yaml", "text/yaml"),
+            ("model.yaml", "application/x-yaml"),
+            ("model.yml", ""),
+            ("model.obml", None),
+            ("model.obsl", None),
+            ("model.json", "application/json"),
+            ("model.jsonld", "application/ld+json"),
+            ("schema.ttl", ""),
+            ("schema.ttl", "text/turtle"),
+            ("schema.turtle", None),
+            ("schema.n3", None),
+            ("schema.nt", None),
+            ("onto.rdf", "application/rdf+xml"),
+            ("onto.owl", "application/octet-stream"),
+        ],
+    )
+    def test_intended_formats_are_accepted(self, filename, content_type):
+        assert self._accepts(filename, content_type) is True
+
+    @pytest.mark.parametrize(
+        ("filename", "content_type"),
+        [
+            ("logo.png", "image/png"),
+            ("report.pdf", "application/pdf"),
+            ("data.csv", "text/csv"),
+            ("archive.zip", "application/zip"),
+        ],
+    )
+    def test_unrelated_formats_are_rejected(self, filename, content_type):
+        assert self._accepts(filename, content_type) is False
+
+    def test_every_advertised_extension_round_trips(self):
+        # Nothing may sit in the list that the validator would then reject.
+        for extension in next(iter(UPLOAD_ACCEPT.values())):
+            assert self._accepts(f"model{extension}", None) is True, extension
 
 
 class TestCollectUploads:

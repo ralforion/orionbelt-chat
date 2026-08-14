@@ -56,11 +56,19 @@ _UNSAFE_NAME_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 MAX_UPLOAD_MB = MAX_UPLOAD_BYTES // (1024 * 1024)
 
-# File types offered by the explicit upload button.  Chainlit takes either MIME
-# types or a ``{mime: [extensions]}`` mapping; the mapping form is used because
-# browsers report .ttl and .obml inconsistently.
+# File types offered by the explicit upload button, as a
+# ``{mime-pattern: [extensions]}`` mapping.
+#
+# The key must be ``*``, not a real MIME type.  Chainlit validates an upload by
+# requiring the browser-reported content type to fnmatch the key *and* the
+# filename to end in one of the extensions (server.py::validate_file_mime_type).
+# Browsers report these formats inconsistently — ``application/json`` for .json,
+# ``text/yaml`` or ``application/x-yaml`` for .yaml, and nothing at all for .ttl
+# or .obml — so any concrete key rejects most of the list, and even ``*/*``
+# fails when the content type is empty.  ``*`` matches whatever arrives and
+# leaves the extension list to do the filtering, which is the intent.
 UPLOAD_ACCEPT: dict[str, list[str]] = {
-    "text/plain": [
+    "*": [
         ".yaml",
         ".yml",
         ".obml",
