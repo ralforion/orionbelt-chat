@@ -60,10 +60,13 @@ class TestDisclosureInUi:
 @pytest.fixture
 def chainlit_session():
     """Patch the Chainlit surface ``on_start`` touches, yielding cl.Message."""
+    context = MagicMock()
+    context.emitter.set_commands = AsyncMock()
     with (
         patch.object(app.cl, "Message") as message_cls,
         patch.object(app.cl, "ChatSettings") as chat_settings,
         patch.object(app.cl, "user_session", MagicMock()),
+        patch.object(app.cl, "context", context),
         patch.object(app, "build_chat_settings", MagicMock(return_value=[])),
     ):
         message_cls.return_value.send = AsyncMock()

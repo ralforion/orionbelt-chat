@@ -7,7 +7,7 @@
 
 <p align="center"><strong>AI-powered chat interface for OrionBelt Analytics & Semantic Layer</strong></p>
 
-[![Version](https://img.shields.io/badge/version-1.3.0-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
+[![Version](https://img.shields.io/badge/version-1.4.0-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
@@ -73,6 +73,16 @@ A production-ready chat application that connects to OrionBelt Analytics and Ori
 - **Client-side rendering** - Mermaid.js loaded from CDN renders `erDiagram`, `flowchart`, `sequenceDiagram`, and other diagram types inline
 - **Auto-detection** - Mermaid syntax in MCP tool results is automatically surfaced as a rendered diagram
 - **Theme-aware** - Diagrams re-render when switching between light and dark mode
+
+### File Uploads
+
+- **Upload button in the composer** - An **Upload** button sits next to the message input for the whole session, so a model or ontology can be attached at any point in the conversation; the paperclip works too
+- **Handle-based injection** - The file is stored in the session under a handle (`@upload:model.yaml`); the model passes the handle as a tool argument and the client substitutes the real content just before the MCP call
+- **No context cost** - A 200 KB model never enters the prompt and never has to be re-emitted by the LLM, so nothing is truncated by `max_tokens`
+- **Format detection** - Extension plus content sniffing tells an OBML model from plain YAML and Turtle from RDF/XML, so the assistant routes it to the right tool (`load_model`, `load_my_ontology`)
+- **YAML → JSON on demand** - Appending `#json` to a handle (`@upload:model.yaml#json`) converts the file on the way through, so a native OBML **YAML** upload works with arguments that take a JSON object, such as `load_model(model=…)`
+- **Session-scoped** - Handles stay valid for the whole conversation; small files (<4 KB) are also inlined so the model can reason about them directly
+- **Accepted formats** - `.yaml`, `.yml`, `.obml`, `.obsl`, `.json`, `.jsonld`, `.ttl`, `.turtle`, `.n3`, `.nt`, `.rdf`, `.owl` (UTF-8 text, up to 8 MB)
 
 ### File Downloads
 
@@ -303,6 +313,7 @@ Create an OBML model for customer analytics with metrics for revenue, order coun
 - **Chart Renderer** - Native Plotly rendering from FastMCP Apps `ui://` resources
 - **Mermaid Renderer** - Client-side diagram rendering via Mermaid.js CDN
 - **File Downloads** - Auto-detect downloadable content (TTL, JSON, CSV, SQL) in tool results
+- **File Uploads** - Session registry for uploaded models/ontologies; `@upload:` handles are expanded into tool arguments via pydantic-ai's `process_tool_call` hook
 
 ## Development
 
