@@ -38,10 +38,18 @@ The user can drop a file into the chat — typically an OBSL/OBML semantic model
   always the full file; anything you type yourself is not.
 - Handles stay valid for the whole session, so a file uploaded earlier can be
   used in a later turn.
+- **Pick the handle form from what the argument expects, not from the file's
+  extension:**
+  - Argument takes raw text (`ontology_content`, `osi_yaml`, `model_yaml`) →
+    plain handle, e.g. `@upload:model.yaml`.
+  - Argument takes a JSON object or a JSON string (`load_model(model=…)`) →
+    append `#json`, e.g. `@upload:model.yaml#json`. The file is converted from
+    YAML to JSON on the way through, so a native OBML YAML upload works there
+    too. Sending a plain handle into a JSON argument will fail to parse.
 - Route by format: Turtle/RDF ontologies go to OrionBelt Analytics
-  (`load_my_ontology`), semantic models go to the OrionBelt Semantic Layer
-  (`load_model` — use `osi_yaml` for OSI YAML, `model` for OBML JSON). Validate
-  before loading where the server offers a separate validation tool.
+  (`load_my_ontology`), semantic models go to the OrionBelt Semantic Layer —
+  `osi_yaml` for OSI YAML, `model` (with `#json`) for OBML in either YAML or
+  JSON. Validate before loading where the server offers a validation tool.
 - If the user only asks *about* a file, answer from the preview and say so
   rather than loading it.
 

@@ -80,6 +80,7 @@ A production-ready chat application that connects to OrionBelt Analytics and Ori
 - **Handle-based injection** - The file is stored in the session under a handle (`@upload:model.yaml`); the model passes the handle as a tool argument and the client substitutes the real content just before the MCP call
 - **No context cost** - A 200 KB model never enters the prompt and never has to be re-emitted by the LLM, so nothing is truncated by `max_tokens`
 - **Format detection** - Extension plus content sniffing tells an OBML model from plain YAML and Turtle from RDF/XML, so the assistant routes it to the right tool (`load_model`, `load_my_ontology`)
+- **YAML → JSON on demand** - Appending `#json` to a handle (`@upload:model.yaml#json`) converts the file on the way through, so a native OBML **YAML** upload works with arguments that take a JSON object, such as `load_model(model=…)`
 - **Session-scoped** - Handles stay valid for the whole conversation; small files (<4 KB) are also inlined so the model can reason about them directly
 - **Accepted formats** - `.yaml`, `.yml`, `.obml`, `.obsl`, `.json`, `.jsonld`, `.ttl`, `.turtle`, `.n3`, `.nt`, `.rdf`, `.owl` (UTF-8 text, up to 8 MB)
 

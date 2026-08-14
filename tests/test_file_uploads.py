@@ -1,5 +1,6 @@
 """Tests for src.file_uploads."""
 
+import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -10,6 +11,7 @@ import src.file_uploads as file_uploads
 from src.file_uploads import (
     HANDLE_PREFIX,
     INLINE_THRESHOLD,
+    JSON_MODIFIER,
     MAX_UPLOAD_BYTES,
     PREVIEW_LINES,
     UploadedFile,
@@ -119,6 +121,20 @@ class TestRegisterUploads:
         )
         assert register_uploads([element]) == []
 
+    def test_skips_oversized_str_content(self, mock_session):
+        # str content took an early return that skipped the size check.
+        element = SimpleNamespace(name="huge.yaml", path=None, content="x" * (MAX_UPLOAD_BYTES + 1))
+        assert register_uploads([element]) == []
+
+    def test_oversized_str_measured_in_bytes_not_characters(self, mock_session):
+        # Just under the limit in characters, over it once encoded.
+        element = SimpleNamespace(name="huge.yaml", path=None, content="é" * MAX_UPLOAD_BYTES)
+        assert register_uploads([element]) == []
+
+    def test_accepts_str_content_within_the_limit(self, mock_session):
+        element = SimpleNamespace(name="model.yaml", path=None, content=OBML_YAML)
+        assert register_uploads([element])[0].content == OBML_YAML
+
     def test_skips_empty(self, mock_session):
         element = SimpleNamespace(name="blank.yaml", path=None, content=b"   \n")
         assert register_uploads([element]) == []
@@ -145,6 +161,107 @@ class TestRegisterUploads:
         register_uploads([SimpleNamespace(name="a.yaml", path=None, content=b"a: 1\n")])
         register_uploads([SimpleNamespace(name="b.ttl", path=None, content=TURTLE.encode())])
         assert set(mock_session["uploaded_files"]) == {"a.yaml", "b.ttl"}
+
+
+class TestHandleCollisions:
+    def test_distinct_names_sanitizing_alike_get_distinct_handles(self, mock_session):
+        register_uploads([SimpleNamespace(name="my model.yaml", path=None, content=b"a: 1\n")])
+        register_uploads([SimpleNamespace(name="my@model.yaml", path=None, content=b"b: 2\n")])
+
+        handles = set(mock_session["uploaded_files"])
+        assert handles == {"my_model.yaml", "my_model_2.yaml"}
+
+    def test_each_collided_handle_resolves_to_its_own_file(self, mock_session):
+        register_uploads([SimpleNamespace(name="my model.yaml", path=None, content=b"a: 1\n")])
+        register_uploads([SimpleNamespace(name="my@model.yaml", path=None, content=b"b: 2\n")])
+
+        registry = session_uploads()
+        assert substitute_handles("@upload:my_model.yaml", registry) == "a: 1\n"
+        assert substitute_handles("@upload:my_model_2.yaml", registry) == "b: 2\n"
+
+    def test_notice_advertises_the_allocated_handle(self, mock_session):
+        register_uploads([SimpleNamespace(name="my model.yaml", path=None, content=b"a: 1\n")])
+        added = register_uploads(
+            [SimpleNamespace(name="my@model.yaml", path=None, content=b"b: 2\n")]
+        )
+
+        assert added[0].handle == "@upload:my_model_2.yaml"
+        assert "@upload:my_model_2.yaml" in build_upload_notice(added)
+
+    def test_same_name_still_reuses_its_handle(self, mock_session):
+        register_uploads([SimpleNamespace(name="my model.yaml", path=None, content=b"a: 1\n")])
+        added = register_uploads(
+            [SimpleNamespace(name="my model.yaml", path=None, content=b"a: 2\n")]
+        )
+
+        assert added[0].handle_name == "my_model.yaml"
+        assert list(mock_session["uploaded_files"]) == ["my_model.yaml"]
+
+    def test_three_way_collision(self, mock_session):
+        for name in ("a b.ttl", "a@b.ttl", "a#b.ttl"):
+            register_uploads([SimpleNamespace(name=name, path=None, content=f"{name}\n".encode())])
+
+        assert set(mock_session["uploaded_files"]) == {"a_b.ttl", "a_b_2.ttl", "a_b_3.ttl"}
+
+    def test_collision_within_a_single_batch(self, mock_session):
+        register_uploads(
+            [
+                SimpleNamespace(name="my model.yaml", path=None, content=b"a: 1\n"),
+                SimpleNamespace(name="my@model.yaml", path=None, content=b"b: 2\n"),
+            ]
+        )
+        assert set(mock_session["uploaded_files"]) == {"my_model.yaml", "my_model_2.yaml"}
+
+    def test_extensionless_names_collide_safely(self, mock_session):
+        register_uploads([SimpleNamespace(name="my model", path=None, content=b"a: 1\n")])
+        register_uploads([SimpleNamespace(name="my@model", path=None, content=b"b: 2\n")])
+
+        assert set(mock_session["uploaded_files"]) == {"my_model", "my_model_2"}
+
+
+class TestJsonModifier:
+    def test_converts_yaml_to_json(self):
+        registry = _registry(_upload())
+        result = substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", registry)
+        assert json.loads(result)["dataObjects"] == [{"name": "orders"}]
+
+    def test_plain_handle_stays_verbatim_yaml(self):
+        registry = _registry(_upload())
+        assert substitute_handles("@upload:model.yaml", registry) == OBML_YAML
+
+    def test_json_source_passes_through_json(self):
+        upload = _upload("model.json", '{"dataObjects": [{"name": "orders"}]}')
+        result = substitute_handles(f"@upload:model.json{JSON_MODIFIER}", _registry(upload))
+        assert json.loads(result) == {"dataObjects": [{"name": "orders"}]}
+
+    def test_result_is_loadable_by_the_server_side_json_loads(self):
+        # `load_model(model=<str>)` runs json.loads on the argument — that is
+        # the call this modifier exists to make work for a YAML upload.
+        registry = _registry(_upload())
+        args = {"model": f"@upload:model.yaml{JSON_MODIFIER}", "dedup": True}
+        substituted = substitute_handles(args, registry)
+        assert isinstance(json.loads(substituted["model"]), dict)
+
+    def test_malformed_yaml_raises_model_retry(self):
+        upload = _upload("broken.yaml", "a:\n  - b\n - c\n")
+        with pytest.raises(ModelRetry) as exc:
+            substitute_handles(f"@upload:broken.yaml{JSON_MODIFIER}", _registry(upload))
+        assert "broken.yaml" in str(exc.value)
+
+    def test_scalar_document_raises_model_retry(self):
+        upload = _upload("notes.txt", "just a sentence")
+        with pytest.raises(ModelRetry) as exc:
+            substitute_handles(f"@upload:notes.txt{JSON_MODIFIER}", _registry(upload))
+        assert "JSON object or array" in str(exc.value)
+
+    def test_unknown_handle_with_modifier_still_reports_missing(self):
+        registry = _registry(_upload())
+        with pytest.raises(ModelRetry) as exc:
+            substitute_handles(f"@upload:other.yaml{JSON_MODIFIER}", registry)
+        assert "No uploaded file matches" in str(exc.value)
+
+    def test_notice_documents_the_modifier(self):
+        assert JSON_MODIFIER in build_upload_notice([_upload()])
 
 
 class TestPendingQueue:

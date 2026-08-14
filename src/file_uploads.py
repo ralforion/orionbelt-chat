@@ -20,6 +20,7 @@ the notice, so the model can reason about them directly without a tool call.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 import chainlit as cl
+import yaml
 from pydantic_ai import ModelRetry
 
 logger = logging.getLogger(__name__)
@@ -34,9 +36,16 @@ logger = logging.getLogger(__name__)
 # Prefix the model writes to refer to an uploaded file in a tool argument.
 HANDLE_PREFIX = "@upload:"
 
+# Suffix that asks for the file as JSON instead of verbatim.  Needed because
+# the Semantic Layer's `load_model(model=…)` runs `json.loads` on a string
+# argument, so a native OBML *YAML* file has no route without conversion.
+JSON_MODIFIER = "#json"
+
 # Handle names are sanitised to this character class on registration, so the
 # placeholder can be recognised inside a larger string without ambiguity.
-_HANDLE_RE = re.compile(rf"{re.escape(HANDLE_PREFIX)}([A-Za-z0-9._-]+)")
+_HANDLE_RE = re.compile(
+    rf"{re.escape(HANDLE_PREFIX)}([A-Za-z0-9._-]+)({re.escape(JSON_MODIFIER)})?"
+)
 _UNSAFE_NAME_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
 
 # Chainlit's own limit is 500 MB (see .chainlit/config.toml), which is meant
@@ -200,6 +209,29 @@ def _sanitize(name: str) -> str:
     return cleaned or "upload"
 
 
+def _allocate_handle_name(name: str, registry: dict[str, UploadedFile]) -> str:
+    """Pick a free handle for *name*, keeping distinct files distinguishable.
+
+    Sanitising is lossy — ``my model.yaml`` and ``my@model.yaml`` both reduce to
+    ``my_model.yaml`` — so a raw sanitised name could silently rebind an
+    existing handle to a different file.  Re-uploading the *same* filename
+    still reuses its handle (that is the intended "newest version wins"), but a
+    genuinely different file gets a suffixed handle instead.
+    """
+    base = _sanitize(name)
+    existing = registry.get(base)
+    if existing is None or existing.original_name == name:
+        return base
+
+    stem, dot, suffix = base.partition(".")
+    for counter in range(2, len(registry) + 3):
+        candidate = f"{stem}_{counter}{dot}{suffix}"
+        taken = registry.get(candidate)
+        if taken is None or taken.original_name == name:
+            return candidate
+    raise AssertionError("unreachable: the loop bound exceeds the registry size")
+
+
 def _read_element(element: Any) -> str | None:
     """Decode an uploaded element's text, or None if it is not usable text.
 
@@ -226,18 +258,24 @@ def _read_element(element: Any) -> str | None:
             logger.warning("Could not read uploaded file %s: %s", path, exc)
             return None
 
-    if isinstance(raw, str):
-        return raw
-    if not isinstance(raw, bytes):
+    if not isinstance(raw, (str, bytes)):
         return None
-    if len(raw) > MAX_UPLOAD_BYTES:
+
+    # Measure in bytes either way: the limit bounds what we may hand an MCP
+    # server as one tool argument, and an in-memory str is no cheaper than the
+    # same file read off disk.
+    size = len(raw.encode("utf-8")) if isinstance(raw, str) else len(raw)
+    if size > MAX_UPLOAD_BYTES:
         logger.warning(
             "Uploaded file %s is %d bytes — over the %d byte limit; ignored.",
             name,
-            len(raw),
+            size,
             MAX_UPLOAD_BYTES,
         )
         return None
+
+    if isinstance(raw, str):
+        return raw
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:
@@ -273,7 +311,7 @@ def register_uploads(elements: list[Any] | None) -> list[UploadedFile]:
             continue
 
         upload = UploadedFile(
-            handle_name=_sanitize(name),
+            handle_name=_allocate_handle_name(name, registry),
             original_name=name,
             kind=detect_kind(name, content),
             content=content,
@@ -358,7 +396,11 @@ def build_upload_notice(uploads: list[UploadedFile]) -> str:
         "Pass the handle **verbatim** as the tool argument that expects the file's "
         'content (for example `load_my_ontology(ontology_content="@upload:schema.ttl")`) — '
         "it is replaced with the full file before the tool runs. Never retype or "
-        "summarise the content yourself, and never pass only the preview."
+        "summarise the content yourself, and never pass only the preview.\n\n"
+        f"When the argument expects a JSON object rather than raw text (such as the "
+        f"Semantic Layer's `load_model(model=…)`), append `{JSON_MODIFIER}` to the handle — "
+        f'`load_model(model="@upload:model.yaml{JSON_MODIFIER}")` — and the file is '
+        "converted from YAML to JSON on the way through."
     )
     return "\n\n".join(blocks)
 
@@ -392,6 +434,34 @@ def _resolve(handle_name: str, registry: dict[str, UploadedFile]) -> UploadedFil
     return None
 
 
+def _as_json(upload: UploadedFile) -> str:
+    """Render an uploaded document as a JSON string.
+
+    Tool arguments that hold a model object — notably the Semantic Layer's
+    ``load_model(model=…)``, which runs ``json.loads`` on a string — cannot take
+    YAML.  ``yaml.safe_load`` parses JSON too (JSON is a subset of YAML), so one
+    path covers both source formats.
+
+    Raises:
+        ModelRetry: if the file does not parse, naming the file so the model
+            reports the problem instead of sending unusable content.
+    """
+    try:
+        parsed = yaml.safe_load(upload.content)
+    except yaml.YAMLError as exc:
+        raise ModelRetry(
+            f"{upload.original_name} could not be parsed as YAML or JSON ({exc}). "
+            f"Tell the user the file is malformed rather than retrying."
+        ) from exc
+    if not isinstance(parsed, (dict, list)):
+        raise ModelRetry(
+            f"{upload.original_name} does not contain a JSON object or array, so it "
+            f"cannot be passed as a structured model argument. Use the plain "
+            f"`{upload.handle}` handle if the tool expects raw text."
+        )
+    return json.dumps(parsed)
+
+
 def substitute_handles(value: Any, registry: dict[str, UploadedFile]) -> Any:
     """Recursively replace ``@upload:`` handles in a tool-argument structure.
 
@@ -411,7 +481,7 @@ def substitute_handles(value: Any, registry: dict[str, UploadedFile]) -> Any:
             if upload is None:
                 unknown.append(match.group(1))
                 return match.group(0)
-            return upload.content
+            return _as_json(upload) if match.group(2) else upload.content
 
         substituted = _HANDLE_RE.sub(replace, value)
         if unknown:
