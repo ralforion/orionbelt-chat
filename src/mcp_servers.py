@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic_ai.mcp import MCPToolset, StdioTransport, StreamableHttpTransport
 
+from .file_uploads import process_tool_call
 from .mcp_sampling import enable_sampling_tools
 from .providers import default_model_for, resolve_model
 from .settings import settings
@@ -62,6 +63,10 @@ def _make_server(endpoint: str, module: str, sampling_model) -> MCPToolset[Any]:
             read_timeout=settings.mcp_request_timeout_seconds,
             max_retries=3,
             sampling_model=sampling_model,
+            # Expands `@upload:` handles into the uploaded file's content, so a
+            # dropped OBSL model or ontology reaches the server in full without
+            # ever passing through the model's context.
+            process_tool_call=process_tool_call,
         )
     )
 

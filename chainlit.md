@@ -15,6 +15,10 @@ Ask questions about your data in natural language.
 - "Analyze the schema of the orionbelt_1 database"
 - "Generate an ontology for the sales schema"
 
+**Bring your own model or ontology:** click **Upload** next to the message box
+(or the paperclip) to attach an OBSL semantic model (YAML/JSON) or an RDF
+ontology (Turtle), then ask to validate or load it.
+
 ---
 
 Copyright © 2026 RALFORION d.o.o.

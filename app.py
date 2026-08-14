@@ -8,6 +8,7 @@ import logging
 import chainlit as cl
 from chainlit.context import local_steps
 from chainlit.input_widget import Select, TextInput
+from chainlit.types import CommandDict
 from mcp.types import ErrorData
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
@@ -24,6 +25,14 @@ from pydantic_ai.messages import (
 from src.agent import make_agent
 from src.chart_renderer import UI_URI_PATTERN, render_chart_if_present
 from src.file_downloads import extract_downloads_from_response, extract_downloads_from_tool_results
+from src.file_uploads import (
+    MAX_UPLOAD_MB,
+    UPLOAD_ACCEPT,
+    UploadedFile,
+    augment_message,
+    drain_pending_uploads,
+    register_uploads,
+)
 from src.mcp_sampling import get_sampling_callback, set_sampling_callback
 from src.mcp_servers import SERVERS_USING_SAMPLING, get_mcp_servers_named, get_sampling_model_label
 from src.mermaid_renderer import extract_mermaid_from_tool_results
@@ -160,6 +169,10 @@ async def on_start():
     # Create agent and start MCP servers
     init_success = await _init_agent(provider, model)
 
+    # Composer button — stays next to the message input for the whole session,
+    # so a model or ontology can be attached at any point, not just at the start.
+    await cl.context.emitter.set_commands([UPLOAD_COMMAND])
+
     if init_success:
         mcp_info = cl.user_session.get("mcp_info", "")
         status_msg = cl.Message(
@@ -167,11 +180,88 @@ async def on_start():
                 f"**OrionBelt® Analytics Assistant** ready.\n\n"
                 f"Provider: `{provider}` | Model: `{model}`\n\n"
                 f"{mcp_info}\n\n"
-                f"Ask me anything about your data."
+                f"Ask me anything about your data, or use **Upload** next to the message "
+                f"box to attach an OBSL semantic model or an RDF ontology."
             )
         )
         await status_msg.send()
         cl.user_session.set("status_msg", status_msg)
+
+
+# ── File uploads ───────────────────────────────────────────────────────────
+
+# Rendered as a button in the composer (``button=True``).  Selecting it marks
+# the next message, which `on_message` answers by opening the file picker
+# before handing the turn to the agent.
+UPLOAD_COMMAND: CommandDict = {
+    "id": "Upload",
+    "description": "Attach an OBSL semantic model (YAML/JSON) or an RDF ontology (Turtle)",
+    "icon": "upload",
+    "button": True,
+    "persistent": False,
+    "selected": False,
+}
+
+
+async def _announce_uploads(uploads: list[UploadedFile]) -> None:
+    """Confirm what was stored and name the handle the model will use."""
+    if not uploads:
+        return
+    lines = [
+        f"- `{u.original_name}` — {u.kind}, {u.size_label} → handle `{u.handle}`" for u in uploads
+    ]
+    await cl.Message(
+        content="Stored for this session:\n" + "\n".join(lines),
+        author="System",
+    ).send()
+
+
+async def _prompt_for_upload() -> None:
+    """Open the file picker and register whatever the user selects.
+
+    Driven by the composer's Upload button.  Failures are reported but never
+    raised: the turn continues to the agent either way, so a cancelled picker
+    still gets the user's message answered.
+    """
+    files = await cl.AskFileMessage(
+        content=(
+            "Select an OBSL/OBML semantic model (YAML or JSON) or an RDF ontology "
+            f"(Turtle/RDF-XML). Up to {MAX_UPLOAD_MB} MB per file."
+        ),
+        accept=UPLOAD_ACCEPT,
+        max_size_mb=MAX_UPLOAD_MB,
+        max_files=5,
+        timeout=300,
+    ).send()
+
+    if not files:
+        await cl.Message(content="No file uploaded.", author="System").send()
+        return
+
+    if not register_uploads(files):
+        await cl.Message(
+            content="That file could not be read as text — upload a UTF-8 YAML, JSON, or RDF file.",
+            author="System",
+        ).send()
+
+
+async def _collect_uploads(message: cl.Message) -> str:
+    """Register this turn's files and return the prompt to send the agent.
+
+    Files reach the session two ways: dropped onto the message via the
+    paperclip, which puts them in ``message.elements``, or picked through the
+    composer's Upload button, which marks the message with the command instead.
+    Either way they end up in the session registry under a handle; only that
+    handle travels through the context, and the MCP toolsets expand it back
+    into the full content at call time.
+    """
+    if message.command == UPLOAD_COMMAND["id"]:
+        await _prompt_for_upload()
+    register_uploads(message.elements)
+
+    uploads = drain_pending_uploads()
+    await _announce_uploads(uploads)
+    return augment_message(message.content, uploads)
 
 
 def _wrap_sampling_for_chainlit(server, server_name: str) -> None:
@@ -719,6 +809,8 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
         ).send()
         return
 
+    prompt = await _collect_uploads(message)
+
     # Get message history for multi-turn context.
     # Trim old tool results to free context for the model.
     msg_history = _trim_history(cl.user_session.get("pydantic_history") or [])
@@ -772,7 +864,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
         thinking_step: cl.Step | None = None
 
         async with agent.iter(
-            message.content,
+            prompt,
             message_history=msg_history or None,
         ) as agent_run:
             async for node in agent_run:
@@ -1083,7 +1175,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                     return
             else:
                 content = provider_msg if provider_msg else f"Error: {e}"
-                cl.user_session.set("retry_content", message.content)
+                # Store the augmented prompt: the retry re-sends text only, so
+                # the upload notice has to survive in the content itself.
+                cl.user_session.set("retry_content", prompt)
                 await cl.Message(
                     content=content,
                     author="System",
