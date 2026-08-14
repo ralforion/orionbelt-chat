@@ -324,6 +324,14 @@ class TestJsonModifier:
         result = substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", _registry(upload))
         assert isinstance(json.loads(result), dict)
 
+    def test_recursive_alias_raises_model_retry(self):
+        # `a: &a [*a]` is valid YAML and parses fine, but json.dumps raises
+        # ValueError rather than TypeError on the resulting cycle.
+        upload = _upload("model.yaml", "a: &a [*a]\n")
+        with pytest.raises(ModelRetry) as exc:
+            substitute_handles(f"@upload:model.yaml{JSON_MODIFIER}", _registry(upload))
+        assert "model.yaml" in str(exc.value)
+
     def test_malformed_yaml_raises_model_retry(self):
         upload = _upload("broken.yaml", "a:\n  - b\n - c\n")
         with pytest.raises(ModelRetry) as exc:

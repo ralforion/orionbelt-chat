@@ -469,7 +469,10 @@ def _as_json(upload: UploadedFile) -> str:
         )
     try:
         return json.dumps(parsed, default=_json_scalar)
-    except TypeError as exc:  # a YAML tag `_json_scalar` does not cover
+    except (TypeError, ValueError) as exc:
+        # TypeError: a YAML tag `_json_scalar` does not cover.
+        # ValueError: a structure JSON cannot express at all — a recursive
+        # alias such as `a: &a [*a]` parses fine but has no JSON form.
         raise ModelRetry(
             f"{upload.original_name} contains a value that has no JSON equivalent "
             f"({exc}). Tell the user which YAML construct to remove rather than "
