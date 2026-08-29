@@ -59,7 +59,9 @@ class TestSamplingToolsCapability:
     carrying tools. Pydantic-AI only ever sets a bare `SamplingCapability()`."""
 
     def test_advertised_when_sampling_model_present(self):
-        server = _make_server(_def(endpoint="http://localhost:8080/mcp"), TestModel())
+        server = _make_server(
+            _def(endpoint="http://localhost:8080/mcp", sampling=True), TestModel()
+        )
         capabilities = server.client._session_kwargs["sampling_capabilities"]
         assert capabilities.tools is not None
 
@@ -117,3 +119,32 @@ class TestGetMcpServersNamed:
         mock_settings.semantic_layer_server_dir = "/opt/semantic"
         names = [n for n, _ in get_mcp_servers_named()]
         assert names == ["OrionBelt Analytics", "OrionBelt Semantic Layer"]
+
+
+class TestSamplingIsPerServer:
+    """MCP_ALLOW_SAMPLING is the global switch; `sampling:` is the per-server one.
+
+    Without both, attaching a third-party server would hand it a route back to
+    the user's LLM budget purely because sampling was enabled for OrionBelt.
+    """
+
+    def test_server_without_the_flag_gets_no_sampling(self):
+        server = _make_server(_def(endpoint="https://x/mcp", sampling=False), TestModel())
+        kwargs = server.client._session_kwargs
+        assert kwargs.get("sampling_callback") is None
+        assert kwargs.get("sampling_capabilities") is None
+
+    def test_only_declared_servers_receive_the_model(self):
+        defs = [
+            ServerDef(name="Quiet", endpoint="https://a/mcp", sampling=False),
+            ServerDef(name="Sampler", endpoint="https://b/mcp", sampling=True),
+        ]
+        with (
+            patch("orionbelt_chat.mcp_servers.load_server_defs", return_value=(defs, [])),
+            patch("orionbelt_chat.mcp_servers._resolve_sampling_model", return_value=TestModel()),
+        ):
+            got = {
+                name: server.client._session_kwargs.get("sampling_callback") is not None
+                for name, server in get_mcp_servers_named()
+            }
+        assert got == {"Quiet": False, "Sampler": True}

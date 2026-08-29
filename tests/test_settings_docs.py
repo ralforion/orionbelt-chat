@@ -7,6 +7,7 @@ never mentioned. This pins the reference table to the actual `Settings` fields
 so the next one added cannot quietly go undocumented.
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -37,15 +38,23 @@ def test_setting_is_in_the_readme_table(field):
 @pytest.mark.skipif(not ENV_EXAMPLE.is_file(), reason=".env.example not present")
 @pytest.mark.parametrize("field", SETTING_NAMES)
 def test_setting_is_in_env_example(field):
+    """Matched as a whole assignment, not a substring.
+
+    A plain `in` check passes DEFAULT_MODEL off the back of
+    OPENROUTER_DEFAULT_MODEL, which is exactly how DEFAULT_MODEL went missing.
+    """
+    import re
+
     text = ENV_EXAMPLE.read_text(encoding="utf-8")
-    assert _env_var(field) in text, f"{_env_var(field)} is missing from .env.example"
+    var = _env_var(field)
+    assert re.search(rf"^#?\s*{var}=", text, re.M), (
+        f"{var} has no `{var}=` line of its own in .env.example"
+    )
 
 
 @pytest.mark.skipif(not README.is_file(), reason="README not present")
 def test_readme_table_has_no_settings_that_do_not_exist():
     """The other direction: a renamed setting leaves a stale row behind."""
-    import re
-
     text = README.read_text(encoding="utf-8")
     documented = set(re.findall(r"^\| `([A-Z][A-Z0-9_]+)` \|", text, re.M))
     real = {_env_var(f) for f in SETTING_NAMES}

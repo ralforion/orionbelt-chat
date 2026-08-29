@@ -28,7 +28,8 @@ The file looks like::
 Servers from the file are *added* to whatever the ``ANALYTICS_SERVER_DIR`` and
 ``SEMANTIC_LAYER_SERVER_DIR`` variables define, so the common case — "I want one
 more server" — is a file with one entry. A file entry that reuses a built-in
-name replaces it, which is how you override or disable one.
+name replaces it, which is how you repoint one; to switch a built-in off,
+unset its environment variable.
 """
 
 from __future__ import annotations
@@ -164,7 +165,7 @@ def parse_server(entry: Any, where: str) -> ServerDef:
         command=command,
         args=tuple(_parse_args(entry.get("args"), where, name)),
         env=_parse_env(entry.get("env"), where, name),
-        sampling=bool(entry.get("sampling", False)),
+        sampling=_parse_bool(entry.get("sampling"), where, name),
     )
 
     if command and module:
@@ -187,6 +188,31 @@ def _parse_args(raw: Any, where: str, name: str) -> list[str]:
     if not isinstance(raw, list) or not all(isinstance(a, str) for a in raw):
         raise McpConfigError(f"{where} ({name}): 'args' must be a list of strings")
     return list(raw)
+
+
+#: Accepted spellings for a YAML scalar that a template tool may have quoted.
+_TRUE = frozenset({"true", "yes", "on", "1"})
+_FALSE = frozenset({"false", "no", "off", "0"})
+
+
+def _parse_bool(raw: Any, where: str, name: str) -> bool:
+    """Parse `sampling:` without letting a quoted "false" mean True.
+
+    `bool("false")` is True, so a template tool that quotes YAML scalars could
+    silently grant a server access to the LLM. Anything unrecognised is refused
+    rather than coerced.
+    """
+    if raw is None:
+        return False
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        text = raw.strip().lower()
+        if text in _TRUE:
+            return True
+        if text in _FALSE:
+            return False
+    raise McpConfigError(f"{where} ({name}): 'sampling' must be true or false, got {raw!r}")
 
 
 def _parse_env(raw: Any, where: str, name: str) -> dict[str, str]:

@@ -215,7 +215,7 @@ servers:
     args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
     env:
       LOG_LEVEL: info
-    sampling: false      # true only if the server calls back for LLM sampling
+    sampling: false      # opt in before the server may call back for LLM sampling
 ```
 
 | | |
@@ -223,7 +223,8 @@ servers:
 | File is searched for | `./mcp_servers.yaml`, then `<app root>/mcp_servers.yaml` |
 | Override the path | `MCP_SERVERS_FILE` |
 | Relationship to the env vars | **Added** to them — one new server is one entry |
-| Override or disable a built-in | Reuse its name (`OrionBelt Analytics`, `OrionBelt Semantic Layer`) |
+| Repoint a built-in | Reuse its name (`OrionBelt Analytics`, `OrionBelt Semantic Layer`) — the file entry replaces it |
+| Disable a built-in | Unset its environment variable; there is no `enabled:` field, and an entry still needs a working `endpoint` or `command` |
 
 Each entry needs exactly one of `endpoint` (a URL, or a directory plus
 `module`) or `command` (plus optional `args`/`env`). A malformed entry does not

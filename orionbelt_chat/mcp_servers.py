@@ -69,6 +69,13 @@ def _make_server(defn: ServerDef, sampling_model) -> MCPToolset[Any]:
     # Sampling is enabled purely by passing a model: `_resolve_sampling_model`
     # already returns None when MCP_ALLOW_SAMPLING is false, which is what the
     # dropped `allow_sampling=` flag used to express.
+    #
+    # The per-server half of the same boundary lives here rather than in the
+    # caller, so no future caller can hand a model to a server that did not ask
+    # for one. A server only gets a sampling route back to the user's LLM if it
+    # declares `sampling: true`.
+    if not defn.sampling:
+        sampling_model = None
     transport = _transport(defn)
     return enable_sampling_tools(
         MCPToolset(
@@ -102,7 +109,15 @@ def get_mcp_server_errors() -> list[str]:
 
 
 def get_mcp_servers_named() -> list[tuple[str, MCPToolset[Any]]]:
-    """Return (display_name, server) pairs for configured MCP servers."""
+    """Return (display_name, server) pairs for configured MCP servers.
+
+    A server only receives a sampling model if it declares `sampling: true`.
+    MCP_ALLOW_SAMPLING remains the global kill switch — this is the per-server
+    half of the same boundary, so attaching a third-party server cannot hand it
+    a route back to your LLM budget by default.
+    """
     sampling_model = _resolve_sampling_model()
     defs, _ = load_server_defs()
-    return [(defn.name, _make_server(defn, sampling_model)) for defn in defs]
+    return [
+        (defn.name, _make_server(defn, sampling_model if defn.sampling else None)) for defn in defs
+    ]

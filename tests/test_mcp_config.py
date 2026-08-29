@@ -53,6 +53,31 @@ class TestParseServer:
         defn = parse_server({"name": "S", "endpoint": "https://x/mcp", "sampling": True}, "cfg")
         assert defn.sampling is True
 
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (True, True),
+            (False, False),
+            # A template tool that quotes YAML scalars must not flip the meaning:
+            # bool("false") is True, which would silently grant LLM access.
+            ("true", True),
+            ("false", False),
+            ("TRUE", True),
+            ("no", False),
+            ("on", True),
+            (None, False),
+        ],
+    )
+    def test_sampling_accepts_only_real_booleans(self, value, expected):
+        entry = {"name": "S", "endpoint": "https://x/mcp"}
+        if value is not None:
+            entry["sampling"] = value
+        assert parse_server(entry, "cfg").sampling is expected
+
+    def test_sampling_rejects_anything_else(self):
+        with pytest.raises(McpConfigError, match="must be true or false"):
+            parse_server({"name": "S", "endpoint": "https://x/mcp", "sampling": "maybe"}, "cfg")
+
     def test_env_is_stringified(self):
         defn = parse_server({"name": "E", "command": "x", "env": {"PORT": 8080}}, "cfg")
         assert defn.env == {"PORT": "8080"}

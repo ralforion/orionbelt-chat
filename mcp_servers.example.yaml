@@ -7,7 +7,8 @@
 # These are ADDED to the two servers configured by ANALYTICS_SERVER_DIR and
 # SEMANTIC_LAYER_SERVER_DIR, so adding one server means one entry here. Reusing
 # a built-in name ("OrionBelt Analytics", "OrionBelt Semantic Layer") replaces
-# that server instead.
+# that server instead. To switch one off, unset its environment variable —
+# there is no `enabled:` field, and every entry needs a working endpoint.
 
 servers:
   # ── A remote server over Streamable HTTP ────────────────────────
@@ -30,7 +31,8 @@ servers:
     env:
       LOG_LEVEL: info
 
-    # Set true only if the server issues MCP sampling/createMessage calls back
-    # to this client. MCP does not advertise that from the server side, so it
-    # has to be declared. Shown in the UI as "uses sampling".
+    # Opt in before this server may issue MCP sampling/createMessage calls back
+    # to the client's LLM. Off unless declared: MCP does not advertise the need
+    # from the server side, and a third-party server should not reach your model
+    # budget by default. MCP_ALLOW_SAMPLING=false disables it globally regardless.
     # sampling: true
