@@ -27,6 +27,15 @@ Code is reviewed with OpenAI Codex. Write clean, well-structured code that passe
 - Run it with the `orionbelt-chat` console script, not `chainlit run app.py`:
   the script seeds a writable app root before handing off to Chainlit
 
+## Testing
+
+- `tests/fake_mcp_server.py` is a real MCP server (FastMCP, stdio) launched
+  as a subprocess by `tests/test_mcp_integration.py`, which drives a genuine
+  agent run with `FunctionModel` — no API key, no network, so it runs in CI
+- Use it to cover anything in the tool-call/tool-result path: that code sits
+  deep inside `on_message` and shipped a live `AttributeError` once because
+  nothing reached it
+
 ## Stack
 
 - Python 3.11+, Chainlit, Pydantic AI
