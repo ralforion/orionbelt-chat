@@ -9,7 +9,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.4.1-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
 [![Pydantic AI](https://img.shields.io/badge/Pydantic_AI-2.10+-blue)](https://ai.pydantic.dev)
 
@@ -470,7 +470,7 @@ channel so a refactor cannot silently drop the marking.
 
 ## License
 
-Licensed under the **Business Source License 1.1** (BSL 1.1).
+Licensed under the **Business Source License 1.1** (SPDX: `BUSL-1.1`).
 
 - **Production use allowed** for internal/personal use
 - **Commercial embedding/SaaS restrictions** - contact licensing@ralforion.com
