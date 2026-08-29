@@ -22,8 +22,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --extra dev
 
-      # Whole tree, not just src/ tests/ — app.py lives at the root and was
-      # going unchecked.
+      # Whole tree, not just the package and tests — scripts/ ships too.
       - name: Lint (ruff)
         run: uv run ruff check .
 
@@ -80,7 +79,7 @@ jobs:
         run: uv sync --frozen --extra dev
 
       - name: Type check (mypy)
-        run: uv run mypy src/
+        run: uv run mypy orionbelt_chat/
 
       - name: Test (pytest)
         run: uv run pytest
@@ -92,7 +91,7 @@ jobs:
         env:
           OPENROUTER_API_KEY: sk-smoke-test-not-a-real-key
         run: |
-          uv run chainlit run app.py --port 8765 --headless &
+          uv run orionbelt-chat --port 8765 --headless &
           for _ in $(seq 1 30); do
             [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8765/ || true)" = "200" ] && break
             sleep 2

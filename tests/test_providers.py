@@ -1,11 +1,11 @@
-"""Tests for src.providers."""
+"""Tests for orionbelt_chat.providers."""
 
 import os
 from unittest.mock import patch
 
 import pytest
 
-from src.providers import (
+from orionbelt_chat.providers import (
     PROVIDER_LABELS,
     PROVIDER_MODELS,
     default_model_for,
@@ -52,9 +52,9 @@ class TestDefaultModelFor:
 
     def test_global_override(self):
         with patch.dict(os.environ, {"DEFAULT_MODEL": "my-custom-model"}):
-            from src.settings import Settings
+            from orionbelt_chat.settings import Settings
 
-            with patch("src.providers.settings", Settings()):
+            with patch("orionbelt_chat.providers.settings", Settings()):
                 assert default_model_for("openrouter") == "my-custom-model"
 
 
@@ -65,20 +65,20 @@ class TestResolveModel:
 
     def test_openrouter_missing_key_raises(self):
         with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}, clear=False):
-            from src.settings import Settings
+            from orionbelt_chat.settings import Settings
 
-            with patch("src.providers.settings", Settings(openrouter_api_key="")):
+            with patch("orionbelt_chat.providers.settings", Settings(openrouter_api_key="")):
                 with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
                     resolve_model("openrouter", "anthropic/claude-sonnet-4-5")
 
     def test_anthropic_missing_key_raises(self):
-        with patch("src.providers.settings") as mock_settings:
+        with patch("orionbelt_chat.providers.settings") as mock_settings:
             mock_settings.anthropic_api_key = ""
             with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
                 resolve_model("anthropic", "claude-sonnet-4-6")
 
     def test_openai_missing_key_raises(self):
-        with patch("src.providers.settings") as mock_settings:
+        with patch("orionbelt_chat.providers.settings") as mock_settings:
             mock_settings.openai_api_key = ""
             with pytest.raises(ValueError, match="OPENAI_API_KEY"):
                 resolve_model("openai", "gpt-4o")

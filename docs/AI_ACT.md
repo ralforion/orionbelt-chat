@@ -31,9 +31,9 @@ the time of the first interaction. Disclosed in three places:
 
 | Where | Source |
 | --- | --- |
-| UI chrome — "OrionBelt Chat – AI Assistant" | `.chainlit/config.toml`, `public/header.js` |
-| Welcome screen notice | `chainlit.md` |
-| First message of every session | `AI_DISCLOSURE` in `app.py` |
+| UI chrome — "OrionBelt Chat – AI Assistant" | `orionbelt_chat/chainlit_config.toml`, `orionbelt_chat/public/header.js` |
+| Welcome screen notice | `orionbelt_chat/chainlit.md` |
+| First message of every session | `AI_DISCLOSURE` in `orionbelt_chat/app.py` |
 
 The first-interaction message is sent *before* any agent work, so it reaches
 the user even when the agent or its MCP servers fail to start.
@@ -48,7 +48,7 @@ robust and reliable **as far as technically feasible**, accounting for the
 specificities and limitations of each content type.
 
 All marking derives from one provenance record built per turn in
-`src/provenance.py`, so every channel states the same thing. The record carries
+`orionbelt_chat/provenance.py`, so every channel states the same thing. The record carries
 the IPTC `digitalSourceType` term `trainedAlgorithmicMedia` — the interoperable
 vocabulary shared with C2PA — plus the producing application, version, model
 and timestamp.
@@ -63,7 +63,7 @@ and timestamp.
 | CSV, TSV downloads | adjacent `.prov.json` sidecar | `_marked_files` |
 | PNG images from tools | XMP packet in an `iTXt` chunk | `mark_png` |
 | Plotly charts | figure `meta` block plus a visible caption | `mark_figure` |
-| Rendered page | `<meta name="ai-generated">` and `data-ai-generated` on non-user steps | `public/header.js` |
+| Rendered page | `<meta name="ai-generated">` and `data-ai-generated` on non-user steps | `orionbelt_chat/public/header.js` |
 
 Pinned by `tests/test_ai_provenance.py`.
 

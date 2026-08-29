@@ -1,4 +1,4 @@
-"""Tests for src.file_uploads."""
+"""Tests for orionbelt_chat.file_uploads."""
 
 import json
 from types import SimpleNamespace
@@ -7,8 +7,8 @@ from unittest.mock import patch
 import pytest
 from pydantic_ai import ModelRetry
 
-import src.file_uploads as file_uploads
-from src.file_uploads import (
+import orionbelt_chat.file_uploads as file_uploads
+from orionbelt_chat.file_uploads import (
     HANDLE_PREFIX,
     INLINE_THRESHOLD,
     JSON_MODIFIER,

@@ -13,6 +13,7 @@ license-files = ["LICENSE"]
 keywords = ["chainlit", "pydantic-ai", "mcp", "chat", "analytics", "ai"]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
     "Intended Audience :: Developers",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Programming Language :: Python :: 3",
@@ -30,6 +31,16 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.scripts]
+# Seeds a writable Chainlit app root and runs the packaged app; see cli.py.
+orionbelt-chat = "orionbelt_chat.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ralforion/orionbelt-chat"
+Repository = "https://github.com/ralforion/orionbelt-chat"
+Issues = "https://github.com/ralforion/orionbelt-chat/issues"
+Changelog = "https://github.com/ralforion/orionbelt-chat/releases"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
@@ -44,7 +55,20 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+# A real distribution name, not "src": a wheel that installs a top-level `src`
+# module squats that import name for every environment it lands in.
+packages = ["orionbelt_chat"]
+
+[tool.hatch.build.targets.sdist]
+# The wheel's contents plus what is needed to rebuild and verify it.
+include = [
+    "/orionbelt_chat",
+    "/tests",
+    "/scripts",
+    "/licenses",
+    "/README.md",
+    "/LICENSE",
+]
 
 [tool.ruff]
 line-length = 100

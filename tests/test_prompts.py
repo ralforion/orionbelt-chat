@@ -1,9 +1,9 @@
-"""Tests for src.prompts system prompt loading."""
+"""Tests for orionbelt_chat.prompts system prompt loading."""
 
 from pathlib import Path
 
-from src import prompts
-from src.prompts import (
+from orionbelt_chat import prompts
+from orionbelt_chat.prompts import (
     DEFAULT_SYSTEM_PROMPT_FILE,
     FALLBACK_SYSTEM_PROMPT,
     load_system_prompt,
@@ -11,14 +11,15 @@ from src.prompts import (
 
 
 class TestDefaultPath:
-    def test_default_points_to_project_root(self):
-        # system_prompt.md should sit alongside app.py at the repo root.
+    def test_default_points_into_the_package(self):
+        # system_prompt.md ships inside the package so an installed wheel
+        # carries a working prompt.
         assert DEFAULT_SYSTEM_PROMPT_FILE.name == "system_prompt.md"
-        assert DEFAULT_SYSTEM_PROMPT_FILE.parent == Path(prompts.__file__).resolve().parent.parent
+        assert DEFAULT_SYSTEM_PROMPT_FILE.parent == Path(prompts.__file__).resolve().parent
 
     def test_default_file_exists_in_repo(self):
         assert DEFAULT_SYSTEM_PROMPT_FILE.is_file(), (
-            f"Expected {DEFAULT_SYSTEM_PROMPT_FILE} to ship with the repo"
+            f"Expected {DEFAULT_SYSTEM_PROMPT_FILE} to ship with the package"
         )
 
 

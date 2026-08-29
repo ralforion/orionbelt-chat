@@ -12,9 +12,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-import app
+from orionbelt_chat import app
 
-REPO_ROOT = Path(app.__file__).resolve().parent
+# The UI assets ship inside the package, alongside app.py.
+PACKAGE_ROOT = Path(app.__file__).resolve().parent
 
 
 def _sent_messages(message_cls) -> list[str]:
@@ -37,23 +38,19 @@ class TestDisclosureText:
 
 class TestDisclosureInUi:
     def test_welcome_screen_carries_it(self):
-        text = (REPO_ROOT / "chainlit.md").read_text(encoding="utf-8")
+        text = (PACKAGE_ROOT / "chainlit.md").read_text(encoding="utf-8")
         assert "You are interacting with an AI assistant" in text
 
     def test_chainlit_config_name_marks_it_as_ai(self):
-        config = tomllib.loads(
-            (REPO_ROOT / ".chainlit" / "config.toml").read_text(encoding="utf-8")
-        )
+        config = tomllib.loads((PACKAGE_ROOT / "chainlit_config.toml").read_text(encoding="utf-8"))
         assert "AI Assistant" in config["UI"]["name"]
 
     def test_chainlit_config_description_marks_it_as_ai(self):
-        config = tomllib.loads(
-            (REPO_ROOT / ".chainlit" / "config.toml").read_text(encoding="utf-8")
-        )
+        config = tomllib.loads((PACKAGE_ROOT / "chainlit_config.toml").read_text(encoding="utf-8"))
         assert "AI" in config["UI"]["description"]
 
     def test_header_badge_marks_it_as_ai(self):
-        text = (REPO_ROOT / "public" / "header.js").read_text(encoding="utf-8")
+        text = (PACKAGE_ROOT / "public" / "header.js").read_text(encoding="utf-8")
         assert 'var APP_NAME = "Chat – AI Assistant";' in text
 
 

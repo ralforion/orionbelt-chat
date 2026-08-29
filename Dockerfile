@@ -51,14 +51,22 @@ RUN version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"
         --fail-on-missing-notice \
         -o /app/THIRD_PARTY_LICENSES.md
 
+# Chainlit's app root: where public/, chainlit.md, .chainlit/config.toml are
+# seeded from the package and where runtime state (.files/) is written.
+# Pinned under /app rather than the home directory so it is easy to mount.
+ENV CHAINLIT_APP_ROOT=/app/runtime
+
 # Run as a non-root user.
 RUN useradd --create-home --uid 10001 appuser \
+    && mkdir -p /app/runtime \
     && chown -R appuser:appuser /app
 USER appuser
 
 # Chainlit serves on 8080 (matches the documented local URL).
 EXPOSE 8080
 
+# The console script seeds the app root and then runs Chainlit against the
+# packaged app (see orionbelt_chat/cli.py); Chainlit's own flags pass through.
 # --host 0.0.0.0 makes the server reachable from outside the container;
 # --headless skips the browser-open attempt that has no display in a container.
-CMD ["chainlit", "run", "app.py", "--host", "0.0.0.0", "--port", "8080", "--headless"]
+CMD ["orionbelt-chat", "--host", "0.0.0.0", "--port", "8080", "--headless"]

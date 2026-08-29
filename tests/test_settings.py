@@ -1,11 +1,11 @@
-"""Tests for src.settings."""
+"""Tests for orionbelt_chat.settings."""
 
 import os
 from unittest.mock import patch
 
 import pytest
 
-from src.settings import Settings
+from orionbelt_chat.settings import Settings
 
 # All env var names that Pydantic Settings would read for our Settings class.
 _SETTINGS_ENV_KEYS = [f.upper() for f in Settings.model_fields]

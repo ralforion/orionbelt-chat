@@ -10,7 +10,7 @@ So the file never goes through the model.  It is stored in the Chainlit user
 session under a short handle (``@upload:model.yaml``); the model sees only a
 notice with the file's kind, size and a short preview.  When it passes the
 handle as a tool argument, :func:`substitute_handles` — reached through the
-:func:`process_tool_call` hook that :mod:`src.mcp_servers` installs on every
+:func:`process_tool_call` hook that :mod:`orionbelt_chat.mcp_servers` installs on every
 MCP toolset — swaps in the real content just before the request leaves for the
 MCP server.
 
@@ -547,7 +547,7 @@ def substitute_handles(value: Any, registry: dict[str, UploadedFile]) -> Any:
 async def process_tool_call(ctx: Any, call_tool: Any, name: str, tool_args: dict[str, Any]) -> Any:
     """pydantic-ai ``process_tool_call`` hook: inject uploads, then call the tool.
 
-    Wired into every MCP toolset in :mod:`src.mcp_servers`, so any tool
+    Wired into every MCP toolset in :mod:`orionbelt_chat.mcp_servers`, so any tool
     argument on any server can carry a handle.
     """
     registry = _registry()

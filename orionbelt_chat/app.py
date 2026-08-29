@@ -4,6 +4,7 @@ import asyncio
 import copy
 import json
 import logging
+from typing import Any
 
 import chainlit as cl
 from chainlit.context import local_steps
@@ -22,10 +23,13 @@ from pydantic_ai.messages import (
     TextPartDelta,
 )
 
-from src.agent import make_agent
-from src.chart_renderer import UI_URI_PATTERN, render_chart_if_present
-from src.file_downloads import extract_downloads_from_response, extract_downloads_from_tool_results
-from src.file_uploads import (
+from orionbelt_chat.agent import make_agent
+from orionbelt_chat.chart_renderer import UI_URI_PATTERN, render_chart_if_present
+from orionbelt_chat.file_downloads import (
+    extract_downloads_from_response,
+    extract_downloads_from_tool_results,
+)
+from orionbelt_chat.file_uploads import (
     MAX_UPLOAD_MB,
     UPLOAD_ACCEPT,
     UploadedFile,
@@ -33,12 +37,16 @@ from src.file_uploads import (
     drain_pending_uploads,
     register_uploads,
 )
-from src.mcp_sampling import get_sampling_callback, set_sampling_callback
-from src.mcp_servers import SERVERS_USING_SAMPLING, get_mcp_servers_named, get_sampling_model_label
-from src.mermaid_renderer import extract_mermaid_from_tool_results
-from src.provenance import APP_VERSION, mark_png, provenance_record
-from src.providers import PROVIDER_LABELS, default_model_for, models_for
-from src.settings import settings
+from orionbelt_chat.mcp_sampling import get_sampling_callback, set_sampling_callback
+from orionbelt_chat.mcp_servers import (
+    SERVERS_USING_SAMPLING,
+    get_mcp_servers_named,
+    get_sampling_model_label,
+)
+from orionbelt_chat.mermaid_renderer import extract_mermaid_from_tool_results
+from orionbelt_chat.provenance import APP_VERSION, mark_png, provenance_record
+from orionbelt_chat.providers import PROVIDER_LABELS, default_model_for, models_for
+from orionbelt_chat.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -693,12 +701,12 @@ async def _reconnect_mcp() -> bool:
 
     Returns True if all servers are healthy after reconnection.
     """
-    current_contexts: list[tuple[str, object]] = cl.user_session.get("mcp_contexts") or []
+    current_contexts: list[tuple[str, Any]] = cl.user_session.get("mcp_contexts") or []
     if not current_contexts:
         # No servers to reconnect — fall back to full init
         return await _full_reconnect_mcp()
 
-    healthy: list[tuple[str, object]] = []
+    healthy: list[tuple[str, Any]] = []
     failed_names: list[str] = []
 
     for name, server in current_contexts:
@@ -877,7 +885,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                     # Show a thinking indicator while the model generates
                     thinking_step = cl.Step(name="Thinking", type="run", parent_id=_run_step_id)
                     await thinking_step.send()
-                    async with node.stream(agent_run.ctx) as stream:
+                    async with node.stream(agent_run.ctx) as stream:  # type: ignore[var-annotated]
                         async for event in stream:
                             if isinstance(event, PartStartEvent) and isinstance(
                                 event.part, TextPart
@@ -957,15 +965,15 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
 
                                 elif isinstance(event, FunctionToolResultEvent):
                                     result_text, result_binaries = _split_tool_content(
-                                        event.result.content
+                                        event.part.content
                                     )
-                                    result_content = result_text or str(event.result.content)
-                                    call_id = event.result.tool_call_id
+                                    result_content = result_text or str(event.part.content)
+                                    call_id = event.part.tool_call_id
                                     logger.info(
                                         "Tool result [%s] (%d chars): %s → %s",
                                         call_id,
                                         len(result_content),
-                                        event.result.tool_name,
+                                        event.part.tool_name,
                                         result_content[:200],
                                     )
 
@@ -976,7 +984,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                             "MCP session error detected in tool result — will reconnect: %s",
                                             result_content[:200],
                                         )
-                                        step = tool_steps.pop(call_id, None)
+                                        step = tool_steps.pop(call_id, None)  # type: ignore[arg-type]
                                         if step:
                                             step.output = result_content
                                             await step.update()
@@ -987,7 +995,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                         needs_reconnect = True
                                         break
 
-                                    step = tool_steps.pop(call_id, None)
+                                    step = tool_steps.pop(call_id, None)  # type: ignore[arg-type]
                                     cl.user_session.set("active_tool_step_id", None)
                                     if step:
                                         display_text = result_text or (
@@ -1120,7 +1128,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
         if download_elements:
             # Deduplicate by content (code block and tool result may overlap)
             seen_content: set[bytes] = set()
-            unique = []
+            unique: list[Any] = []
             for el in download_elements:
                 key = el.content if isinstance(el.content, bytes) else (el.content or "").encode()
                 if key not in seen_content:

@@ -1,4 +1,4 @@
-"""Tests for src.mcp_servers."""
+"""Tests for orionbelt_chat.mcp_servers."""
 
 from unittest.mock import patch
 
@@ -6,7 +6,7 @@ import pytest
 from pydantic_ai.mcp import StdioTransport, StreamableHttpTransport
 from pydantic_ai.models.test import TestModel
 
-from src.mcp_servers import _is_url, _make_server, get_mcp_servers_named
+from orionbelt_chat.mcp_servers import _is_url, _make_server, get_mcp_servers_named
 
 
 class TestIsUrl:
@@ -72,7 +72,7 @@ def mock_settings():
     The timeout must be a real number: FastMCP coerces it to a timedelta at
     construction time, so a bare MagicMock raises TypeError.
     """
-    with patch("src.mcp_servers.settings") as settings:
+    with patch("orionbelt_chat.mcp_servers.settings") as settings:
         settings.mcp_request_timeout_seconds = 300
         settings.mcp_allow_sampling = False
         settings.analytics_server_dir = ""
