@@ -4,7 +4,7 @@ import asyncio
 import copy
 import json
 import logging
-from typing import Any
+from typing import Any, NamedTuple
 
 import chainlit as cl
 from chainlit.context import local_steps
@@ -115,6 +115,39 @@ def _split_tool_content(raw) -> tuple[str, list[BinaryContent]]:
         except TypeError:
             return str(raw), binaries
     return str(raw), binaries
+
+
+class ToolResult(NamedTuple):
+    """The fields the UI needs out of a tool-result event."""
+
+    call_id: str
+    tool_name: str | None
+    text: str
+    binaries: list[BinaryContent]
+    content: str
+
+
+def _tool_result_fields(event: FunctionToolResultEvent) -> ToolResult:
+    """Pull the display fields out of a tool-result event.
+
+    A named helper rather than inline code because the branch that consumes it
+    sits ~15 levels deep inside ``on_message``, out of reach of any test. It is
+    also where Pydantic AI's event shape is pinned: this was ``event.result``
+    until 2.x renamed it to ``event.part``, and nothing caught the break until
+    the module came under mypy. Keep the attribute access here, and a unit test
+    can fail on the next rename instead of a user's chat.
+    """
+    part = event.part
+    text, binaries = _split_tool_content(part.content)
+    return ToolResult(
+        call_id=part.tool_call_id,
+        tool_name=part.tool_name,
+        text=text,
+        binaries=binaries,
+        # Fall back to the raw content so a result that carries no text (an
+        # image, say) still logs and displays as something.
+        content=text or str(part.content),
+    )
 
 
 # ── Chainlit Chat Settings (sidebar UI) ───────────────────────────────────
@@ -964,16 +997,16 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                     cl.user_session.set("active_tool_step_id", step.id)
 
                                 elif isinstance(event, FunctionToolResultEvent):
-                                    result_text, result_binaries = _split_tool_content(
-                                        event.part.content
-                                    )
-                                    result_content = result_text or str(event.part.content)
-                                    call_id = event.part.tool_call_id
+                                    tool_result = _tool_result_fields(event)
+                                    result_text = tool_result.text
+                                    result_binaries = tool_result.binaries
+                                    result_content = tool_result.content
+                                    call_id = tool_result.call_id
                                     logger.info(
                                         "Tool result [%s] (%d chars): %s → %s",
                                         call_id,
                                         len(result_content),
-                                        event.part.tool_name,
+                                        tool_result.tool_name,
                                         result_content[:200],
                                     )
 
