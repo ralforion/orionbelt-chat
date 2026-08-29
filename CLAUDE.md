@@ -27,6 +27,14 @@ Code is reviewed with OpenAI Codex. Write clean, well-structured code that passe
 - Run it with the `orionbelt-chat` console script, not `chainlit run app.py`:
   the script seeds a writable app root before handing off to Chainlit
 
+## MCP servers
+
+- Server definitions live in `orionbelt_chat/mcp_config.py` as data
+  (`ServerDef`), loaded from env vars plus an optional `mcp_servers.yaml`
+  — do not add a hardcoded server back into `mcp_servers.py`
+- `sampling: true` is a declaration, not a discovery: MCP gives the client
+  no way to know a server issues `sampling/createMessage` calls
+
 ## Testing
 
 - `tests/fake_mcp_server.py` is a real MCP server (FastMCP, stdio) launched

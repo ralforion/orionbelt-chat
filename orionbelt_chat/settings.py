@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     analytics_server_dir: str = ""
     semantic_layer_server_dir: str = ""
 
+    # Path to a YAML file declaring additional MCP servers (see
+    # mcp_servers.example.yaml). When empty, `mcp_servers.yaml` is looked
+    # for in the working directory and then in the Chainlit app root.
+    # Servers declared there are added to the two above; reusing one of
+    # their names replaces it.
+    mcp_servers_file: str = ""
+
     # ── MCP sampling ────────────────────────────────────────
     # When true (default), advertises the sampling.tools capability and
     # answers `sampling/createMessage` requests using the env-configured

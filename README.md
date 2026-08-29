@@ -190,6 +190,46 @@ SEMANTIC_LAYER_SERVER_DIR=../orionbelt-semantic-layer-mcp
 # Remote example: ANALYTICS_SERVER_DIR=https://analytics.example.com/mcp
 ```
 
+**Adding other MCP servers:**
+
+The two variables above cover the OrionBelt servers. Any *other* MCP server —
+someone else's, or your own — is declared in a YAML file. Copy
+[`mcp_servers.example.yaml`](./mcp_servers.example.yaml) to `mcp_servers.yaml`
+in the directory you launch from (or the app root, or anywhere with
+`MCP_SERVERS_FILE=<path>`):
+
+```yaml
+servers:
+  # A remote server over Streamable HTTP
+  - name: Weather
+    endpoint: https://weather.example.com/mcp
+
+  # A local Python project, run as `uv run --directory <endpoint> python -m <module>`
+  - name: My Analytics
+    endpoint: ../my-analytics
+    module: my_analytics
+
+  # Anything else over stdio — a Node package, a binary, a script
+  - name: Filesystem
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
+    env:
+      LOG_LEVEL: info
+    sampling: false      # true only if the server calls back for LLM sampling
+```
+
+| | |
+|---|---|
+| File is searched for | `./mcp_servers.yaml`, then `<app root>/mcp_servers.yaml` |
+| Override the path | `MCP_SERVERS_FILE` |
+| Relationship to the env vars | **Added** to them — one new server is one entry |
+| Override or disable a built-in | Reuse its name (`OrionBelt Analytics`, `OrionBelt Semantic Layer`) |
+
+Each entry needs exactly one of `endpoint` (a URL, or a directory plus
+`module`) or `command` (plus optional `args`/`env`). A malformed entry does not
+take the working servers down with it — the servers panel shows what was
+rejected and why.
+
 **System Prompt (optional):**
 
 ```bash

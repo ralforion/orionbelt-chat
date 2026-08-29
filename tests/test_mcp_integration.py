@@ -132,3 +132,62 @@ class TestEventOrdering:
         assert calls and calls == results, (
             "tool_steps is keyed by call id — a mismatch orphans the step in the UI"
         )
+
+
+class TestConfiguredServer:
+    """The feature a user actually wants: a server the app did not ship with.
+
+    Goes through the real config path — a YAML file, `get_mcp_servers_named()`,
+    the transport factory — rather than constructing a toolset directly, so it
+    covers the wiring an end user depends on.
+    """
+
+    @staticmethod
+    def _config(tmp_path, extra=""):
+        path = tmp_path / "mcp_servers.yaml"
+        path.write_text(
+            "servers:\n"
+            "  - name: My Own Server\n"
+            f"    command: {sys.executable}\n"
+            f'    args: ["{SERVER}"]\n' + extra,
+            encoding="utf-8",
+        )
+        return path
+
+    def test_third_party_server_is_configurable(self, tmp_path, monkeypatch):
+        from orionbelt_chat import mcp_config
+        from orionbelt_chat.mcp_servers import get_mcp_servers_named
+
+        monkeypatch.setattr(mcp_config, "config_path", lambda: self._config(tmp_path))
+        names = [name for name, _ in get_mcp_servers_named()]
+        assert "My Own Server" in names
+
+    async def test_configured_server_answers_a_tool_call(self, tmp_path, monkeypatch):
+        from orionbelt_chat import mcp_config
+        from orionbelt_chat.mcp_servers import get_mcp_servers_named
+
+        monkeypatch.setattr(mcp_config, "config_path", lambda: self._config(tmp_path))
+        toolset = dict(get_mcp_servers_named())["My Own Server"]
+
+        agent = Agent(model=_script_one_call("echo", {"text": "configured!"}), toolsets=[toolset])
+        results = []
+        async with agent:
+            async with agent.iter("go") as agent_run:
+                async for node in agent_run:
+                    if Agent.is_call_tools_node(node):
+                        async with node.stream(agent_run.ctx) as stream:
+                            async for event in stream:
+                                if isinstance(event, FunctionToolResultEvent):
+                                    results.append(_tool_result_fields(event))
+
+        assert results, "the configured server produced no tool result"
+        assert "configured!" in results[0].text
+
+    def test_sampling_flag_is_honoured(self, tmp_path, monkeypatch):
+        from orionbelt_chat import mcp_config
+        from orionbelt_chat.mcp_servers import servers_using_sampling
+
+        monkeypatch.setattr(
+            mcp_config, "config_path", lambda: self._config(tmp_path, "    sampling: true\n")
+        )
+        assert "My Own Server" in servers_using_sampling()

@@ -6,6 +6,7 @@ import pytest
 from pydantic_ai.mcp import StdioTransport, StreamableHttpTransport
 from pydantic_ai.models.test import TestModel
 
+from orionbelt_chat.mcp_config import ServerDef
 from orionbelt_chat.mcp_servers import _is_url, _make_server, get_mcp_servers_named
 
 
@@ -26,17 +27,21 @@ class TestIsUrl:
         assert _is_url("") is False
 
 
+def _def(**kwargs) -> ServerDef:
+    return ServerDef(name=kwargs.pop("name", "Test Server"), **kwargs)
+
+
 class TestMakeServer:
     def test_url_creates_streamable_http(self):
-        server = _make_server("http://localhost:8080/mcp", "my_module", None)
+        server = _make_server(_def(endpoint="http://localhost:8080/mcp"), None)
         assert isinstance(server.client.transport, StreamableHttpTransport)
 
     def test_path_creates_stdio(self):
-        server = _make_server("/opt/mcp-server", "my_module", None)
+        server = _make_server(_def(endpoint="/opt/mcp-server", module="my_module"), None)
         assert isinstance(server.client.transport, StdioTransport)
 
     def test_stdio_runs_module_via_uv(self):
-        server = _make_server("/opt/mcp-server", "my_module", None)
+        server = _make_server(_def(endpoint="/opt/mcp-server", module="my_module"), None)
         transport = server.client.transport
         assert transport.command == "uv"
         assert transport.args == [
@@ -54,12 +59,12 @@ class TestSamplingToolsCapability:
     carrying tools. Pydantic-AI only ever sets a bare `SamplingCapability()`."""
 
     def test_advertised_when_sampling_model_present(self):
-        server = _make_server("http://localhost:8080/mcp", "my_module", TestModel())
+        server = _make_server(_def(endpoint="http://localhost:8080/mcp"), TestModel())
         capabilities = server.client._session_kwargs["sampling_capabilities"]
         assert capabilities.tools is not None
 
     def test_not_advertised_when_sampling_disabled(self):
-        server = _make_server("http://localhost:8080/mcp", "my_module", None)
+        server = _make_server(_def(endpoint="http://localhost:8080/mcp"), None)
         session_kwargs = server.client._session_kwargs
         assert session_kwargs.get("sampling_callback") is None
         assert session_kwargs.get("sampling_capabilities") is None
@@ -71,13 +76,23 @@ def mock_settings():
 
     The timeout must be a real number: FastMCP coerces it to a timedelta at
     construction time, so a bare MagicMock raises TypeError.
+
+    Both modules are patched because the endpoint variables are read in
+    `mcp_config` while the timeouts are read in `mcp_servers`; `config_path` is
+    stubbed so a stray mcp_servers.yaml in the working directory cannot leak
+    into these assertions.
     """
-    with patch("orionbelt_chat.mcp_servers.settings") as settings:
-        settings.mcp_request_timeout_seconds = 300
-        settings.mcp_allow_sampling = False
-        settings.analytics_server_dir = ""
-        settings.semantic_layer_server_dir = ""
-        yield settings
+    with (
+        patch("orionbelt_chat.mcp_servers.settings") as server_settings,
+        patch("orionbelt_chat.mcp_config.settings") as config_settings,
+        patch("orionbelt_chat.mcp_config.config_path", return_value=None),
+    ):
+        server_settings.mcp_request_timeout_seconds = 300
+        server_settings.mcp_allow_sampling = False
+        config_settings.analytics_server_dir = ""
+        config_settings.semantic_layer_server_dir = ""
+        config_settings.mcp_servers_file = ""
+        yield config_settings
 
 
 class TestGetMcpServersNamed:
