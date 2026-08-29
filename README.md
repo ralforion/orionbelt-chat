@@ -9,7 +9,7 @@
 
 [![Version](https://img.shields.io/badge/version-1.4.1-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
+[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
 [![Pydantic AI](https://img.shields.io/badge/Pydantic_AI-2.10+-blue)](https://ai.pydantic.dev)
 
@@ -470,7 +470,7 @@ channel so a refactor cannot silently drop the marking.
 
 ## License
 
-Licensed under the **Business Source License 1.1** (BSL 1.1).
+Licensed under the **Business Source License 1.1** (SPDX: `BUSL-1.1`).
 
 - **Production use allowed** for internal/personal use
 - **Commercial embedding/SaaS restrictions** - contact licensing@ralforion.com
@@ -478,6 +478,34 @@ Licensed under the **Business Source License 1.1** (BSL 1.1).
 - **Change License**: Apache 2.0
 
 See [LICENSE](./LICENSE) for full terms.
+
+### Third-party dependencies
+
+The published container image redistributes ~180 open-source packages, so their
+attribution notices ship with it as `/app/THIRD_PARTY_LICENSES.md`. The same
+file, plus a CycloneDX SBOM (`sbom.cdx.json`), is attached to every GitHub
+Release; the image additionally carries an SBOM and build-provenance
+attestation. The dependency tree is permissive throughout — Apache-2.0, MIT,
+BSD, ISC and MPL-2.0, with no GPL/LGPL/AGPL — so nothing there constrains the
+BSL terms above.
+
+Attribution texts are read out of each installed distribution, including ones
+vendored into a package tree rather than its `.dist-info`. The handful of
+projects that ship no text at all in either their wheel or their sdist are
+covered by curated copies in [`licenses/`](./licenses/README.md), taken verbatim
+from upstream; `--fail-on-missing-notice` (which CI and the image build both
+pass) stops a release if a new dependency needs one and hasn't got it.
+
+Regenerate locally with:
+
+```bash
+uv sync --frozen --no-dev
+.venv/bin/python scripts/gen_third_party_licenses.py \
+  --venv .venv \
+  --overrides licenses \
+  --fail-on-missing-notice \
+  --version "$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
+```
 
 ## Links
 

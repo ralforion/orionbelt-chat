@@ -37,6 +37,20 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
+# ── Attribution layer ─────────────────────────────────────────────
+# The image ships binary copies of every dependency in /app/.venv, which is
+# redistribution: Apache-2.0 §4, the MIT/BSD/ISC notice clauses and MPL-2.0
+# §3.2 all require their notices to travel with those copies. Most wheels carry
+# a LICENSE in their .dist-info and uv copies it in, but ~39 do not, so collect
+# the lot into one file the recipient can actually find.
+RUN version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/') \
+    && python scripts/gen_third_party_licenses.py \
+        --venv /app/.venv \
+        --version "$version" \
+        --overrides licenses \
+        --fail-on-missing-notice \
+        -o /app/THIRD_PARTY_LICENSES.md
+
 # Run as a non-root user.
 RUN useradd --create-home --uid 10001 appuser \
     && chown -R appuser:appuser /app

@@ -11,7 +11,7 @@ This document records engineering reasoning, not legal advice.
 The Act's free-and-open-source exemption (Art. 2(12)) does **not** cover
 systems falling under Article 50 — transparency obligations survive the
 exemption by explicit carve-out. OrionBelt Chat is in any case distributed
-under BSL 1.1, which is source-available rather than free and open source, so
+under BUSL-1.1, which is source-available rather than free and open source, so
 the exemption never applied. Art. 3(3) makes a provider a provider "whether
 for payment or free of charge", so free distribution is not a shield either.
 

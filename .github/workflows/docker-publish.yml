@@ -54,6 +54,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=OrionBelt Chat
             org.opencontainers.image.description=Chainlit + Pydantic AI chat client for OrionBelt Analytics & Semantic Layer MCP servers.
+            org.opencontainers.image.licenses=BUSL-1.1
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -63,6 +64,13 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Attach an SBOM and max-detail build provenance to the pushed image.
+          # The image redistributes ~180 third-party packages; the SBOM is what
+          # lets a consumer (and, from 2027, the CRA) enumerate them without
+          # unpacking the layers. Attribution texts ride along in the image
+          # itself as /app/THIRD_PARTY_LICENSES.md — see the Dockerfile.
+          sbom: true
+          provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
