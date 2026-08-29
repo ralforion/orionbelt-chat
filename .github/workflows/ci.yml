@@ -30,6 +30,18 @@ jobs:
       - name: Format check (ruff)
         run: uv run ruff format --check .
 
+      # The image generates this at build time (see the Dockerfile) and the
+      # release attaches it. Running it here means a break surfaces on the PR
+      # that caused it, not during a tagged release build. Output is thrown
+      # away: this checks that it generates, not what it contains.
+      - name: Attribution file generates
+        run: |
+          version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/')
+          .venv/bin/python scripts/gen_third_party_licenses.py \
+            --venv .venv \
+            --version "$version" \
+            -o "$RUNNER_TEMP/THIRD_PARTY_LICENSES.md"
+
   test:
     name: test (py${{ matrix.python-version }})
     runs-on: ubuntu-latest

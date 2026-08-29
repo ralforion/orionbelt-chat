@@ -35,16 +35,51 @@ jobs:
           [ "$badge"     = "$tag" ] || { echo "::error file=README.md::version badge is '$badge', expected '$tag'"; rc=1; }
           exit $rc
 
+      # Compliance artifacts for the release. The container image carries its
+      # own copy of the attribution file (see the Dockerfile), but anyone
+      # running from source gets it here instead of having to build the image.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Resolve the runtime environment
+        run: uv sync --frozen --no-dev
+
+      - name: Generate attribution file
+        run: |
+          .venv/bin/python scripts/gen_third_party_licenses.py \
+            --venv .venv \
+            --version "${GITHUB_REF_NAME#v}" \
+            -o THIRD_PARTY_LICENSES.md
+
+      # CycloneDX rather than the image attestation, so the SBOM is fetchable
+      # without a registry client. --output-reproducible keeps it diffable
+      # between releases.
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          uvx --from cyclonedx-bom cyclonedx-py environment \
+            --of JSON \
+            --sv 1.6 \
+            --output-reproducible \
+            --pyproject pyproject.toml \
+            -o sbom.cdx.json \
+            .venv/bin/python
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            echo "Release $GITHUB_REF_NAME already exists — nothing to do."
+            echo "Release $GITHUB_REF_NAME already exists — refreshing its assets."
+            gh release upload "$GITHUB_REF_NAME" \
+              THIRD_PARTY_LICENSES.md sbom.cdx.json --clobber
             exit 0
           fi
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
             --verify-tag \
-            --latest
+            --latest \
+            THIRD_PARTY_LICENSES.md sbom.cdx.json

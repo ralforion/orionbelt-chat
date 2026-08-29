@@ -479,6 +479,23 @@ Licensed under the **Business Source License 1.1** (BSL 1.1).
 
 See [LICENSE](./LICENSE) for full terms.
 
+### Third-party dependencies
+
+The published container image redistributes ~180 open-source packages, so their
+attribution notices ship with it as `/app/THIRD_PARTY_LICENSES.md`. The same
+file, plus a CycloneDX SBOM (`sbom.cdx.json`), is attached to every GitHub
+Release; the image additionally carries an SBOM and build-provenance
+attestation. The dependency tree is permissive throughout — Apache-2.0, MIT,
+BSD, ISC and MPL-2.0, with no GPL/LGPL/AGPL — so nothing there constrains the
+BSL terms above.
+
+Regenerate locally with:
+
+```bash
+uv sync --frozen --no-dev
+.venv/bin/python scripts/gen_third_party_licenses.py --venv .venv --version "$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
+```
+
 ## Links
 
 ### OrionBelt Platform

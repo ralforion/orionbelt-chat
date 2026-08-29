@@ -80,3 +80,7 @@ design/
 
 # Claude Code
 .claude/
+
+# Generated compliance artifacts (built by CI, see scripts/gen_third_party_licenses.py)
+THIRD_PARTY_LICENSES.md
+sbom.cdx.json
