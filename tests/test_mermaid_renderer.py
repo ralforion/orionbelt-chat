@@ -1,8 +1,8 @@
-"""Tests for src.mermaid_renderer."""
+"""Tests for orionbelt_chat.mermaid_renderer."""
 
 from unittest.mock import MagicMock
 
-from src.mermaid_renderer import extract_mermaid_from_tool_results, is_mermaid
+from orionbelt_chat.mermaid_renderer import extract_mermaid_from_tool_results, is_mermaid
 
 
 class TestIsMermaid:

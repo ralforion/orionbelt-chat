@@ -7,8 +7,8 @@ import pytest
 from chainlit.server import validate_file_mime_type
 from chainlit.types import AskFileSpec
 
-import app
-from src.file_uploads import MAX_UPLOAD_MB, UPLOAD_ACCEPT, UploadedFile
+from orionbelt_chat import app
+from orionbelt_chat.file_uploads import MAX_UPLOAD_MB, UPLOAD_ACCEPT, UploadedFile
 
 
 @pytest.fixture

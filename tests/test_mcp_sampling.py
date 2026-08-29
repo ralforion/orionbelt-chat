@@ -1,4 +1,4 @@
-"""Tests for src.mcp_sampling and the app's sampling wrapper.
+"""Tests for orionbelt_chat.mcp_sampling and the app's sampling wrapper.
 
 The wrapper is a regression guard: it reaches into pydantic-ai/FastMCP
 internals, so a version bump can silently change the shape it depends on.
@@ -9,7 +9,7 @@ from unittest.mock import patch
 from pydantic_ai.mcp import MCPToolset, StdioTransport
 from pydantic_ai.models.test import TestModel
 
-from src.mcp_sampling import (
+from orionbelt_chat.mcp_sampling import (
     enable_sampling_tools,
     get_sampling_callback,
     set_sampling_callback,
@@ -61,7 +61,7 @@ class TestWrapSamplingForChainlit:
     connect try/except, so it broke chat startup outright."""
 
     def test_wraps_without_error_when_sampling_on(self):
-        from app import _wrap_sampling_for_chainlit
+        from orionbelt_chat.app import _wrap_sampling_for_chainlit
 
         toolset = _toolset(sampling=True)
         before = get_sampling_callback(toolset)
@@ -72,7 +72,7 @@ class TestWrapSamplingForChainlit:
         assert after is not before, "callback should have been replaced"
 
     def test_no_op_when_sampling_off(self):
-        from app import _wrap_sampling_for_chainlit
+        from orionbelt_chat.app import _wrap_sampling_for_chainlit
 
         toolset = _toolset(sampling=False)
         _wrap_sampling_for_chainlit(toolset, "OrionBelt Analytics")
@@ -80,10 +80,10 @@ class TestWrapSamplingForChainlit:
 
     def test_survives_real_get_mcp_servers_named(self):
         """End-to-end shape check against what the app actually iterates."""
-        from app import _wrap_sampling_for_chainlit
-        from src.mcp_servers import get_mcp_servers_named
+        from orionbelt_chat.app import _wrap_sampling_for_chainlit
+        from orionbelt_chat.mcp_servers import get_mcp_servers_named
 
-        with patch("src.mcp_servers.settings") as mock_settings:
+        with patch("orionbelt_chat.mcp_servers.settings") as mock_settings:
             mock_settings.mcp_request_timeout_seconds = 300
             mock_settings.mcp_allow_sampling = False
             mock_settings.analytics_server_dir = "http://localhost:8001/mcp"

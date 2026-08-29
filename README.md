@@ -8,6 +8,7 @@
 <p align="center"><strong>AI-powered chat interface for OrionBelt Analytics & Semantic Layer</strong></p>
 
 [![Version](https://img.shields.io/badge/version-1.4.2-brightgreen.svg)](https://github.com/ralforion/orionbelt-chat)
+[![PyPI](https://img.shields.io/pypi/v/orionbelt-chat.svg)](https://pypi.org/project/orionbelt-chat/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-orange.svg)](https://github.com/ralforion/orionbelt-chat/blob/main/LICENSE)
 [![Chainlit](https://img.shields.io/badge/Chainlit-2.10+-blue)](https://chainlit.io)
@@ -192,17 +193,42 @@ SEMANTIC_LAYER_SERVER_DIR=../orionbelt-semantic-layer-mcp
 **System Prompt (optional):**
 
 ```bash
-# Override the default system prompt file (defaults to system_prompt.md)
+# Override the prompt file (defaults to the system_prompt.md inside the package)
 # SYSTEM_PROMPT_FILE=~/my_custom_prompt.md
 ```
 
 ### Run
 
 ```bash
-uv run chainlit run app.py --watch
+uv run orionbelt-chat --watch
 ```
 
 Open **http://localhost:8080** in your browser.
+
+`orionbelt-chat` is a thin wrapper around `chainlit run` — every Chainlit flag
+(`--port`, `--host`, `--headless`, `-w`) passes straight through. It also seeds
+a writable *app root* with the UI assets the package ships, because Chainlit
+resolves `public/`, `chainlit.md` and `.chainlit/config.toml` relative to that
+directory and writes runtime state (`.files/`) into it:
+
+| | |
+|---|---|
+| Default app root | `~/.orionbelt-chat` |
+| Override | `CHAINLIT_APP_ROOT` or `ORIONBELT_CHAT_HOME` |
+| Refreshed each launch | `public/` (versioned UI assets) |
+| Created once, then yours to edit | `chainlit.md`, `.chainlit/config.toml` |
+
+### Install from PyPI
+
+To run the client without cloning the repo:
+
+```bash
+uv tool install orionbelt-chat     # or: pipx install orionbelt-chat
+orionbelt-chat
+```
+
+Configuration is read from the environment, so put your keys in the shell or in
+a `.env` file in the directory you launch from — see [Configuration](#configuration).
 
 ### Run with Docker
 
@@ -439,16 +465,17 @@ carries responsibility when you self-host, is in [docs/AI_ACT.md](./docs/AI_ACT.
 ### Art. 50(1) — you are told it is an AI
 
 - **UI chrome** — the assistant is named "OrionBelt Chat – AI Assistant"
-  (`.chainlit/config.toml`, `public/header.js`)
-- **Welcome screen** — the notice in [`chainlit.md`](./chainlit.md)
+  (`orionbelt_chat/chainlit_config.toml`, `orionbelt_chat/public/header.js`)
+- **Welcome screen** — the notice in [`chainlit.md`](./orionbelt_chat/chainlit.md)
 - **First interaction** — a message sent at the start of every session, before
   any agent work, so it appears even when the agent or its MCP servers fail to
-  start (`AI_DISCLOSURE` in [`app.py`](./app.py))
+  start (`AI_DISCLOSURE` in [`app.py`](./orionbelt_chat/app.py))
 
 ### Art. 50(2) — generated output is marked
 
 Every channel by which content leaves the app carries a machine-readable
-provenance record built in [`src/provenance.py`](./src/provenance.py), using the
+provenance record built in
+[`orionbelt_chat/provenance.py`](./orionbelt_chat/provenance.py), using the
 IPTC `digitalSourceType` term `trainedAlgorithmicMedia`:
 
 - **Downloads** — comment header for TTL/SPARQL/SQL/YAML/XML, a `_provenance`

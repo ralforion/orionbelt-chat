@@ -1,7 +1,7 @@
 """System prompt loading for the OrionBelt Analytics Assistant.
 
-The prompt is stored in an external file (``system_prompt.md`` at the project
-root by default) so users can tweak the agent's behaviour without editing code.
+The prompt is stored in an external file (``system_prompt.md``, shipped inside
+the package) so users can tweak the agent's behaviour without editing code.
 The path can be overridden via the ``SYSTEM_PROMPT_FILE`` environment variable.
 If the file is missing or unreadable, an embedded fallback is used.
 """
@@ -15,9 +15,10 @@ from .settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Project root: repo directory containing app.py
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_SYSTEM_PROMPT_FILE = _PROJECT_ROOT / "system_prompt.md"
+# Ships alongside the code so `pip install orionbelt-chat` carries a working
+# prompt; SYSTEM_PROMPT_FILE points elsewhere when you want to customise it.
+_PACKAGE_ROOT = Path(__file__).resolve().parent
+DEFAULT_SYSTEM_PROMPT_FILE = _PACKAGE_ROOT / "system_prompt.md"
 
 # Minimal fallback used only when no prompt file can be read.
 FALLBACK_SYSTEM_PROMPT = (

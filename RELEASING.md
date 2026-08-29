@@ -7,7 +7,7 @@ Releases are cut from `main` and driven entirely by pushing a version tag.
 1. **Bump the version in all four places** (they must agree, or the release
    workflow fails):
    - `pyproject.toml` → `version = "X.Y.Z"`
-   - `public/header.js` → `var VERSION = "vX.Y.Z";`
+   - `orionbelt_chat/public/header.js` → `var VERSION = "vX.Y.Z";`
    - `README.md` → the version badge (`badge/version-X.Y.Z-brightgreen`)
    - `uv.lock` → run `uv lock` after bumping `pyproject.toml`; it pins the
      project's own version, and CI's `uv sync --frozen` fails if it's stale.
@@ -22,13 +22,37 @@ Releases are cut from `main` and driven entirely by pushing a version tag.
    git push origin vX.Y.Z
    ```
 
-That's the whole manual part. Pushing the tag triggers two workflows:
+That's the whole manual part. Pushing the tag triggers three workflows:
 
 - **`docker-publish.yml`** builds and pushes the image to Docker Hub
   (`:X.Y.Z`, `:X.Y`, `:X`, `:latest`) and syncs the Docker Hub description.
 - **`release.yml`** verifies the four version locations agree with the tag,
   then creates the GitHub Release with auto-generated notes and marks it
   Latest.
+- **`pypi-publish.yml`** builds the sdist and wheel, checks the wheel really
+  contains the packaged assets, and uploads to PyPI.
+
+## PyPI
+
+`pypi-publish.yml` uses PyPI **Trusted Publishing** (OIDC), so no API token is
+stored anywhere. One-time setup, matching what the workflow declares:
+
+| Field | Value |
+|---|---|
+| Owner | `ralforion` |
+| Repository | `orionbelt-chat` |
+| Workflow | `pypi-publish.yml` |
+| Environment | `pypi` |
+
+Because the project does not exist on PyPI yet, register it as a **pending
+publisher** at <https://pypi.org/manage/account/publishing/>; PyPI converts it
+into a normal trusted publisher on the first successful upload. Create the
+`pypi` environment under Settings → Environments if you want uploads gated on a
+required reviewer.
+
+**A version can only be uploaded once** — PyPI rejects a re-upload of a filename
+it has already seen, even after you delete the release — so a botched publish
+needs a new patch version, not a retry.
 
 ## Notes
 

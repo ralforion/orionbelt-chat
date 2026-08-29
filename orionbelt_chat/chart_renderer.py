@@ -12,7 +12,7 @@ from typing import ClassVar
 from chainlit.element import Element, ElementType
 from pydantic.dataclasses import dataclass
 
-from src.provenance import mark_figure, provenance_record
+from orionbelt_chat.provenance import mark_figure, provenance_record
 
 logger = logging.getLogger(__name__)
 

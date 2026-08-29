@@ -26,12 +26,12 @@ jobs:
         run: |
           tag="${GITHUB_REF_NAME#v}"
           pyproject=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/')
-          header=$(grep -m1 'var VERSION' public/header.js | sed -E 's/.*"v([^"]+)".*/\1/')
+          header=$(grep -m1 'var VERSION' orionbelt_chat/public/header.js | sed -E 's/.*"v([^"]+)".*/\1/')
           badge=$(grep -m1 'badge/version-' README.md | sed -E 's#.*badge/version-([0-9][0-9.]*)-.*#\1#')
           echo "tag=$tag pyproject=$pyproject header=$header badge=$badge"
           rc=0
           [ "$pyproject" = "$tag" ] || { echo "::error file=pyproject.toml::version is '$pyproject', expected '$tag'"; rc=1; }
-          [ "$header"    = "$tag" ] || { echo "::error file=public/header.js::VERSION is '$header', expected '$tag'"; rc=1; }
+          [ "$header"    = "$tag" ] || { echo "::error file=orionbelt_chat/public/header.js::VERSION is '$header', expected '$tag'"; rc=1; }
           [ "$badge"     = "$tag" ] || { echo "::error file=README.md::version badge is '$badge', expected '$tag'"; rc=1; }
           exit $rc
 

@@ -16,15 +16,15 @@ from xml.etree import ElementTree
 
 import pytest
 
-import app
-from src import provenance
-from src.chart_renderer import _apply_defaults
-from src.file_downloads import (
+from orionbelt_chat import app, provenance
+from orionbelt_chat.chart_renderer import _apply_defaults
+from orionbelt_chat.file_downloads import (
     extract_downloads_from_response,
     extract_downloads_from_tool_results,
 )
 
-REPO_ROOT = Path(app.__file__).resolve().parent
+# The UI assets ship inside the package, alongside app.py.
+PACKAGE_ROOT = Path(app.__file__).resolve().parent
 
 # Comfortably over MIN_DOWNLOAD_SIZE so the extractors emit a file.
 PADDING = "x" * 250
@@ -349,14 +349,14 @@ class TestDownloadMarking:
 
 class TestMarkingInTheRenderedPage:
     def test_header_js_tags_the_document_as_ai_generated(self):
-        text = (REPO_ROOT / "public" / "header.js").read_text(encoding="utf-8")
+        text = (PACKAGE_ROOT / "public" / "header.js").read_text(encoding="utf-8")
         assert 'flag.name = "ai-generated"' in text
 
     def test_header_js_tags_non_user_steps(self):
-        text = (REPO_ROOT / "public" / "header.js").read_text(encoding="utf-8")
+        text = (PACKAGE_ROOT / "public" / "header.js").read_text(encoding="utf-8")
         assert 'el.dataset.aiGenerated = "true"' in text
         assert 'data-step-type") === "user_message"' in text
 
     def test_header_js_uses_the_iptc_vocabulary(self):
-        text = (REPO_ROOT / "public" / "header.js").read_text(encoding="utf-8")
+        text = (PACKAGE_ROOT / "public" / "header.js").read_text(encoding="utf-8")
         assert "trainedAlgorithmicMedia" in text

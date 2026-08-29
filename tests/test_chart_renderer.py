@@ -1,11 +1,11 @@
-"""Tests for src.chart_renderer."""
+"""Tests for orionbelt_chat.chart_renderer."""
 
 import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.chart_renderer import (
+from orionbelt_chat.chart_renderer import (
     UI_URI_PATTERN,
     PlotlyChart,
     _extract_plotly_json,

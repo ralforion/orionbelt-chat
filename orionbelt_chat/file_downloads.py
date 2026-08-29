@@ -5,7 +5,7 @@ can be offered as file downloads (TTL ontologies, JSON, CSV, SQL, etc.).
 
 Every file produced here carries an AI Act Art. 50(2) provenance marking —
 in-band for formats with a comment or metadata slot, as a ``.prov.json``
-sidecar for CSV/TSV.  See src/provenance.py.
+sidecar for CSV/TSV.  See orionbelt_chat/provenance.py.
 """
 
 import logging
@@ -13,7 +13,7 @@ import re
 
 import chainlit as cl
 
-from src.provenance import mark_text, needs_sidecar, provenance_record, sidecar_bytes
+from orionbelt_chat.provenance import mark_text, needs_sidecar, provenance_record, sidecar_bytes
 
 logger = logging.getLogger(__name__)
 
