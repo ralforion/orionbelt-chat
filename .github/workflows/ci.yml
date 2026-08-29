@@ -32,14 +32,28 @@ jobs:
 
       # The image generates this at build time (see the Dockerfile) and the
       # release attaches it. Running it here means a break surfaces on the PR
-      # that caused it, not during a tagged release build. Output is thrown
-      # away: this checks that it generates, not what it contains.
-      - name: Attribution file generates
+      # that caused it, not during a tagged release build.
+      #
+      # Deliberately its own --no-dev 3.13 environment rather than the lint
+      # venv above: the gate must see exactly what the image redistributes.
+      # Dev-only packages are not redistributed and must not be able to fail
+      # it, and the resolved set differs by interpreter.
+      - name: Resolve the shipping environment
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/shipping-venv
+        run: uv sync --frozen --no-dev --python 3.13
+
+      # --fail-on-missing-notice is the point of this step: a new dependency
+      # that ships no license text stops here, with the licenses/ file to add
+      # named in the error. Output is discarded; only the exit code matters.
+      - name: Attribution covers every shipped package
         run: |
           version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/')
-          .venv/bin/python scripts/gen_third_party_licenses.py \
-            --venv .venv \
+          python3 scripts/gen_third_party_licenses.py \
+            --venv "$RUNNER_TEMP/shipping-venv" \
             --version "$version" \
+            --overrides licenses \
+            --fail-on-missing-notice \
             -o "$RUNNER_TEMP/THIRD_PARTY_LICENSES.md"
 
   test:

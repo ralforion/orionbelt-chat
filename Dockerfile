@@ -47,6 +47,8 @@ RUN version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"
     && python scripts/gen_third_party_licenses.py \
         --venv /app/.venv \
         --version "$version" \
+        --overrides licenses \
+        --fail-on-missing-notice \
         -o /app/THIRD_PARTY_LICENSES.md
 
 # Run as a non-root user.

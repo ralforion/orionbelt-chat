@@ -42,7 +42,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          python-version: "3.12"
+          # Must match the Dockerfile's base image: the resolved set is
+          # interpreter-dependent (3.13 pulls in audioop-lts, which 3.12 does
+          # not), and the release assets are meant to describe the image.
+          python-version: "3.13"
 
       - name: Resolve the runtime environment
         run: uv sync --frozen --no-dev
@@ -52,6 +55,8 @@ jobs:
           .venv/bin/python scripts/gen_third_party_licenses.py \
             --venv .venv \
             --version "${GITHUB_REF_NAME#v}" \
+            --overrides licenses \
+            --fail-on-missing-notice \
             -o THIRD_PARTY_LICENSES.md
 
       # CycloneDX rather than the image attestation, so the SBOM is fetchable

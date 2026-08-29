@@ -489,11 +489,22 @@ attestation. The dependency tree is permissive throughout — Apache-2.0, MIT,
 BSD, ISC and MPL-2.0, with no GPL/LGPL/AGPL — so nothing there constrains the
 BSL terms above.
 
+Attribution texts are read out of each installed distribution, including ones
+vendored into a package tree rather than its `.dist-info`. The handful of
+projects that ship no text at all in either their wheel or their sdist are
+covered by curated copies in [`licenses/`](./licenses/README.md), taken verbatim
+from upstream; `--fail-on-missing-notice` (which CI and the image build both
+pass) stops a release if a new dependency needs one and hasn't got it.
+
 Regenerate locally with:
 
 ```bash
 uv sync --frozen --no-dev
-.venv/bin/python scripts/gen_third_party_licenses.py --venv .venv --version "$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
+.venv/bin/python scripts/gen_third_party_licenses.py \
+  --venv .venv \
+  --overrides licenses \
+  --fail-on-missing-notice \
+  --version "$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
 ```
 
 ## Links
