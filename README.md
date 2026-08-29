@@ -190,12 +190,99 @@ SEMANTIC_LAYER_SERVER_DIR=../orionbelt-semantic-layer-mcp
 # Remote example: ANALYTICS_SERVER_DIR=https://analytics.example.com/mcp
 ```
 
+**Adding other MCP servers:**
+
+The two variables above cover the OrionBelt servers. Any *other* MCP server —
+someone else's, or your own — is declared in a YAML file. Copy
+[`mcp_servers.example.yaml`](./mcp_servers.example.yaml) to `mcp_servers.yaml`
+in the directory you launch from (or the app root, or anywhere with
+`MCP_SERVERS_FILE=<path>`):
+
+```yaml
+servers:
+  # A remote server over Streamable HTTP
+  - name: Weather
+    endpoint: https://weather.example.com/mcp
+
+  # A local Python project, run as `uv run --directory <endpoint> python -m <module>`
+  - name: My Analytics
+    endpoint: ../my-analytics
+    module: my_analytics
+
+  # Anything else over stdio — a Node package, a binary, a script
+  - name: Filesystem
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
+    env:
+      LOG_LEVEL: info
+    sampling: false      # opt in before the server may call back for LLM sampling
+```
+
+| | |
+|---|---|
+| File is searched for | `./mcp_servers.yaml`, then `<app root>/mcp_servers.yaml` |
+| Override the path | `MCP_SERVERS_FILE` |
+| Relationship to the env vars | **Added** to them — one new server is one entry |
+| Repoint a built-in | Reuse its name (`OrionBelt Analytics`, `OrionBelt Semantic Layer`) — the file entry replaces it |
+| Disable a built-in | Unset its environment variable; there is no `enabled:` field, and an entry still needs a working `endpoint` or `command` |
+
+Each entry needs exactly one of `endpoint` (a URL, or a directory plus
+`module`) or `command` (plus optional `args`/`env`). A malformed entry does not
+take the working servers down with it — the servers panel shows what was
+rejected and why.
+
 **System Prompt (optional):**
 
 ```bash
 # Override the prompt file (defaults to the system_prompt.md inside the package)
 # SYSTEM_PROMPT_FILE=~/my_custom_prompt.md
 ```
+
+#### All settings
+
+Every setting, with its default. All are read from the environment or a `.env`
+file; see [`.env.example`](./.env.example) for a copyable starting point.
+
+**LLM providers**
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DEFAULT_PROVIDER` | `openrouter` | Provider selected on startup: `openrouter`, `mlx`, `ollama`, `anthropic`, `openai` |
+| `DEFAULT_MODEL` | _(empty)_ | Model selected on startup; falls back to the provider default below |
+| `OPENROUTER_API_KEY` | _(empty)_ | OpenRouter credential |
+| `OPENROUTER_DEFAULT_MODEL` | `anthropic/claude-sonnet-4-5` | Model used when the provider is OpenRouter |
+| `ANTHROPIC_API_KEY` | _(empty)_ | Anthropic credential, bypassing OpenRouter |
+| `ANTHROPIC_DEFAULT_MODEL` | `claude-sonnet-4-6` | Model used when the provider is Anthropic |
+| `OPENAI_API_KEY` | _(empty)_ | OpenAI credential, bypassing OpenRouter |
+| `OPENAI_DEFAULT_MODEL` | `gpt-4o` | Model used when the provider is OpenAI |
+| `MLX_BASE_URL` | `http://localhost:8000/v1` | Where `mlx-openai-server` is listening |
+| `MLX_DEFAULT_MODEL` | `mlx-community/Qwen2.5-14B-Instruct-4bit` | Model used when the provider is MLX |
+| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Where Ollama is listening |
+| `OLLAMA_DEFAULT_MODEL` | `qwen2.5:14b` | Model used when the provider is Ollama |
+
+**MCP servers**
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ANALYTICS_SERVER_DIR` | _(empty)_ | OrionBelt Analytics: a local directory (stdio) or an HTTP(S) URL. Empty disables it |
+| `SEMANTIC_LAYER_SERVER_DIR` | _(empty)_ | OrionBelt Semantic Layer, same forms |
+| `MCP_SERVERS_FILE` | _(empty)_ | YAML file declaring any other servers. When empty, `mcp_servers.yaml` is searched for in the working directory, then the app root |
+| `MCP_ALLOW_SAMPLING` | `true` | Whether servers may make LLM calls back through this client, answered with the default model. Set `false` as a cost/privacy kill switch |
+
+**Behaviour**
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SYSTEM_PROMPT_FILE` | _(empty)_ | Prompt file to load; defaults to the `system_prompt.md` shipped in the package |
+| `TOOL_CALL_TIMEOUT_SECONDS` | `300` | Budget for the whole tool-call phase of one agent turn, including any sampling round-trips |
+| `MCP_REQUEST_TIMEOUT_SECONDS` | `300` | Per-request MCP transport timeout. Must be at least as large as your slowest single tool call |
+
+**App root** (not a `Settings` field — read by Chainlit and the launcher):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `CHAINLIT_APP_ROOT` | `~/.orionbelt-chat` | Where `public/`, `chainlit.md`, `.chainlit/config.toml` are seeded and runtime state is written |
+| `ORIONBELT_CHAT_HOME` | _(unset)_ | Alternative spelling of the same thing, used when `CHAINLIT_APP_ROOT` is unset |
 
 ### Run
 

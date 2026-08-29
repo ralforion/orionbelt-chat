@@ -1,0 +1,38 @@
+# Additional MCP servers for OrionBelt Chat.
+#
+# Copy to `mcp_servers.yaml` — the app looks for that name in the directory you
+# launch from, then in the Chainlit app root (~/.orionbelt-chat by default).
+# Point MCP_SERVERS_FILE at any other path to override.
+#
+# These are ADDED to the two servers configured by ANALYTICS_SERVER_DIR and
+# SEMANTIC_LAYER_SERVER_DIR, so adding one server means one entry here. Reusing
+# a built-in name ("OrionBelt Analytics", "OrionBelt Semantic Layer") replaces
+# that server instead. To switch one off, unset its environment variable —
+# there is no `enabled:` field, and every entry needs a working endpoint.
+
+servers:
+  # ── A remote server over Streamable HTTP ────────────────────────
+  - name: Weather
+    endpoint: https://weather.example.com/mcp
+
+  # ── A local Python project, launched the way the OrionBelt servers are ──
+  # `endpoint` is the project directory, `module` the module to run inside it;
+  # the app starts it with `uv run --directory <endpoint> python -m <module>`.
+  - name: My Analytics
+    endpoint: ../my-analytics
+    module: my_analytics
+
+  # ── Anything else, over stdio ───────────────────────────────────
+  # Use `command` + `args` for a server that is not a Python module — a Node
+  # package, a binary, a script. `env` is passed to the subprocess.
+  - name: Filesystem
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
+    env:
+      LOG_LEVEL: info
+
+    # Opt in before this server may issue MCP sampling/createMessage calls back
+    # to the client's LLM. Off unless declared: MCP does not advertise the need
+    # from the server side, and a third-party server should not reach your model
+    # budget by default. MCP_ALLOW_SAMPLING=false disables it globally regardless.
+    # sampling: true

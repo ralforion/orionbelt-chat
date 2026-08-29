@@ -6,6 +6,7 @@ from typing import Any
 from pydantic_ai.mcp import MCPToolset, StdioTransport, StreamableHttpTransport
 
 from .file_uploads import process_tool_call
+from .mcp_config import ServerDef, load_server_defs
 from .mcp_sampling import enable_sampling_tools
 from .providers import default_model_for, resolve_model
 from .settings import settings
@@ -45,18 +46,37 @@ def get_sampling_model_label() -> str | None:
     return f"{provider}/{default_model_for(provider)}"
 
 
-def _make_server(endpoint: str, module: str, sampling_model) -> MCPToolset[Any]:
+def _transport(defn: ServerDef) -> StreamableHttpTransport | StdioTransport:
+    """Pick the transport a server definition describes."""
+    if defn.command:
+        return StdioTransport(
+            command=defn.command,
+            args=list(defn.args),
+            env=defn.env or None,
+        )
+    if defn.is_url:
+        return StreamableHttpTransport(url=defn.endpoint)
+    # A directory endpoint: run the named module inside that project, which is
+    # how the two OrionBelt servers have always been launched.
+    return StdioTransport(
+        command="uv",
+        args=["run", "--directory", defn.endpoint, "python", "-m", defn.module],
+        env=defn.env or None,
+    )
+
+
+def _make_server(defn: ServerDef, sampling_model) -> MCPToolset[Any]:
     # Sampling is enabled purely by passing a model: `_resolve_sampling_model`
     # already returns None when MCP_ALLOW_SAMPLING is false, which is what the
     # dropped `allow_sampling=` flag used to express.
-    transport: StreamableHttpTransport | StdioTransport
-    if _is_url(endpoint):
-        transport = StreamableHttpTransport(url=endpoint)
-    else:
-        transport = StdioTransport(
-            command="uv",
-            args=["run", "--directory", endpoint, "python", "-m", module],
-        )
+    #
+    # The per-server half of the same boundary lives here rather than in the
+    # caller, so no future caller can hand a model to a server that did not ask
+    # for one. A server only gets a sampling route back to the user's LLM if it
+    # declares `sampling: true`.
+    if not defn.sampling:
+        sampling_model = None
+    transport = _transport(defn)
     return enable_sampling_tools(
         MCPToolset(
             transport,
@@ -71,22 +91,33 @@ def _make_server(endpoint: str, module: str, sampling_model) -> MCPToolset[Any]:
     )
 
 
-_SERVER_DEFS: list[tuple[str, str, str]] = [
-    ("OrionBelt Analytics", "analytics_server_dir", "orionbelt_analytics"),
-    ("OrionBelt Semantic Layer", "semantic_layer_server_dir", "orionbelt_semantic_layer"),
-]
+def servers_using_sampling() -> frozenset[str]:
+    """Names of servers declared to issue MCP sampling/createMessage calls.
 
-# Servers known to issue MCP sampling/createMessage calls. The MCP protocol
-# does not advertise this from the server side, so list known cases here.
-SERVERS_USING_SAMPLING: frozenset[str] = frozenset({"OrionBelt Analytics"})
+    The MCP protocol does not advertise this from the server side, so it stays
+    a declaration: built-in for the OrionBelt servers, `sampling: true` for
+    anything a user configures.
+    """
+    defs, _ = load_server_defs()
+    return frozenset(defn.name for defn in defs if defn.sampling)
+
+
+def get_mcp_server_errors() -> list[str]:
+    """Configuration problems worth showing the user, empty when all is well."""
+    _, errors = load_server_defs()
+    return errors
 
 
 def get_mcp_servers_named() -> list[tuple[str, MCPToolset[Any]]]:
-    """Return (display_name, server) pairs for configured MCP servers."""
+    """Return (display_name, server) pairs for configured MCP servers.
+
+    A server only receives a sampling model if it declares `sampling: true`.
+    MCP_ALLOW_SAMPLING remains the global kill switch — this is the per-server
+    half of the same boundary, so attaching a third-party server cannot hand it
+    a route back to your LLM budget by default.
+    """
     sampling_model = _resolve_sampling_model()
-    servers = []
-    for name, attr, module in _SERVER_DEFS:
-        endpoint = getattr(settings, attr, "")
-        if endpoint:
-            servers.append((name, _make_server(endpoint, module, sampling_model)))
-    return servers
+    defs, _ = load_server_defs()
+    return [
+        (defn.name, _make_server(defn, sampling_model if defn.sampling else None)) for defn in defs
+    ]

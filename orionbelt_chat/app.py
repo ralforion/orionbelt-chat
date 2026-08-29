@@ -39,9 +39,10 @@ from orionbelt_chat.file_uploads import (
 )
 from orionbelt_chat.mcp_sampling import get_sampling_callback, set_sampling_callback
 from orionbelt_chat.mcp_servers import (
-    SERVERS_USING_SAMPLING,
+    get_mcp_server_errors,
     get_mcp_servers_named,
     get_sampling_model_label,
+    servers_using_sampling,
 )
 from orionbelt_chat.mermaid_renderer import extract_mermaid_from_tool_results
 from orionbelt_chat.provenance import APP_VERSION, mark_png, provenance_record
@@ -425,9 +426,10 @@ def _update_mcp_info(
 ):
     """Update the mcp_info session variable."""
     parts = []
+    sampling_servers = servers_using_sampling()
     if connected_names:
         server_list = "\n".join(
-            f"- `{n}`" + (" — uses sampling" if n in SERVERS_USING_SAMPLING else "")
+            f"- `{n}`" + (" — uses sampling" if n in sampling_servers else "")
             for n in connected_names
         )
         parts.append(f"Connected MCP servers:\n{server_list}")
@@ -436,6 +438,11 @@ def _update_mcp_info(
         parts.append(f"Failed to connect:\n{fail_list}")
     if not connected_names and not failed_names:
         parts.append("No MCP servers configured.")
+
+    # A server the user meant to add but mis-declared would otherwise just be
+    # absent from the list above, with nothing saying why.
+    for problem in get_mcp_server_errors():
+        parts.append(f"⚠️ MCP server config ignored — {problem}")
 
     sampling_label = get_sampling_model_label()
     if sampling_label:
