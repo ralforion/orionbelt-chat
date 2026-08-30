@@ -8,20 +8,20 @@ on:
     tags: ["v*.*.*"]
   workflow_dispatch:
 
-# The publishing job below narrows this further to id-token only.
 permissions:
   contents: read
 
 jobs:
-  pypi-publish:
+  # No id-token here. The wheel is built and inspected by repository code and
+  # by build/twine, none of which may mint an OIDC token: an identity good for
+  # uploading to PyPI must not be reachable from the step that runs setup.py,
+  # a build backend, or any dependency either of them pulls in.
+  build:
     runs-on: ubuntu-latest
     # Only run for version tags or a manual dispatch.
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    environment:
-      name: pypi
-      url: https://pypi.org/project/orionbelt-chat/
     permissions:
-      id-token: write # required for Trusted Publishing
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -30,6 +30,8 @@ jobs:
       # script included, so a verifier placed after it would be checking
       # whatever that action left behind. Only checkout runs first, and it has
       # to, since nothing can be verified before the tree it fetches exists.
+      # It covers publish's actions too, which is why that job needs no copy:
+      # publish cannot start until this job has passed.
       - name: Verify every Action is pinned to its named release
         run: ./scripts/check-action-pins.sh
 
@@ -73,6 +75,33 @@ jobs:
               print(f"::error::{wheel} is missing {name}")
           sys.exit(1 if missing else 0)
           PY
+
+      - name: Upload the distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  # The only job that can mint an OIDC token, and it runs no repository code at
+  # all: it checks out nothing, installs nothing, and its two steps are the
+  # download and the upload. The distributions it publishes were built by
+  # `build` under a job that had no id-token to give away.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/orionbelt-chat/
+    permissions:
+      id-token: write # required for Trusted Publishing
+    steps:
+      - name: Collect the distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

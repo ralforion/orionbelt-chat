@@ -464,7 +464,10 @@ with every upstream release, so checking against it would turn CI red the
 moment `v7.0.2` ships, for a pin that is still perfectly good. CI runs the
 check in its `pins` job, and the three publishing workflows run it as their
 first step after checkout, so no tag can publish a release, a wheel or an image
-built by steps whose pins were never checked. `--offline` skips the upstream
+built by steps whose pins were never checked. The privileged `publish` jobs in
+`release.yml` and `pypi-publish.yml` need no copy of their own: they cannot
+start until the job that ran the check has passed, so their actions are
+verified before they exist as running code. `--offline` skips the upstream
 lookups when you have no network, checking only the SHA and comment format.
 
 To bump an Action, resolve the release you want and paste both halves:
