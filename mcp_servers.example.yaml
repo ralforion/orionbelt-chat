@@ -12,18 +12,27 @@
 #
 # Each entry needs exactly one of:
 #   endpoint: https://…      a remote server over Streamable HTTP
+#                            optional: headers for API-key/Bearer auth
 #   endpoint: <dir> + module a Python project, run as
 #                            `uv run --directory <endpoint> python -m <module>`
 #   command: + args:         anything else, over stdio
 #
-# `${VAR}` in an endpoint, command, args or env value is replaced by that
-# environment variable — or by the matching line in your `.env`. Name your API
-# keys that way and they stay out of this file (and out of git). An unset
-# variable is reported in the servers panel rather than silently sent as "".
+# `${VAR}` in an endpoint, headers, command, args or env value is replaced by
+# that environment variable — or by the matching line in a `.env`, looked for
+# beside this file, in the app root, and in the directory you launch from.
+# Name your API keys that way and they stay out of this file (and out of git).
+# The spelling must be exactly ${NAME}: an unset variable, or a near miss such
+# as ${MY-KEY} or ${KEY:-default}, is reported in the servers panel rather than
+# sent on to the server as literal text.
+#
+# Credentials go where the transport can carry them — `headers:` on an HTTP
+# endpoint, `env:` on a subprocess. The wrong one for the transport is refused
+# rather than ignored, so a server never reports itself connected without the
+# key you meant to give it.
 
 servers:
   # ══ Demos: remote, no install, no API key ═══════════════════════
-  # Copy this file as-is and these two are live on the next restart.
+  # Copy this file as-is and these three are live on the next restart.
 
   # Ask questions about any public GitHub repository — "how does
   # pydantic-ai handle MCP sampling?" — answered from the indexed source.
@@ -35,12 +44,19 @@ servers:
   - name: Context7
     endpoint: https://mcp.context7.com/mcp
 
+  # Public development indicators, metadata and time series from the
+  # World Bank Data360 platform.
+  - name: World Bank Data360
+    endpoint: https://maimcpext.worldbank.org/ext/data360/mcp
+
   # ══ Demos: web search (free API key) ════════════════════════════
 
   # Tavily — search, extract, crawl. Remote, so nothing to install.
   # Key: https://app.tavily.com  →  put TAVILY_API_KEY in your .env
   # - name: Tavily
-  #   endpoint: https://mcp.tavily.com/mcp/?tavilyApiKey=${TAVILY_API_KEY}
+  #   endpoint: https://mcp.tavily.com/mcp/
+  #   headers:
+  #     Authorization: Bearer ${TAVILY_API_KEY}
 
   # Brave Search — web, news, image and local search, run locally via npx.
   # Key: https://brave.com/search/api/  →  BRAVE_API_KEY in your .env
@@ -49,6 +65,15 @@ servers:
   #   args: ["-y", "@brave/brave-search-mcp-server"]
   #   env:
   #     BRAVE_API_KEY: ${BRAVE_API_KEY}
+
+  # ══ Demos: public data (free API key) ═══════════════════════════
+
+  # Data Commons — Google's public statistical knowledge graph.
+  # Key: https://apikeys.datacommons.org  →  DATACOMMONS_API_KEY in your .env
+  # - name: Data Commons
+  #   endpoint: https://api.datacommons.org/mcp
+  #   headers:
+  #     X-API-Key: ${DATACOMMONS_API_KEY}
 
   # ══ Demos: local, over stdio (needs uvx or npx on PATH) ═════════
   # The first launch downloads the server, which can outrun the connection

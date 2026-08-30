@@ -71,3 +71,28 @@ class TestSettingsEnvOverride:
         with patch.dict(os.environ, {"ANALYTICS_SERVER_DIR": "/tmp/analytics"}):
             s = _clean_settings()
             assert s.analytics_server_dir == "/tmp/analytics"
+
+
+class TestUnknownDotenvKeys:
+    """`.env` is shared with keys that are not settings of this app.
+
+    `mcp_servers.yaml` names an MCP server's credential as `${TAVILY_API_KEY}`
+    and the README tells the user to store it in `.env`. Pydantic-settings
+    validates every key in that file, so under the default `extra="forbid"`
+    following those instructions raised a ValidationError at *import* of
+    `orionbelt_chat.settings` — before any UI existed to report it.
+    """
+
+    def test_unknown_key_in_dotenv_does_not_raise(self, clean_env, tmp_path):
+        dotenv = tmp_path / ".env"
+        dotenv.write_text(
+            "TAVILY_API_KEY=tvly-xyz\nBRAVE_API_KEY=brave-abc\nDEFAULT_PROVIDER=ollama\n",
+            encoding="utf-8",
+        )
+        s = Settings(_env_file=str(dotenv))
+        assert s.default_provider == "ollama"
+        assert not hasattr(s, "tavily_api_key")
+
+    def test_unknown_environment_variable_does_not_raise(self, clean_env, monkeypatch):
+        monkeypatch.setenv("TAVILY_API_KEY", "tvly-xyz")
+        assert Settings(_env_file=None).default_provider == "openrouter"

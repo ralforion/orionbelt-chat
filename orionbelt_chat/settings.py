@@ -76,6 +76,13 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        # `.env` is shared with things that are not settings of this app: an
+        # MCP server's API key, named from mcp_servers.yaml as `${TAVILY_API_KEY}`,
+        # lives there too. Pydantic-settings validates every key in the file,
+        # so the default `extra="forbid"` turned one such line into a
+        # ValidationError at *import* of this module — before any UI existed to
+        # report it. Unknown keys are the file working as intended.
+        extra="ignore",
     )
 
 
