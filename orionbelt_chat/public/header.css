@@ -143,6 +143,24 @@ a[href*="issues"] img {
   transform: rotate(180deg);
 }
 
+/* The panel is kept out of the layout until someone asks for one.
+
+   Chainlit force-opens it whenever any element has display "side", titled
+   after the *last* element and listing *all* of them — so a session would
+   otherwise open on one server's name above every server's tools run
+   together, which is not a view of anything. header.js closes it, but a
+   close can only run after the panel has mounted, and by then it has been
+   painted. Hiding it until header.js marks it as requested means the
+   nonsense state never reaches the screen.
+
+   The wrapper is the resizable panel holding the title, and the drag
+   handle beside it, or a stray separator would be left floating. */
+html:not([data-ob-side-panel="open"]) div[data-panel]:has(#side-view-title),
+html:not([data-ob-side-panel="open"])
+  [data-panel-resize-handle-id]:has(+ div[data-panel] #side-view-title) {
+  display: none !important;
+}
+
 /* ── Accent colour ─────────────────────────────────────────────────────
    Chainlit ships a magenta primary (hsl(340 92% 52%)) for the send button,
    focus rings, links and element pills. Repoint it at the blue of the

@@ -455,15 +455,25 @@
 // Chainlit opens it on its own — an effect watching the message elements sets
 // the side view whenever any element has display "side", with the *last*
 // element's title over *all* of them. For the MCP tool lists that means a
-// session opens with a panel nobody asked for, titled after one server and
-// listing every server's tools at once. There is no server-side flag for it,
-// so it is dismissed here, and clicking a pill a second time closes it again
-// rather than reopening what is already on screen.
+// session would open on one server's name above every server's tools run
+// together, which is not a view of anything.
+//
+// Closing it is not enough on its own: a close can only run once the panel has
+// mounted, so that state gets painted first. The `data-ob-side-panel`
+// attribute set here is what header.css keys on to keep the panel out of the
+// layout until it is genuinely wanted; this closes it as well, so Chainlit's
+// own state matches what is on screen.
 (function elementSidePanel() {
+  var root = document.documentElement;
   var openedFor = null; // label of the pill the user opened, if any
 
   function panel() {
     return document.getElementById("side-view-title");
+  }
+
+  function markRequested(requested) {
+    if (requested) root.setAttribute("data-ob-side-panel", "open");
+    else root.removeAttribute("data-ob-side-panel");
   }
 
   function closePanel() {
@@ -502,16 +512,26 @@
         event.preventDefault();
         event.stopPropagation();
         openedFor = null;
+        markRequested(false);
         closePanel();
         return;
       }
       openedFor = label;
+      markRequested(true);
     },
     true
   );
 
   dismissAutoOpen(0);
   new MutationObserver(function () {
+    if (!panel()) {
+      // Gone — dismissed by us, or closed with the panel's own button.
+      if (openedFor) {
+        openedFor = null;
+        markRequested(false);
+      }
+      return;
+    }
     dismissAutoOpen(0);
   }).observe(document.body, { childList: true, subtree: true });
 })();
