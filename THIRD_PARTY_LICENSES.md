@@ -1,4 +1,4 @@
-# Third-Party Licenses — OrionBelt Chat 1.5.0
+# Third-Party Licenses — OrionBelt Chat 1.6.0
 
 OrionBelt Chat is distributed under the Business Source License 1.1 (see `LICENSE`). This file covers the third-party open-source packages redistributed alongside it — every dependency installed into the runtime environment of the published container image.
 
