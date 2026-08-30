@@ -32,6 +32,20 @@ That's the whole manual part. Pushing the tag triggers three workflows:
 - **`pypi-publish.yml`** builds the sdist and wheel, checks the wheel really
   contains the packaged assets, and uploads to PyPI.
 
+`release.yml` and `pypi-publish.yml` are each split into a `build` job and a
+`publish` job, and the split is the security boundary rather than a staging
+convenience. Everything that runs repository code or third-party tooling
+happens in `build`, under a token that can neither write to the repository nor
+mint an OIDC token. Each `publish` job checks out nothing and installs nothing:
+it downloads the artifact `build` produced and hands it to one pinned action.
+So the credential that can create a Release, and the identity that can upload
+to PyPI, are never in scope while a build backend, a lockfile-resolved
+dependency or an SBOM generator is running.
+
+PyPI matches its trusted publisher on the workflow *filename* and the
+environment, not the job, so `environment: pypi` lives on the `publish` job
+that performs the OIDC exchange and the table below is unaffected by the split.
+
 ## PyPI
 
 `pypi-publish.yml` uses PyPI **Trusted Publishing** (OIDC), so no API token is
