@@ -439,18 +439,23 @@ async def _collect_tools(named_servers: list[tuple[str, Any]]) -> dict[str, list
     Also warms `MCPToolset`'s own tool cache, so the first message does not pay
     for the round trip this makes.
     """
-    tools: dict[str, list[Any] | None] = {}
-    for name, server in named_servers:
+
+    async def listing(name: str, server: Any) -> tuple[str, list[Any] | None]:
         try:
-            tools[name] = list(
+            return name, list(
                 await asyncio.wait_for(server.list_tools(), timeout=_TOOL_LIST_TIMEOUT)
             )
         except Exception as e:
             # The server is connected either way — the agent will still reach
             # its tools, we just cannot show them here.
             logger.warning("Could not list tools for %s — %s", name, e)
-            tools[name] = None
-    return tools
+            return name, None
+
+    # Concurrently: the greeting waits on this, and serially a handful of
+    # servers that are up but slow to answer would each add their own timeout
+    # to how long the user stares at nothing. `gather` keeps the configured
+    # order, so the list still reads the way the config does.
+    return dict(await asyncio.gather(*(listing(name, server) for name, server in named_servers)))
 
 
 #: Distinguishes "this server was never listed" from "its listing failed".
@@ -509,6 +514,30 @@ def _server_line(name: str, tools: Any, sampling: bool) -> str:
     else:
         label = f"`{name}`"
     return f"- {label}" + (" — uses sampling" if sampling else "")
+
+
+async def _refresh_status_message() -> None:
+    """Rewrite the greeting to the session's current servers, tools and model.
+
+    It is the one message that stays on screen for the whole session, so
+    leaving it on a stale listing means stale counts and pills that open the
+    previous set of tools. Every path that changes what is connected — a model
+    switch, either reconnect — ends here.
+    """
+    status_msg = cl.user_session.get("status_msg")
+    if not status_msg:
+        return
+    provider = cl.user_session.get("provider")
+    model = cl.user_session.get("model")
+    mcp_info = cl.user_session.get("mcp_info", "")
+    status_msg.elements = _tool_elements()
+    status_msg.content = (
+        f"**OrionBelt® Analytics Assistant** ready.\n\n"
+        f"Provider: `{provider}` | Model: `{model}`\n\n"
+        f"{mcp_info}\n\n"
+        f"Ask me anything about your data."
+    )
+    await status_msg.update()
 
 
 def _update_mcp_info(
@@ -618,17 +647,7 @@ async def on_settings_update(settings_values: dict):
         ).send()
 
         # Also update the original header status message if it exists
-        status_msg = cl.user_session.get("status_msg")
-        mcp_info = cl.user_session.get("mcp_info", "")
-        if status_msg:
-            status_msg.elements = _tool_elements()
-            status_msg.content = (
-                f"**OrionBelt® Analytics Assistant** ready.\n\n"
-                f"Provider: `{provider}` | Model: `{model}`\n\n"
-                f"{mcp_info}\n\n"
-                f"Ask me anything about your data."
-            )
-            await status_msg.update()
+        await _refresh_status_message()
 
 
 # ── Message handler ────────────────────────────────────────────────────────
@@ -904,7 +923,15 @@ async def _reconnect_mcp() -> bool:
     status = f"Reconnected: {', '.join(reconnected)}." if reconnected else ""
     if still_failed:
         status += f" Still down: {', '.join(n for n, _ in still_failed)}."
-    await cl.Message(content=f"{status} {mcp_info}".strip(), author="System").send()
+    # The refreshed counts are only pills if the elements travel with the
+    # message naming them; the greeting above still carries the stale set, so
+    # it is rebuilt too rather than left pointing at the previous listing.
+    await cl.Message(
+        content=f"{status} {mcp_info}".strip(),
+        elements=_tool_elements(),
+        author="System",
+    ).send()
+    await _refresh_status_message()
     return not still_failed
 
 
@@ -915,7 +942,12 @@ async def _full_reconnect_mcp() -> bool:
     model = cl.user_session.get("model")
     if await _init_agent(provider, model):
         mcp_info = cl.user_session.get("mcp_info", "")
-        await cl.Message(content=f"Reconnected. {mcp_info}", author="System").send()
+        await cl.Message(
+            content=f"Reconnected. {mcp_info}",
+            elements=_tool_elements(),
+            author="System",
+        ).send()
+        await _refresh_status_message()
         return True
     await cl.Message(
         content="Reconnection failed. Check that MCP servers are running.", author="System"

@@ -466,6 +466,7 @@
 (function elementSidePanel() {
   var root = document.documentElement;
   var openedFor = null; // label of the pill the user opened, if any
+  var clickedAt = 0; // when, so a swap in progress is not mistaken for a reopen
 
   function panel() {
     return document.getElementById("side-view-title");
@@ -484,16 +485,40 @@
     return true;
   }
 
+  // The panel may only ever show what a pill asked for. Anything else is the
+  // effect having opened it: at startup, and again whenever a later message
+  // carries elements — a reconnect refreshes the tool lists, which reopens the
+  // merged view over the top of a panel the user had opened for one server.
+  //
+  // Two tells, because the title alone is not enough: more than one element in
+  // the body is the merged view whatever it is called, and a title that is not
+  // the pill last clicked was not opened by that click.
+  var SETTLE_MS = 600;
+
+  function unrequested() {
+    var body = document.getElementById("side-view-content");
+    // The merged view is never what anyone asked for, whatever it is titled.
+    if (body && body.children.length > 1) return true;
+    // Clicking a second pill while one is open leaves the old title on screen
+    // for a frame or two; that is a swap in progress, not a reopen.
+    if (Date.now() - clickedAt < SETTLE_MS) return false;
+    var open = panel();
+    return !openedFor || !open || open.textContent.trim() !== openedFor;
+  }
+
   // Dismissed on every appearance, not once: the elements arrive as separate
-  // socket events, so the effect that opens the panel runs once per server and
-  // would reopen it behind a one-shot close. `openedFor` is what stops this
-  // from fighting a panel the user opened on purpose.
+  // socket events, so the effect runs once per server and would reopen the
+  // panel behind a one-shot close.
   //
   // The panel is also mounted a frame or two before its close button exists,
   // so a single attempt on the mutation that revealed it is not enough.
   function dismissAutoOpen(attempt) {
-    if (openedFor || !panel()) return;
-    if (closePanel()) return;
+    if (!panel() || !unrequested()) return;
+    if (closePanel()) {
+      markRequested(false);
+      openedFor = null;
+      return;
+    }
     if (attempt < 60) {
       requestAnimationFrame(function () {
         dismissAutoOpen(attempt + 1);
@@ -507,6 +532,7 @@
       var pill = event.target && event.target.closest && event.target.closest("a.element-link");
       if (!pill) return;
       var label = pill.textContent.trim();
+      clickedAt = Date.now();
       if (panel() && openedFor === label) {
         // Same pill twice: close what it opened instead of reopening it.
         event.preventDefault();

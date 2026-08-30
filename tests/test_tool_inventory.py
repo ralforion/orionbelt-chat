@@ -158,3 +158,111 @@ class TestServerListCounts:
         app._update_mcp_info(["S"])
         assert "- `S`\n" in session["mcp_info"] + "\n"
         assert "tools" not in session["mcp_info"]
+
+
+class TestCollectToolsConcurrency:
+    """The greeting waits on this listing, so servers are asked in parallel.
+
+    Serially, a handful of servers that are up but slow to answer would each
+    add their own timeout to how long the user stares at nothing.
+    """
+
+    def test_servers_are_listed_concurrently(self):
+        started, finished = [], []
+
+        def slow_server(name):
+            async def list_tools():
+                started.append(name)
+                await asyncio.sleep(0.15)
+                finished.append(name)
+                return [_tool("a")]
+
+            server = MagicMock()
+            server.list_tools = list_tools
+            return server
+
+        pairs = [(n, slow_server(n)) for n in ("A", "B", "C")]
+        tools = asyncio.run(app._collect_tools(pairs))
+
+        # Every listing had begun before the first one came back.
+        assert len(started) == 3
+        assert started == ["A", "B", "C"]
+        assert finished and set(tools) == {"A", "B", "C"}
+
+    def test_one_slow_server_does_not_add_its_timeout_to_the_others(self):
+        async def hangs():
+            await asyncio.sleep(3600)
+
+        def quick():
+            async def list_tools():
+                return [_tool("a")]
+
+            server = MagicMock()
+            server.list_tools = list_tools
+            return server
+
+        stuck = MagicMock()
+        stuck.list_tools = hangs
+        pairs = [("Stuck", stuck), ("Stuck2", MagicMock(list_tools=hangs)), ("Quick", quick())]
+
+        async def run():
+            loop = asyncio.get_running_loop()
+            start = loop.time()
+            tools = await app._collect_tools(pairs)
+            return tools, loop.time() - start
+
+        with patch.object(app, "_TOOL_LIST_TIMEOUT", 0.2):
+            tools, elapsed = asyncio.run(run())
+
+        # Two stuck servers, one timeout — not two.
+        assert elapsed < 0.5
+        assert tools["Stuck"] is None and tools["Stuck2"] is None
+        assert [t.name for t in tools["Quick"]] == ["a"]
+
+    def test_configured_order_is_preserved(self):
+        def server(n):
+            async def list_tools():
+                await asyncio.sleep(0.05 if n == "First" else 0)
+                return [_tool("a")]
+
+            return MagicMock(list_tools=list_tools)
+
+        pairs = [("First", server("First")), ("Second", server("Second"))]
+        # The slow one is first in the config, so it must stay first in the list.
+        assert list(asyncio.run(app._collect_tools(pairs))) == ["First", "Second"]
+
+
+class TestRefreshStatusMessage:
+    """The greeting is the one message that stays on screen all session.
+
+    A model switch or a reconnect changes what is connected, so leaving it on
+    the old listing means stale counts and pills that open the previous tools.
+    """
+
+    @pytest.fixture
+    def session(self):
+        store = {"provider": "openrouter", "model": "some-model", "mcp_info": "Connected: none"}
+        with (
+            patch.object(app.cl, "user_session") as user_session,
+            patch.object(app.cl, "Text", side_effect=lambda **kwargs: SimpleNamespace(**kwargs)),
+        ):
+            user_session.set.side_effect = store.__setitem__
+            user_session.get.side_effect = lambda k, d=None: store.get(k, d)
+            yield store
+
+    def test_rewrites_content_and_elements(self, session):
+        session["mcp_tools"] = {"DeepWiki": [_tool("a"), _tool("b")]}
+        status = MagicMock()
+        status.update = AsyncMock()
+        session["status_msg"] = status
+
+        asyncio.run(app._refresh_status_message())
+
+        assert [e.name for e in status.elements] == ["DeepWiki (2 tools)"]
+        assert "Connected: none" in status.content
+        assert "some-model" in status.content
+        status.update.assert_awaited_once()
+
+    def test_no_status_message_is_not_an_error(self, session):
+        # Init failed, or the greeting was never sent.
+        asyncio.run(app._refresh_status_message())
