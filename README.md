@@ -695,9 +695,13 @@ See [LICENSE](./LICENSE) for full terms.
 
 The published container image redistributes ~180 open-source packages, so their
 attribution notices ship with it as `/app/THIRD_PARTY_LICENSES.md`. The same
-file, plus a CycloneDX SBOM (`sbom.cdx.json`), is attached to every GitHub
-Release; the image additionally carries an SBOM and build-provenance
-attestation. The dependency tree is permissive throughout — Apache-2.0, MIT,
+file is committed here as
+[`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md), so the attribution is
+readable without downloading anything, and CI fails if it drifts from what the
+locked environment produces. It is generated, not written — regenerate it
+rather than editing it. That file, plus a CycloneDX SBOM (`sbom.cdx.json`), is
+attached to every GitHub Release; the image additionally carries an SBOM and
+build-provenance attestation. The dependency tree is permissive throughout — Apache-2.0, MIT,
 BSD, ISC and MPL-2.0, with no GPL/LGPL/AGPL — so nothing there constrains the
 BSL terms above.
 
