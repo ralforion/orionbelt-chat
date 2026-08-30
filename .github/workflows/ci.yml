@@ -93,12 +93,11 @@ jobs:
         run: |
           if ! diff -u THIRD_PARTY_LICENSES.md "$RUNNER_TEMP/THIRD_PARTY_LICENSES.md"; then
             echo
-            echo "THIRD_PARTY_LICENSES.md is stale. Regenerate it:"
-            echo "  uv sync --frozen --no-dev --python 3.13"
-            echo "  version=\$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = \"([^\"]+)\"/\\1/')"
-            echo "  .venv/bin/python scripts/gen_third_party_licenses.py \\"
-            echo "    --venv .venv --version \"\$version\" --overrides licenses \\"
-            echo "    --fail-on-missing-notice -o THIRD_PARTY_LICENSES.md"
+            echo "THIRD_PARTY_LICENSES.md is stale — regenerate it ON LINUX."
+            echo "The resolved set is platform-dependent (jeepney and"
+            echo "SecretStorage install on Linux and not on macOS), and the"
+            echo "image this describes is Linux. See RELEASING.md for the"
+            echo "container one-liner if you are not on Linux."
             exit 1
           fi
 

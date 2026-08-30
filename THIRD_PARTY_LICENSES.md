@@ -4,15 +4,15 @@ OrionBelt Chat is distributed under the Business Source License 1.1 (see `LICENS
 
 It is generated from installed package metadata by `scripts/gen_third_party_licenses.py`; do not edit it by hand.
 
-Packages: **174**
+Packages: **176**
 
 ## Summary
 
 | License | Packages |
 | --- | ---: |
-| Apache-2.0 | 62 |
-| MIT | 54 |
-| BSD-3-Clause | 15 |
+| Apache-2.0 | 63 |
+| MIT | 55 |
+| BSD-3-Clause | 16 |
 | MIT License | 9 |
 | BSD | 5 |
 | Apache 2.0 | 4 |
@@ -31,7 +31,6 @@ Packages: **174**
 | MIT OR Apache-2.0 | 1 |
 | MPL 2.0 | 1 |
 | MPL-2.0 | 1 |
-| Not declared in package metadata | 1 |
 | Unlicense | 1 |
 
 ## Packages without an upstream license file
@@ -2456,7 +2455,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### caio 0.9.25
 
-License: Not declared in package metadata
+License: Apache-2.0
 
 <details><summary>caio-0.9.25.dist-info/licenses/COPYING</summary>
 
@@ -5710,6 +5709,40 @@ LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE A
 EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
+</details>
+
+### jeepney 0.9.0
+
+License: MIT
+
+Project: https://gitlab.com/takluyver/jeepney
+
+<details><summary>jeepney-0.9.0.dist-info/licenses/LICENSE</summary>
+
+```text
+The MIT License (MIT)
+
+Copyright (c) 2017 Thomas Kluyver
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 ```
 
 </details>
@@ -12452,6 +12485,44 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+```
+
+</details>
+
+### SecretStorage 3.5.0
+
+License: BSD-3-Clause
+
+Project: https://github.com/mitya57/secretstorage
+
+<details><summary>secretstorage-3.5.0.dist-info/licenses/LICENSE</summary>
+
+```text
+Copyright 2012-2025 Dmitry Shachnev <mitya57@gmail.com>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+3. Neither the name of the University nor the names of its contributors may be
+   used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 </details>

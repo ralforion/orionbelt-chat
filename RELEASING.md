@@ -13,14 +13,23 @@ Releases are cut from `main` and driven entirely by pushing a version tag.
      project's own version, and CI's `uv sync --frozen` fails if it's stale.
 
    Then regenerate the committed attribution, which carries the version in its
-   heading and is checked by CI against the locked environment:
+   heading and is checked by CI against the locked environment.
+
+   **Regenerate it on Linux.** The resolved set is platform-dependent —
+   `jeepney` and `SecretStorage` install there and not on macOS — so a file
+   generated on a Mac is two packages short and CI rejects it. The image and
+   the release assets are Linux, so Linux is the answer that is correct
+   anyway. If you are not on Linux, run it in a container:
 
    ```bash
-   uv sync --frozen --no-dev --python 3.13
-   version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/')
-   .venv/bin/python scripts/gen_third_party_licenses.py \
-     --venv .venv --version "$version" --overrides licenses \
-     --fail-on-missing-notice -o THIRD_PARTY_LICENSES.md
+   docker run --rm --platform linux/amd64 -v "$PWD":/w -w /w python:3.13-slim bash -c '
+     pip install -q uv
+     UV_PROJECT_ENVIRONMENT=/tmp/venv uv sync --frozen --no-dev
+     version=$(grep -m1 "^version = " pyproject.toml | sed -E "s/^version = \"([^\"]+)\"/\\1/")
+     /tmp/venv/bin/python scripts/gen_third_party_licenses.py \
+       --venv /tmp/venv --version "$version" --overrides licenses \
+       --fail-on-missing-notice -o THIRD_PARTY_LICENSES.md
+   '
    ```
 
 2. **Open a PR, get CI green, merge to `main`.** Never tag off a branch.
