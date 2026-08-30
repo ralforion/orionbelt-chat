@@ -23,7 +23,20 @@ jobs:
         run: ./scripts/check-action-pins.sh
 
   # Style is version-independent — running it once keeps the matrix to signal.
+  #
+  # `needs: pins` so a forged Action never executes here while the check that
+  # would catch it is still deciding. Blocking the merge is not enough: the
+  # action runs during the job, and a job that has already run has already done
+  # whatever it was going to do.
+  #
+  # This only works because `pins` is a required status check on main. A job
+  # whose `needs:` failed reports as *skipped*, and branch protection counts a
+  # skipped required check as satisfied — so `needs: pins` without `pins` being
+  # required is worse than no gate at all: a failing pin check would skip lint
+  # and test straight into a green merge. The required contexts are
+  # `pins`, `lint`, `test (py3.11)`, `test (py3.12)` and `test (py3.13)`.
   lint:
+    needs: pins
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,8 +83,11 @@ jobs:
             --fail-on-missing-notice \
             -o "$RUNNER_TEMP/THIRD_PARTY_LICENSES.md"
 
+  # Gated on `pins` for the same reason as `lint`, and required for the same
+  # reason — see the note there before removing either half.
   test:
     name: test (py${{ matrix.python-version }})
+    needs: pins
     runs-on: ubuntu-latest
     strategy:
       # One version failing shouldn't mask the others' results.
