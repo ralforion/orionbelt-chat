@@ -75,9 +75,24 @@ jobs:
       # CycloneDX rather than the image attestation, so the SBOM is fetchable
       # without a registry client. --output-reproducible keeps it diffable
       # between releases.
+      #
+      # The generator is pinned like an Action, and goes stale like one: nothing
+      # bumps this automatically, because Dependabot reads manifests and this is
+      # a string in a run block. Move both values deliberately.
+      #
+      # The version alone would not be enough. cyclonedx-python-lib composes the
+      # document and would still float, and BOTH versions are recorded in the
+      # SBOM's own metadata.tools — so a float shows up as an unexplained diff
+      # between two releases of identical code. --exclude-newer pins the whole
+      # resolution. Verified against uv 0.11.28: with and without the flag the
+      # output is byte-identical today, so this is behaviour-neutral now and
+      # only stops the drift later. Resolves to cyclonedx-py 7.3.1 and
+      # cyclonedx-python-lib 11.12.0, spec 1.6.
       - name: Generate SBOM (CycloneDX)
         run: |
-          uvx --from cyclonedx-bom cyclonedx-py environment \
+          uvx --from 'cyclonedx-bom==7.3.1' \
+            --exclude-newer 2026-08-30T00:00:00Z \
+            cyclonedx-py environment \
             --of JSON \
             --sv 1.6 \
             --output-reproducible \
