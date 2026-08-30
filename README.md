@@ -196,27 +196,60 @@ The two variables above cover the OrionBelt servers. Any *other* MCP server —
 someone else's, or your own — is declared in a YAML file. Copy
 [`mcp_servers.example.yaml`](./mcp_servers.example.yaml) to `mcp_servers.yaml`
 in the directory you launch from (or the app root, or anywhere with
-`MCP_SERVERS_FILE=<path>`):
+`MCP_SERVERS_FILE=<path>`). The example file ships with working demos; the
+two remote ones need no key and no install, so copying it as-is gives you
+something to try on the next restart:
 
 ```yaml
 servers:
-  # A remote server over Streamable HTTP
-  - name: Weather
-    endpoint: https://weather.example.com/mcp
+  # ── Remote, over Streamable HTTP: no install, no API key ──
+  - name: DeepWiki                       # ask questions about any public repo
+    endpoint: https://mcp.deepwiki.com/mcp
 
-  # A local Python project, run as `uv run --directory <endpoint> python -m <module>`
+  - name: Context7                       # current docs for most libraries
+    endpoint: https://mcp.context7.com/mcp
+
+  # ── Web search, remote: key lives in .env, not in this file ──
+  - name: Tavily
+    endpoint: https://mcp.tavily.com/mcp/?tavilyApiKey=${TAVILY_API_KEY}
+
+  # ── Web search, local subprocess over stdio ──
+  - name: Brave Search
+    command: npx
+    args: ["-y", "@brave/brave-search-mcp-server"]
+    env:
+      BRAVE_API_KEY: ${BRAVE_API_KEY}
+
+  # ── Fetch any URL as markdown (needs uvx on PATH) ──
+  - name: Fetch
+    command: uvx
+    args: ["mcp-server-fetch"]
+
+  # ── Your own Python project, run as
+  #    `uv run --directory <endpoint> python -m <module>` ──
   - name: My Analytics
     endpoint: ../my-analytics
     module: my_analytics
-
-  # Anything else over stdio — a Node package, a binary, a script
-  - name: Filesystem
-    command: npx
-    args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
-    env:
-      LOG_LEVEL: info
     sampling: false      # opt in before the server may call back for LLM sampling
 ```
+
+The demos in the example file, and where their keys come from:
+
+| Server | Transport | Key |
+|---|---|---|
+| [DeepWiki](https://mcp.deepwiki.com/mcp) — Q&A over any public GitHub repo | HTTP | none |
+| [Context7](https://context7.com) — up-to-date library documentation | HTTP | none |
+| [Tavily](https://app.tavily.com) — web search, extract, crawl | HTTP | `TAVILY_API_KEY` (free tier) |
+| [Brave Search](https://brave.com/search/api/) — web, news, image, local | stdio (`npx`) | `BRAVE_API_KEY` (free tier) |
+| [Fetch](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch) — a URL as markdown | stdio (`uvx`) | none |
+| [Filesystem](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem) — files under a directory you name | stdio (`npx`) | none |
+
+`${VAR}` in an `endpoint`, `command`, `args` or `env` value is replaced by that
+environment variable — or by the matching line in your `.env`, the same file
+the provider keys live in. So an API key is *named* in `mcp_servers.yaml` and
+*stored* in `.env`, and the config file stays safe to commit. A variable that
+is not set anywhere is reported in the servers panel rather than quietly sent
+as an empty string.
 
 | | |
 |---|---|
@@ -230,6 +263,15 @@ Each entry needs exactly one of `endpoint` (a URL, or a directory plus
 `module`) or `command` (plus optional `args`/`env`). A malformed entry does not
 take the working servers down with it — the servers panel shows what was
 rejected and why.
+
+`env:` is additive: it is layered over the small set of variables an MCP
+subprocess inherits by default (`PATH`, `HOME`, …), so naming one variable does
+not take the rest away. That baseline is not the parent process's full
+environment — a third-party server sees what you name plus the baseline, never
+the rest of your keys.
+
+The first launch of a `uvx` or `npx` server downloads it, which can outrun the
+connection timeout; the server then connects normally on the next restart.
 
 **System Prompt (optional):**
 

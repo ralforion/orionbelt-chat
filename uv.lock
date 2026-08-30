@@ -2273,6 +2273,7 @@ source = { editable = "." }
 dependencies = [
     { name = "chainlit" },
     { name = "httpx" },
+    { name = "mcp" },
     { name = "pydantic-ai" },
     { name = "pydantic-ai-slim", extra = ["anthropic", "openai"] },
     { name = "pydantic-settings" },
@@ -2293,6 +2294,7 @@ dev = [
 requires-dist = [
     { name = "chainlit", specifier = ">=2.0.0" },
     { name = "httpx", specifier = ">=0.27.0" },
+    { name = "mcp", specifier = ">=1.9.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
     { name = "pydantic-ai", specifier = ">=2.10.0" },
     { name = "pydantic-ai-slim", extras = ["openai", "anthropic"], specifier = ">=2.10.0" },

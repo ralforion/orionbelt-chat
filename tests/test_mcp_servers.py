@@ -54,6 +54,33 @@ class TestMakeServer:
         ]
 
 
+class TestSubprocessEnvironment:
+    """A server's `env:` adds to the inherited baseline, it does not replace it.
+
+    The MCP SDK treats a supplied `env` as the subprocess's entire environment,
+    so naming one variable used to drop HOME, PATH and the rest of the baseline
+    the same server receives when `env:` is absent.
+    """
+
+    def test_env_is_layered_over_the_default_inherited_vars(self):
+        server = _make_server(
+            _def(command="npx", args=["-y", "server-fs"], env={"BRAVE_API_KEY": "k"}), None
+        )
+        env = server.client.transport.env
+        assert env["BRAVE_API_KEY"] == "k"
+        assert "PATH" in env
+
+    def test_no_env_leaves_the_sdk_default_in_place(self):
+        server = _make_server(_def(command="npx", args=["-y", "server-fs"]), None)
+        assert server.client.transport.env is None
+
+    def test_directory_server_gets_the_same_treatment(self):
+        server = _make_server(_def(endpoint="/opt/s", module="m", env={"LOG_LEVEL": "debug"}), None)
+        env = server.client.transport.env
+        assert env["LOG_LEVEL"] == "debug"
+        assert "PATH" in env
+
+
 class TestSamplingToolsCapability:
     """`sampling.tools` must be advertised, else servers reject sampling calls
     carrying tools. Pydantic-AI only ever sets a bare `SamplingCapability()`."""

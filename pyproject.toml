@@ -26,6 +26,10 @@ dependencies = [
     "pydantic-ai>=2.10.0",
     "pydantic-ai-slim[openai,anthropic]>=2.10.0",
     "pydantic-settings>=2.0.0",
+    # Imported directly for `get_default_environment()`, which decides what a
+    # stdio MCP subprocess inherits; it arrives via pydantic-ai either way, but
+    # a direct import deserves a direct pin.
+    "mcp>=1.9.0",
     "python-dotenv>=1.0.0",
     "httpx>=0.27.0",
     "pyyaml>=6.0",

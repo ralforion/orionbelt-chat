@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+from mcp.client.stdio import get_default_environment
 from pydantic_ai.mcp import MCPToolset, StdioTransport, StreamableHttpTransport
 
 from .file_uploads import process_tool_call
@@ -46,13 +47,29 @@ def get_sampling_model_label() -> str | None:
     return f"{provider}/{default_model_for(provider)}"
 
 
+def _subprocess_env(defn: ServerDef) -> dict[str, str] | None:
+    """Merge a server's `env:` over the MCP SDK's default inherited variables.
+
+    The SDK treats a supplied `env` as the subprocess's *whole* environment, so
+    naming one variable silently drops HOME, PATH and the rest of the baseline
+    the same server gets when `env:` is absent — a config that adds a key would
+    otherwise take away everything else. Layering keeps the SDK's deliberate
+    choice of a small safe subset, rather than the parent's entire environment,
+    so a third-party server still never inherits the other keys this process
+    holds.
+    """
+    if not defn.env:
+        return None
+    return {**get_default_environment(), **defn.env}
+
+
 def _transport(defn: ServerDef) -> StreamableHttpTransport | StdioTransport:
     """Pick the transport a server definition describes."""
     if defn.command:
         return StdioTransport(
             command=defn.command,
             args=list(defn.args),
-            env=defn.env or None,
+            env=_subprocess_env(defn),
         )
     if defn.is_url:
         return StreamableHttpTransport(url=defn.endpoint)
@@ -61,7 +78,7 @@ def _transport(defn: ServerDef) -> StreamableHttpTransport | StdioTransport:
     return StdioTransport(
         command="uv",
         args=["run", "--directory", defn.endpoint, "python", "-m", defn.module],
-        env=defn.env or None,
+        env=_subprocess_env(defn),
     )
 
 

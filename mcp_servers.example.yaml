@@ -9,30 +9,75 @@
 # a built-in name ("OrionBelt Analytics", "OrionBelt Semantic Layer") replaces
 # that server instead. To switch one off, unset its environment variable —
 # there is no `enabled:` field, and every entry needs a working endpoint.
+#
+# Each entry needs exactly one of:
+#   endpoint: https://…      a remote server over Streamable HTTP
+#   endpoint: <dir> + module a Python project, run as
+#                            `uv run --directory <endpoint> python -m <module>`
+#   command: + args:         anything else, over stdio
+#
+# `${VAR}` in an endpoint, command, args or env value is replaced by that
+# environment variable — or by the matching line in your `.env`. Name your API
+# keys that way and they stay out of this file (and out of git). An unset
+# variable is reported in the servers panel rather than silently sent as "".
 
 servers:
-  # ── A remote server over Streamable HTTP ────────────────────────
-  - name: Weather
-    endpoint: https://weather.example.com/mcp
+  # ══ Demos: remote, no install, no API key ═══════════════════════
+  # Copy this file as-is and these two are live on the next restart.
 
-  # ── A local Python project, launched the way the OrionBelt servers are ──
-  # `endpoint` is the project directory, `module` the module to run inside it;
-  # the app starts it with `uv run --directory <endpoint> python -m <module>`.
-  - name: My Analytics
-    endpoint: ../my-analytics
-    module: my_analytics
+  # Ask questions about any public GitHub repository — "how does
+  # pydantic-ai handle MCP sampling?" — answered from the indexed source.
+  - name: DeepWiki
+    endpoint: https://mcp.deepwiki.com/mcp
 
-  # ── Anything else, over stdio ───────────────────────────────────
-  # Use `command` + `args` for a server that is not a Python module — a Node
-  # package, a binary, a script. `env` is passed to the subprocess.
-  - name: Filesystem
-    command: npx
-    args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
-    env:
-      LOG_LEVEL: info
+  # Current, version-specific documentation for thousands of libraries,
+  # fetched from the official sources rather than recalled by the model.
+  - name: Context7
+    endpoint: https://mcp.context7.com/mcp
 
-    # Opt in before this server may issue MCP sampling/createMessage calls back
-    # to the client's LLM. Off unless declared: MCP does not advertise the need
-    # from the server side, and a third-party server should not reach your model
-    # budget by default. MCP_ALLOW_SAMPLING=false disables it globally regardless.
-    # sampling: true
+  # ══ Demos: web search (free API key) ════════════════════════════
+
+  # Tavily — search, extract, crawl. Remote, so nothing to install.
+  # Key: https://app.tavily.com  →  put TAVILY_API_KEY in your .env
+  # - name: Tavily
+  #   endpoint: https://mcp.tavily.com/mcp/?tavilyApiKey=${TAVILY_API_KEY}
+
+  # Brave Search — web, news, image and local search, run locally via npx.
+  # Key: https://brave.com/search/api/  →  BRAVE_API_KEY in your .env
+  # - name: Brave Search
+  #   command: npx
+  #   args: ["-y", "@brave/brave-search-mcp-server"]
+  #   env:
+  #     BRAVE_API_KEY: ${BRAVE_API_KEY}
+
+  # ══ Demos: local, over stdio (needs uvx or npx on PATH) ═════════
+  # The first launch downloads the server, which can outrun the connection
+  # timeout; it connects normally on the next restart.
+
+  # Fetch a URL and hand the agent the page as markdown.
+  # - name: Fetch
+  #   command: uvx
+  #   args: ["mcp-server-fetch"]
+
+  # Read and write files under the directories you list — and nothing else.
+  # - name: Filesystem
+  #   command: npx
+  #   args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
+  #   env:
+  #     LOG_LEVEL: info
+
+  # ══ Your own servers ════════════════════════════════════════════
+
+  # A local Python project, launched the way the OrionBelt servers are:
+  # `endpoint` is the project directory, `module` the module to run inside it.
+  # - name: My Analytics
+  #   endpoint: ../my-analytics
+  #   module: my_analytics
+
+  # Opt in before a server may issue MCP sampling/createMessage calls back to
+  # the client's LLM. Off unless declared: MCP does not advertise the need from
+  # the server side, and a third-party server should not reach your model
+  # budget by default. MCP_ALLOW_SAMPLING=false disables it globally regardless.
+  # - name: My Agentic Server
+  #   endpoint: https://agents.example.com/mcp
+  #   sampling: true
