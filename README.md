@@ -442,6 +442,35 @@ uv run ruff format
 
 # Lint
 uv run ruff check --fix
+
+# After editing a workflow (see below)
+./scripts/check-action-pins.sh
+```
+
+Every GitHub Action the workflows use is pinned to a commit SHA rather than a
+version tag, because a tag is a movable label and its owner can repoint it at
+new code at any time. A SHA is unreadable, though, so the `# vX.Y.Z` comment
+beside it is the only part a reviewer actually reads, and nothing makes the two
+agree. That gap is what `./scripts/check-action-pins.sh` closes: it resolves
+each comment's tag upstream and fails when the SHA pinned in the workflow is
+not the commit that tag names, so a hash quietly swapped for one from a fork
+stops looking like a routine Dependabot bump. It also rejects any Action that
+is not SHA-pinned, any owner outside the script's `ALLOWED_OWNERS` allowlist,
+and any container action not pinned by digest, since an image tag such as
+`:latest` moves just as a git tag does.
+
+The comments must name exact patch releases. A major tag such as `v7` moves
+with every upstream release, so checking against it would turn CI red the
+moment `v7.0.2` ships, for a pin that is still perfectly good. CI runs the
+check in its `pins` job, and the three publishing workflows run it as their
+first step after checkout, so no tag can publish a release, a wheel or an image
+built by steps whose pins were never checked. `--offline` skips the upstream
+lookups when you have no network, checking only the SHA and comment format.
+
+To bump an Action, resolve the release you want and paste both halves:
+
+```bash
+git ls-remote https://github.com/actions/checkout 'refs/tags/v7.0.1^{}'
 ```
 
 ## Provider Details
