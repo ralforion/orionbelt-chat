@@ -17,10 +17,18 @@
 #                            `uv run --directory <endpoint> python -m <module>`
 #   command: + args:         anything else, over stdio
 #
-# `${VAR}` in an endpoint, headers, command, args or env value is replaced by that
-# environment variable — or by the matching line in your `.env`. Name your API
-# keys that way and they stay out of this file (and out of git). An unset
-# variable is reported in the servers panel rather than silently sent as "".
+# `${VAR}` in an endpoint, headers, command, args or env value is replaced by
+# that environment variable — or by the matching line in a `.env`, looked for
+# beside this file, in the app root, and in the directory you launch from.
+# Name your API keys that way and they stay out of this file (and out of git).
+# The spelling must be exactly ${NAME}: an unset variable, or a near miss such
+# as ${MY-KEY} or ${KEY:-default}, is reported in the servers panel rather than
+# sent on to the server as literal text.
+#
+# Credentials go where the transport can carry them — `headers:` on an HTTP
+# endpoint, `env:` on a subprocess. The wrong one for the transport is refused
+# rather than ignored, so a server never reports itself connected without the
+# key you meant to give it.
 
 servers:
   # ══ Demos: remote, no install, no API key ═══════════════════════

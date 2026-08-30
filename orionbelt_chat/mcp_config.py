@@ -150,15 +150,43 @@ def _require_str(entry: dict[str, Any], key: str, where: str) -> str:
 _VAR_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
+def _dotenv_candidates() -> list[Path]:
+    """`.env` files to consult, least specific first.
+
+    A pip-installed user keeps `mcp_servers.yaml` and `.env` together in the
+    app root and launches from wherever they happen to be, so the working
+    directory alone is the wrong place to look: the key sits right beside the
+    config that names it. The file beside the config wins over the app root,
+    and the working directory wins over both, matching how `config_path`
+    already prefers the closest file.
+    """
+    candidates = [_app_root() / ".env"]
+    configured = config_path()
+    if configured is not None:
+        candidates.append(configured.parent / ".env")
+    candidates.append(Path.cwd() / ".env")
+
+    seen: set[Path] = set()
+    ordered = []
+    for path in candidates:
+        resolved = path.expanduser()
+        if resolved not in seen:
+            seen.add(resolved)
+            ordered.append(resolved)
+    return ordered
+
+
 def _env_lookup() -> dict[str, str]:
-    """Where `${VAR}` looks: the process environment, then the `.env` file.
+    """Where `${VAR}` looks: the `.env` files, then the process environment.
 
     Settings reads `.env` through pydantic-settings, which parses the file
     itself rather than exporting it to `os.environ` — so a key that already
     works for the LLM providers would otherwise not resolve here. Reading both
-    keeps one place for secrets.
+    keeps one place for secrets, and a real environment variable still wins.
     """
-    values = {k: v for k, v in dotenv_values(".env").items() if v is not None}
+    values: dict[str, str] = {}
+    for path in _dotenv_candidates():
+        values.update({k: v for k, v in dotenv_values(path).items() if v is not None})
     values.update(os.environ)
     return values
 
@@ -197,6 +225,16 @@ def _expand(
         raise McpConfigError(
             f"{where} ({name}): '{key}' uses unset environment "
             f"variable(s): {', '.join(sorted(set(missing)))}"
+        )
+
+    # Checked against the template, not the result: an expanded value may
+    # legitimately contain a `${`, and that is not the author's typo.
+    leftover = _VAR_PATTERN.sub("", value)
+    if "${" in leftover:
+        raise McpConfigError(
+            f"{where} ({name}): '{key}' has a placeholder that is not "
+            f"`${{NAME}}`, where NAME is letters, digits and underscores — "
+            f"nothing was substituted into {leftover[leftover.index('${') :][:40]!r}"
         )
     return expanded
 
@@ -251,6 +289,14 @@ def parse_server(entry: Any, where: str) -> ServerDef:
         raise McpConfigError(f"{where} ({name}): 'module' does not apply to a 'command' server")
     if defn.headers and not defn.is_url:
         raise McpConfigError(f"{where} ({name}): 'headers' only applies to an HTTP endpoint")
+    if defn.env and defn.is_url:
+        # There is no subprocess to give an environment to. Silently dropping
+        # it is how a remote server ends up connected and unauthenticated,
+        # looking healthy in the servers panel — use 'headers' instead.
+        raise McpConfigError(
+            f"{where} ({name}): 'env' only applies to a subprocess server; "
+            f"an HTTP endpoint takes 'headers'"
+        )
     if endpoint and defn.args:
         raise McpConfigError(f"{where} ({name}): 'args' only applies to a 'command' server")
     if endpoint and not defn.is_url and not module:
@@ -301,7 +347,20 @@ def _parse_string_mapping(raw: Any, key: str, where: str, name: str) -> dict[str
         return {}
     if not isinstance(raw, dict):
         raise McpConfigError(f"{where} ({name}): '{key}' must be a mapping")
-    return {str(k): str(v) for k, v in raw.items()}
+
+    values = {}
+    for k, v in raw.items():
+        # YAML reads `yes`, `no`, `on` and `off` as booleans, so an unquoted
+        # `X-Debug: yes` would reach the server as Python's "True". Numbers
+        # stringify to what the author wrote and are fine; a bool or a null is
+        # a value they did not write, so ask for the quotes instead.
+        if v is None or isinstance(v, bool):
+            raise McpConfigError(
+                f"{where} ({name}): '{key}.{k}' must be a string — "
+                f"quote it if you meant the literal text"
+            )
+        values[str(k)] = str(v)
+    return values
 
 
 def _server_entries(path: Path) -> list[Any]:

@@ -258,11 +258,18 @@ The demos in the example file, and where their keys come from:
 | [Filesystem](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem) — files under a directory you name | stdio (`npx`) | none |
 
 `${VAR}` in an `endpoint`, `headers`, `command`, `args` or `env` value is
-replaced by that environment variable — or by the matching line in your `.env`,
-the same file the provider keys live in. So an API key is *named* in
-`mcp_servers.yaml` and *stored* in `.env`, and the config file stays safe to
-commit. A variable that is not set anywhere is reported in the servers panel
-rather than quietly sent as an empty string.
+replaced by that environment variable — or by the matching line in a `.env`.
+So an API key is *named* in `mcp_servers.yaml` and *stored* in `.env`, and the
+config file stays safe to commit. Keys that are not settings of this app are
+fine there; `.env` is read for `${VAR}` as well as for the settings below.
+
+`.env` is looked for beside `mcp_servers.yaml` and in the app root as well as
+in the directory you launch from, so a config and its keys can travel together;
+a real environment variable always wins over a file. The placeholder must be
+exactly `${NAME}` with letters, digits and underscores — `${MY-KEY}`,
+`${ KEY }` and `${KEY:-default}` are rejected rather than passed through as
+literal text, and a variable that is not set anywhere is reported in the
+servers panel rather than quietly sent as an empty string.
 
 | | |
 |---|---|
@@ -273,10 +280,13 @@ rather than quietly sent as an empty string.
 | Disable a built-in | Unset its environment variable; there is no `enabled:` field, and an entry still needs a working `endpoint` or `command` |
 
 Each entry needs exactly one of `endpoint` (a URL, or a directory plus
-`module`) or `command` (plus optional `args`/`env`). Remote HTTP endpoints may
-also declare `headers:` for bearer tokens or API keys. A malformed entry does
-not take the working servers down with it — the servers panel shows what was
-rejected and why.
+`module`) or `command` (plus optional `args`/`env`). Credentials go where the
+transport can carry them: `headers:` on an HTTP endpoint, `env:` on a
+subprocess. The wrong one for the transport is an error rather than a silently
+ignored line — an unauthenticated server that reports itself connected is the
+harder failure to spot. A malformed entry does not take the working servers
+down with it: the servers panel shows what was rejected and why, and the other
+entries still load.
 
 `env:` is additive: it is layered over the small set of variables an MCP
 subprocess inherits by default (`PATH`, `HOME`, …), so naming one variable does

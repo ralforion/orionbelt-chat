@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from dotenv import dotenv_values
 
 from orionbelt_chat.mcp_config import (
     McpConfigError,
@@ -13,11 +14,27 @@ from orionbelt_chat.mcp_config import (
     parse_server,
 )
 
+#: The real reader, for the few tests that need actual files on disk; the
+#: module-wide `no_dotenv` fixture stubs the name everywhere else.
+_real_dotenv_values = dotenv_values
+
 
 def _write(tmp_path, text: str):
     path = tmp_path / "mcp_servers.yaml"
     path.write_text(text, encoding="utf-8")
     return path
+
+
+@pytest.fixture(autouse=True)
+def no_dotenv():
+    """No test may read the developer's real `.env`.
+
+    `${VAR}` resolves through it, so a developer who follows the README and
+    puts TAVILY_API_KEY in `.env` would otherwise turn the "unset variable"
+    tests green-to-red depending on their own machine.
+    """
+    with patch("orionbelt_chat.mcp_config.dotenv_values", return_value={}):
+        yield
 
 
 @pytest.fixture
@@ -312,12 +329,6 @@ class TestServerDef:
 class TestVariableExpansion:
     """`${VAR}` keeps API keys in the environment and out of the config file."""
 
-    @pytest.fixture(autouse=True)
-    def _no_dotenv(self):
-        # The repository's own .env must not decide what these tests see.
-        with patch("orionbelt_chat.mcp_config.dotenv_values", return_value={}):
-            yield
-
     def test_expands_in_endpoint(self):
         with patch.dict("os.environ", {"SEARCH_KEY": "sk-123"}, clear=False):
             defn = parse_server(
@@ -393,3 +404,124 @@ class TestVariableExpansion:
             defn = parse_server({"name": "S", "endpoint": "https://x/mcp"}, "cfg")
         assert defn.endpoint == "https://x/mcp"
         lookup.assert_not_called()
+
+
+class TestPlaceholderTypos:
+    """A placeholder that does not match `${NAME}` must not reach the server.
+
+    The fast path keys on `"${" in value` while substitution matches only
+    `[A-Za-z_][A-Za-z0-9_]*`, so spellings in between — hyphens, spaces,
+    shell-style defaults — used to pass through as literal text and surface as
+    someone else's 401 instead of a config error.
+    """
+
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            "https://x/mcp?k=${BRAVE-API-KEY}",
+            "https://x/mcp?k=${ BRAVE_API_KEY }",
+            "https://x/mcp?k=${BRAVE_API_KEY:-fallback}",
+            "https://x/mcp?k=${}",
+        ],
+    )
+    def test_near_miss_placeholder_is_rejected(self, endpoint):
+        with pytest.raises(McpConfigError, match="placeholder"):
+            parse_server({"name": "S", "endpoint": endpoint}, "cfg")
+
+    def test_bare_dollar_name_is_left_alone(self):
+        # `$VAR` without braces is not a placeholder at all — some servers take
+        # a literal `$` in a path or query, and nothing here promised to expand
+        # it, so it must not become an error either.
+        defn = parse_server({"name": "S", "endpoint": "https://x/mcp?k=$BRAVE"}, "cfg")
+        assert defn.endpoint == "https://x/mcp?k=$BRAVE"
+
+    def test_expanded_value_may_itself_contain_a_placeholder(self):
+        # The check reads the template, not the result: `${` arriving from the
+        # environment is the value the user asked for, not their typo.
+        with patch.dict("os.environ", {"WEIRD": "a${b"}, clear=False):
+            defn = parse_server({"name": "S", "endpoint": "https://x/${WEIRD}"}, "cfg")
+        assert defn.endpoint == "https://x/a${b"
+
+
+class TestEnvOnHttpEndpoint:
+    """`env:` has no subprocess to reach on an HTTP endpoint."""
+
+    def test_env_with_url_is_rejected(self):
+        # Copying the Brave demo's env: onto a remote entry used to load
+        # cleanly and connect unauthenticated, looking healthy in the panel.
+        with pytest.raises(McpConfigError, match="'headers'"):
+            parse_server(
+                {"name": "S", "endpoint": "https://x/mcp", "env": {"BRAVE_API_KEY": "k"}}, "cfg"
+            )
+
+    def test_env_with_command_is_fine(self):
+        defn = parse_server({"name": "S", "command": "npx", "env": {"BRAVE_API_KEY": "k"}}, "cfg")
+        assert defn.env == {"BRAVE_API_KEY": "k"}
+
+    def test_env_with_directory_endpoint_is_fine(self):
+        defn = parse_server(
+            {"name": "S", "endpoint": "../s", "module": "s", "env": {"LOG_LEVEL": "debug"}}, "cfg"
+        )
+        assert defn.env == {"LOG_LEVEL": "debug"}
+
+
+class TestStringMappingCoercion:
+    """YAML scalars that are not strings must not be quietly rewritten."""
+
+    @pytest.mark.parametrize("value", [True, False, None])
+    def test_bool_and_null_are_rejected(self, value):
+        # `X-Debug: yes` parses as a bool and would go out as "True".
+        with pytest.raises(McpConfigError, match="must be a string"):
+            parse_server(
+                {"name": "S", "endpoint": "https://x/mcp", "headers": {"X-Debug": value}}, "cfg"
+            )
+
+    def test_numbers_stringify(self):
+        defn = parse_server(
+            {"name": "S", "endpoint": "https://x/mcp", "headers": {"X-Count": 7}}, "cfg"
+        )
+        assert defn.headers == {"X-Count": "7"}
+
+
+class TestDotenvSearch:
+    """`.env` is looked for beside the config file, not only in the cwd."""
+
+    def test_reads_dotenv_next_to_the_config_file(self, env, tmp_path, monkeypatch):
+        # The pip-installed shape: config and .env together in the app root,
+        # launched from somewhere else entirely.
+        app_root = tmp_path / "app-root"
+        app_root.mkdir()
+        (app_root / ".env").write_text("TAVILY_API_KEY=tv-from-app-root\n", encoding="utf-8")
+        config = app_root / "mcp_servers.yaml"
+        config.write_text(
+            "servers:\n  - {name: T, endpoint: 'https://t/mcp?k=${TAVILY_API_KEY}'}\n",
+            encoding="utf-8",
+        )
+        env.mcp_servers_file = str(config)
+
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+
+        with patch("orionbelt_chat.mcp_config.dotenv_values", side_effect=_real_dotenv_values):
+            with patch.dict("os.environ", {}, clear=True):
+                defs, errors = load_server_defs()
+
+        assert errors == []
+        assert defs[0].endpoint == "https://t/mcp?k=tv-from-app-root"
+
+    def test_process_environment_still_wins(self, env, tmp_path, monkeypatch):
+        (tmp_path / ".env").write_text("TAVILY_API_KEY=from-file\n", encoding="utf-8")
+        config = tmp_path / "mcp_servers.yaml"
+        config.write_text(
+            "servers:\n  - {name: T, endpoint: 'https://t/mcp?k=${TAVILY_API_KEY}'}\n",
+            encoding="utf-8",
+        )
+        env.mcp_servers_file = str(config)
+        monkeypatch.chdir(tmp_path)
+
+        with patch("orionbelt_chat.mcp_config.dotenv_values", side_effect=_real_dotenv_values):
+            with patch.dict("os.environ", {"TAVILY_API_KEY": "from-environ"}, clear=True):
+                defs, _ = load_server_defs()
+
+        assert defs[0].endpoint == "https://t/mcp?k=from-environ"
