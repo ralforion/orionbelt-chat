@@ -134,3 +134,56 @@ a[href*="issues"] img {
   border-bottom-color: rgb(55, 65, 81) !important;
 }
 
+
+/* ── Element side panel ────────────────────────────────────────────────
+   Chainlit's close button carries a left arrow, which reads as "go back"
+   in a panel that has nothing behind it. The panel sits on the right and
+   the button dismisses it, so the arrow points the way it closes. */
+#side-view-title button svg.lucide-arrow-left {
+  transform: rotate(180deg);
+}
+
+/* The panel is kept out of the layout until someone asks for one.
+
+   Chainlit force-opens it whenever any element has display "side", titled
+   after the *last* element and listing *all* of them — so a session would
+   otherwise open on one server's name above every server's tools run
+   together, which is not a view of anything. header.js closes it, but a
+   close can only run after the panel has mounted, and by then it has been
+   painted. Hiding it until header.js marks it as requested means the
+   nonsense state never reaches the screen.
+
+   The wrapper is the resizable panel holding the title, and the drag
+   handle beside it, or a stray separator would be left floating. */
+html:not([data-ob-side-panel="open"]) div[data-panel]:has(#side-view-title),
+html:not([data-ob-side-panel="open"])
+  [data-panel-resize-handle-id]:has(+ div[data-panel] #side-view-title) {
+  display: none !important;
+}
+
+/* ── Accent colour ─────────────────────────────────────────────────────
+   Chainlit ships a magenta primary (hsl(340 92% 52%)) for the send button,
+   focus rings, links and element pills. Repoint it at the blue of the
+   OrionBelt mark — #0E2480, sampled from logo.png — so the one saturated
+   colour in the UI is the brand's.
+
+   Chainlit declares these on both `:root` and `.dark`, so both are
+   overridden here. The dark theme takes a lighter tint of the same hue:
+   #0E2480 is a navy that all but disappears against a dark background,
+   and the dark logo is plain white, so there is no darker brand blue to
+   match. --ring follows --primary, as it does upstream.
+
+   This file is linked ahead of Chainlit's own stylesheet, so an equally
+   specific rule would lose on source order — hence `!important`, which
+   custom properties honour. */
+:root {
+  --primary: 228 80% 28% !important;
+  --primary-foreground: 0 0% 100% !important;
+  --ring: 228 80% 28% !important;
+}
+
+.dark {
+  --primary: 228 80% 62% !important;
+  --primary-foreground: 228 40% 12% !important;
+  --ring: 228 80% 62% !important;
+}
