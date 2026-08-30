@@ -72,7 +72,7 @@ def _transport(defn: ServerDef) -> StreamableHttpTransport | StdioTransport:
             env=_subprocess_env(defn),
         )
     if defn.is_url:
-        return StreamableHttpTransport(url=defn.endpoint)
+        return StreamableHttpTransport(url=defn.endpoint, headers=defn.headers or None)
     # A directory endpoint: run the named module inside that project, which is
     # how the two OrionBelt servers have always been launched.
     return StdioTransport(

@@ -197,7 +197,7 @@ someone else's, or your own — is declared in a YAML file. Copy
 [`mcp_servers.example.yaml`](./mcp_servers.example.yaml) to `mcp_servers.yaml`
 in the directory you launch from (or the app root, or anywhere with
 `MCP_SERVERS_FILE=<path>`). The example file ships with working demos; the
-two remote ones need no key and no install, so copying it as-is gives you
+three remote ones need no key and no install, so copying it as-is gives you
 something to try on the next restart:
 
 ```yaml
@@ -209,28 +209,39 @@ servers:
   - name: Context7                       # current docs for most libraries
     endpoint: https://mcp.context7.com/mcp
 
+  - name: World Bank Data360             # public indicators and time series
+    endpoint: https://maimcpext.worldbank.org/ext/data360/mcp
+
   # ── Web search, remote: key lives in .env, not in this file ──
-  - name: Tavily
-    endpoint: https://mcp.tavily.com/mcp/?tavilyApiKey=${TAVILY_API_KEY}
+  # - name: Tavily
+  #   endpoint: https://mcp.tavily.com/mcp/
+  #   headers:
+  #     Authorization: Bearer ${TAVILY_API_KEY}
 
   # ── Web search, local subprocess over stdio ──
-  - name: Brave Search
-    command: npx
-    args: ["-y", "@brave/brave-search-mcp-server"]
-    env:
-      BRAVE_API_KEY: ${BRAVE_API_KEY}
+  # - name: Brave Search
+  #   command: npx
+  #   args: ["-y", "@brave/brave-search-mcp-server"]
+  #   env:
+  #     BRAVE_API_KEY: ${BRAVE_API_KEY}
+
+  # ── Public data, remote: key lives in .env, not in this file ──
+  # - name: Data Commons
+  #   endpoint: https://api.datacommons.org/mcp
+  #   headers:
+  #     X-API-Key: ${DATACOMMONS_API_KEY}
 
   # ── Fetch any URL as markdown (needs uvx on PATH) ──
-  - name: Fetch
-    command: uvx
-    args: ["mcp-server-fetch"]
+  # - name: Fetch
+  #   command: uvx
+  #   args: ["mcp-server-fetch"]
 
   # ── Your own Python project, run as
   #    `uv run --directory <endpoint> python -m <module>` ──
-  - name: My Analytics
-    endpoint: ../my-analytics
-    module: my_analytics
-    sampling: false      # opt in before the server may call back for LLM sampling
+  # - name: My Analytics
+  #   endpoint: ../my-analytics
+  #   module: my_analytics
+  #   sampling: false      # opt in before the server may call back for LLM sampling
 ```
 
 The demos in the example file, and where their keys come from:
@@ -239,17 +250,19 @@ The demos in the example file, and where their keys come from:
 |---|---|---|
 | [DeepWiki](https://mcp.deepwiki.com/mcp) — Q&A over any public GitHub repo | HTTP | none |
 | [Context7](https://context7.com) — up-to-date library documentation | HTTP | none |
+| [World Bank Data360](https://worldbank.github.io/data360-mcp/) — development indicators, metadata, time series | HTTP | none |
 | [Tavily](https://app.tavily.com) — web search, extract, crawl | HTTP | `TAVILY_API_KEY` (free tier) |
 | [Brave Search](https://brave.com/search/api/) — web, news, image, local | stdio (`npx`) | `BRAVE_API_KEY` (free tier) |
+| [Data Commons](https://docs.datacommons.org/mcp/) — public statistical knowledge graph | HTTP | `DATACOMMONS_API_KEY` (free key) |
 | [Fetch](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch) — a URL as markdown | stdio (`uvx`) | none |
 | [Filesystem](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem) — files under a directory you name | stdio (`npx`) | none |
 
-`${VAR}` in an `endpoint`, `command`, `args` or `env` value is replaced by that
-environment variable — or by the matching line in your `.env`, the same file
-the provider keys live in. So an API key is *named* in `mcp_servers.yaml` and
-*stored* in `.env`, and the config file stays safe to commit. A variable that
-is not set anywhere is reported in the servers panel rather than quietly sent
-as an empty string.
+`${VAR}` in an `endpoint`, `headers`, `command`, `args` or `env` value is
+replaced by that environment variable — or by the matching line in your `.env`,
+the same file the provider keys live in. So an API key is *named* in
+`mcp_servers.yaml` and *stored* in `.env`, and the config file stays safe to
+commit. A variable that is not set anywhere is reported in the servers panel
+rather than quietly sent as an empty string.
 
 | | |
 |---|---|
@@ -260,8 +273,9 @@ as an empty string.
 | Disable a built-in | Unset its environment variable; there is no `enabled:` field, and an entry still needs a working `endpoint` or `command` |
 
 Each entry needs exactly one of `endpoint` (a URL, or a directory plus
-`module`) or `command` (plus optional `args`/`env`). A malformed entry does not
-take the working servers down with it — the servers panel shows what was
+`module`) or `command` (plus optional `args`/`env`). Remote HTTP endpoints may
+also declare `headers:` for bearer tokens or API keys. A malformed entry does
+not take the working servers down with it — the servers panel shows what was
 rejected and why.
 
 `env:` is additive: it is layered over the small set of variables an MCP

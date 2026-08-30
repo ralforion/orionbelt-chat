@@ -53,6 +53,17 @@ class TestParseServer:
         defn = parse_server({"name": "S", "endpoint": "https://x/mcp", "sampling": True}, "cfg")
         assert defn.sampling is True
 
+    def test_http_headers(self):
+        defn = parse_server(
+            {
+                "name": "S",
+                "endpoint": "https://x.example/mcp",
+                "headers": {"Authorization": "Bearer token"},
+            },
+            "cfg",
+        )
+        assert defn.headers == {"Authorization": "Bearer token"}
+
     @pytest.mark.parametrize(
         ("value", "expected"),
         [
@@ -118,6 +129,33 @@ class TestParseServerRejects:
     def test_args_not_a_list_of_strings(self):
         with pytest.raises(McpConfigError, match="list of strings"):
             parse_server({"name": "X", "command": "y", "args": [1, 2]}, "cfg")
+
+    def test_headers_not_a_mapping(self):
+        with pytest.raises(McpConfigError, match="'headers' must be a mapping"):
+            parse_server({"name": "X", "endpoint": "https://x/mcp", "headers": ["x"]}, "cfg")
+
+    def test_headers_only_apply_to_http_endpoints(self):
+        with pytest.raises(McpConfigError, match="only applies to an HTTP endpoint"):
+            parse_server(
+                {
+                    "name": "X",
+                    "endpoint": "../server",
+                    "module": "server",
+                    "headers": {"Authorization": "Bearer token"},
+                },
+                "cfg",
+            )
+
+    def test_headers_do_not_apply_to_command_servers(self):
+        with pytest.raises(McpConfigError, match="only applies to an HTTP endpoint"):
+            parse_server(
+                {
+                    "name": "X",
+                    "command": "server",
+                    "headers": {"Authorization": "Bearer token"},
+                },
+                "cfg",
+            )
 
 
 class TestLoadFromFile:
@@ -234,6 +272,27 @@ class TestLoadServerDefs:
         assert len(errors) == 1
         assert "Broken" in errors[0]
 
+    def test_broken_file_entry_does_not_take_other_file_servers_down(self, env, tmp_path):
+        env.analytics_server_dir = "https://a.example/mcp"
+        path = _write(
+            tmp_path,
+            """
+            servers:
+              - name: DeepWiki
+                endpoint: https://mcp.deepwiki.com/mcp
+              - name: Tavily
+                endpoint: https://mcp.tavily.com/mcp/
+                headers:
+                  Authorization: Bearer ${TAVILY_API_KEY}
+            """,
+        )
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("orionbelt_chat.mcp_config.config_path", return_value=path):
+                defs, errors = load_server_defs()
+        assert [d.name for d in defs] == ["OrionBelt Analytics", "DeepWiki"]
+        assert len(errors) == 1
+        assert "TAVILY_API_KEY" in errors[0]
+
 
 class TestServerDef:
     @pytest.mark.parametrize(
@@ -278,6 +337,18 @@ class TestVariableExpansion:
                 "cfg",
             )
         assert defn.env == {"BRAVE_API_KEY": "brave-abc"}
+
+    def test_expands_in_header_values(self):
+        with patch.dict("os.environ", {"DATA_API_KEY": "dc-123"}, clear=False):
+            defn = parse_server(
+                {
+                    "name": "Data",
+                    "endpoint": "https://data.example/mcp",
+                    "headers": {"X-API-Key": "${DATA_API_KEY}"},
+                },
+                "cfg",
+            )
+        assert defn.headers == {"X-API-Key": "dc-123"}
 
     def test_expands_in_args(self):
         with patch.dict("os.environ", {"DATA_DIR": "/data"}, clear=False):

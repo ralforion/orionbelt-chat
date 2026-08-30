@@ -11,6 +11,8 @@ The file looks like::
       # A remote server over Streamable HTTP.
       - name: Weather
         endpoint: https://weather.example.com/mcp
+        headers:
+          Authorization: Bearer ${WEATHER_API_KEY}
 
       # A local Python module, launched the way the OrionBelt servers are.
       - name: My Analytics
@@ -25,9 +27,9 @@ The file looks like::
           LOG_LEVEL: debug
         sampling: false
 
-``${VAR}`` in an ``endpoint``, ``command``, ``args`` or ``env`` value is
-replaced by that environment variable (or the matching line in ``.env``), so an
-API key can be named here without being stored here.
+``${VAR}`` in an ``endpoint``, ``headers``, ``command``, ``args`` or ``env``
+value is replaced by that environment variable (or the matching line in
+``.env``), so an API key can be named here without being stored here.
 
 Servers from the file are *added* to whatever the ``ANALYTICS_SERVER_DIR`` and
 ``SEMANTIC_LAYER_SERVER_DIR`` variables define, so the common case — "I want one
@@ -84,6 +86,7 @@ class ServerDef:
     module: str = ""
     command: str = ""
     args: tuple[str, ...] = ()
+    headers: dict[str, str] = field(default_factory=dict)
     env: dict[str, str] = field(default_factory=dict)
     sampling: bool = False
 
@@ -231,15 +234,23 @@ def parse_server(entry: Any, where: str) -> ServerDef:
             _expand(arg, lookup, where, name, "args")
             for arg in _parse_args(entry.get("args"), where, name)
         ),
+        headers={
+            key: _expand(value, lookup, where, name, f"headers.{key}")
+            for key, value in _parse_string_mapping(
+                entry.get("headers"), "headers", where, name
+            ).items()
+        },
         env={
             key: _expand(value, lookup, where, name, f"env.{key}")
-            for key, value in _parse_env(entry.get("env"), where, name).items()
+            for key, value in _parse_string_mapping(entry.get("env"), "env", where, name).items()
         },
         sampling=_parse_bool(entry.get("sampling"), where, name),
     )
 
     if command and module:
         raise McpConfigError(f"{where} ({name}): 'module' does not apply to a 'command' server")
+    if defn.headers and not defn.is_url:
+        raise McpConfigError(f"{where} ({name}): 'headers' only applies to an HTTP endpoint")
     if endpoint and defn.args:
         raise McpConfigError(f"{where} ({name}): 'args' only applies to a 'command' server")
     if endpoint and not defn.is_url and not module:
@@ -285,16 +296,15 @@ def _parse_bool(raw: Any, where: str, name: str) -> bool:
     raise McpConfigError(f"{where} ({name}): 'sampling' must be true or false, got {raw!r}")
 
 
-def _parse_env(raw: Any, where: str, name: str) -> dict[str, str]:
+def _parse_string_mapping(raw: Any, key: str, where: str, name: str) -> dict[str, str]:
     if raw is None:
         return {}
     if not isinstance(raw, dict):
-        raise McpConfigError(f"{where} ({name}): 'env' must be a mapping")
+        raise McpConfigError(f"{where} ({name}): '{key}' must be a mapping")
     return {str(k): str(v) for k, v in raw.items()}
 
 
-def load_from_file(path: Path) -> list[ServerDef]:
-    """Read and validate a servers file. Raises McpConfigError on any problem."""
+def _server_entries(path: Path) -> list[Any]:
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -311,15 +321,40 @@ def load_from_file(path: Path) -> list[ServerDef]:
         return []
     if not isinstance(entries, list):
         raise McpConfigError(f"{path}: 'servers' must be a list")
+    return entries
 
-    defs = [parse_server(entry, f"{path}[{i}]") for i, entry in enumerate(entries)]
 
+def _parse_server_entries(
+    entries: list[Any], path: Path, *, strict: bool
+) -> tuple[list[ServerDef], list[str]]:
+    defs: list[ServerDef] = []
+    errors: list[str] = []
     seen: set[str] = set()
-    for defn in defs:
-        if defn.name in seen:
-            raise McpConfigError(f"{path}: duplicate server name '{defn.name}'")
-        seen.add(defn.name)
+
+    for i, entry in enumerate(entries):
+        try:
+            defn = parse_server(entry, f"{path}[{i}]")
+            if defn.name in seen:
+                raise McpConfigError(f"{path}[{i}] ({defn.name}): duplicate server name")
+            seen.add(defn.name)
+            defs.append(defn)
+        except McpConfigError as exc:
+            if strict:
+                raise
+            errors.append(str(exc))
+
+    return defs, errors
+
+
+def load_from_file(path: Path) -> list[ServerDef]:
+    """Read and validate a servers file. Raises McpConfigError on any problem."""
+    defs, _errors = _parse_server_entries(_server_entries(path), path, strict=True)
     return defs
+
+
+def _load_from_file_tolerant(path: Path) -> tuple[list[ServerDef], list[str]]:
+    """Read a servers file, keeping valid entries and returning per-entry errors."""
+    return _parse_server_entries(_server_entries(path), path, strict=False)
 
 
 def load_server_defs() -> tuple[list[ServerDef], list[str]]:
@@ -337,10 +372,14 @@ def load_server_defs() -> tuple[list[ServerDef], list[str]]:
         return defs, errors
 
     try:
-        extra = load_from_file(path)
+        extra, entry_errors = _load_from_file_tolerant(path)
     except McpConfigError as exc:
         _log_once(logging.ERROR, f"MCP server config ignored — {exc}")
         return defs, [str(exc)]
+
+    for problem in entry_errors:
+        _log_once(logging.ERROR, f"MCP server config entry ignored — {problem}")
+    errors.extend(entry_errors)
 
     # A file entry with a built-in's name replaces it, so a user can override
     # or disable one without editing their environment.

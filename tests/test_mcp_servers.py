@@ -36,6 +36,15 @@ class TestMakeServer:
         server = _make_server(_def(endpoint="http://localhost:8080/mcp"), None)
         assert isinstance(server.client.transport, StreamableHttpTransport)
 
+    def test_url_passes_headers_to_streamable_http(self):
+        server = _make_server(
+            _def(endpoint="http://localhost:8080/mcp", headers={"Authorization": "Bearer token"}),
+            None,
+        )
+        transport = server.client.transport
+        assert isinstance(transport, StreamableHttpTransport)
+        assert transport.headers == {"Authorization": "Bearer token"}
+
     def test_path_creates_stdio(self):
         server = _make_server(_def(endpoint="/opt/mcp-server", module="my_module"), None)
         assert isinstance(server.client.transport, StdioTransport)
