@@ -449,3 +449,69 @@
     subtree: true,
   });
 })();
+
+// Element side panel: opened only on request, and closed by the same pill.
+//
+// Chainlit opens it on its own — an effect watching the message elements sets
+// the side view whenever any element has display "side", with the *last*
+// element's title over *all* of them. For the MCP tool lists that means a
+// session opens with a panel nobody asked for, titled after one server and
+// listing every server's tools at once. There is no server-side flag for it,
+// so it is dismissed here, and clicking a pill a second time closes it again
+// rather than reopening what is already on screen.
+(function elementSidePanel() {
+  var openedFor = null; // label of the pill the user opened, if any
+
+  function panel() {
+    return document.getElementById("side-view-title");
+  }
+
+  function closePanel() {
+    var open = panel();
+    var button = open && open.querySelector("button");
+    if (!button) return false;
+    button.click();
+    return true;
+  }
+
+  // Dismissed on every appearance, not once: the elements arrive as separate
+  // socket events, so the effect that opens the panel runs once per server and
+  // would reopen it behind a one-shot close. `openedFor` is what stops this
+  // from fighting a panel the user opened on purpose.
+  //
+  // The panel is also mounted a frame or two before its close button exists,
+  // so a single attempt on the mutation that revealed it is not enough.
+  function dismissAutoOpen(attempt) {
+    if (openedFor || !panel()) return;
+    if (closePanel()) return;
+    if (attempt < 60) {
+      requestAnimationFrame(function () {
+        dismissAutoOpen(attempt + 1);
+      });
+    }
+  }
+
+  document.addEventListener(
+    "click",
+    function (event) {
+      var pill = event.target && event.target.closest && event.target.closest("a.element-link");
+      if (!pill) return;
+      var label = pill.textContent.trim();
+      if (panel() && openedFor === label) {
+        // Same pill twice: close what it opened instead of reopening it.
+        event.preventDefault();
+        event.stopPropagation();
+        openedFor = null;
+        closePanel();
+        return;
+      }
+      openedFor = label;
+    },
+    true
+  );
+
+  dismissAutoOpen(0);
+  new MutationObserver(function () {
+    dismissAutoOpen(0);
+  }).observe(document.body, { childList: true, subtree: true });
+})();

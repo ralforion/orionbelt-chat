@@ -224,7 +224,9 @@ async def on_start():
                 f"{mcp_info}\n\n"
                 f"Ask me anything about your data, or use **Upload** next to the message "
                 f"box to attach an OBSL semantic model or an RDF ontology."
-            )
+            ),
+            # Each server's tool list, opened by the pill naming it above.
+            elements=_tool_elements(),
         )
         await status_msg.send()
         cl.user_session.set("status_msg", status_msg)
@@ -403,7 +405,9 @@ async def _init_agent(provider: str, model: str) -> bool:
             logger.warning("MCP server failed: %s — %s", name, e)
             failed_names.append((name, e))
 
-    _update_mcp_info(connected_names, failed_names)
+    tools = await _collect_tools(active_contexts)
+    cl.user_session.set("mcp_tools", tools)
+    _update_mcp_info(connected_names, failed_names, tools)
 
     # Create agent with whatever servers connected
     try:
@@ -421,16 +425,104 @@ async def _init_agent(provider: str, model: str) -> bool:
         return False
 
 
+#: A server that is connected but slow to answer `tools/list` must not hold up
+#: the greeting; the inventory is a convenience, the connection is the point.
+_TOOL_LIST_TIMEOUT = 10
+
+#: Tool descriptions are written for a model, not a sidebar. One line each.
+_TOOL_DESCRIPTION_CHARS = 140
+
+
+async def _collect_tools(named_servers: list[tuple[str, Any]]) -> dict[str, list[Any] | None]:
+    """List each connected server's tools; None where the listing failed.
+
+    Also warms `MCPToolset`'s own tool cache, so the first message does not pay
+    for the round trip this makes.
+    """
+    tools: dict[str, list[Any] | None] = {}
+    for name, server in named_servers:
+        try:
+            tools[name] = list(
+                await asyncio.wait_for(server.list_tools(), timeout=_TOOL_LIST_TIMEOUT)
+            )
+        except Exception as e:
+            # The server is connected either way — the agent will still reach
+            # its tools, we just cannot show them here.
+            logger.warning("Could not list tools for %s — %s", name, e)
+            tools[name] = None
+    return tools
+
+
+#: Distinguishes "this server was never listed" from "its listing failed".
+_UNLISTED = object()
+
+
+def _tool_element_name(server: str, tools: list[Any]) -> str:
+    """The pill's text — and the element's name, which is what links the two.
+
+    Chainlit turns an element's name into a link wherever that name appears in
+    the body of the message the element is attached to, so this string has to
+    read as the label a user wants to click.
+    """
+    return f"{server} ({len(tools)} tool{'s' if len(tools) != 1 else ''})"
+
+
+def _tool_inventory_markdown(tools: list[Any]) -> str:
+    """One bullet per tool: its name, and the first line of its description.
+
+    A server configured from `mcp_servers.yaml` is one someone chose without
+    necessarily knowing what it offers, so the name alone is not much help.
+    """
+    lines = []
+    for tool in tools:
+        description = (getattr(tool, "description", None) or "").strip()
+        first_line = description.splitlines()[0].strip() if description else ""
+        if len(first_line) > _TOOL_DESCRIPTION_CHARS:
+            first_line = first_line[: _TOOL_DESCRIPTION_CHARS - 1].rstrip() + "…"
+        lines.append(f"- `{tool.name}`" + (f" — {first_line}" if first_line else ""))
+    return "\n".join(lines)
+
+
+def _tool_elements() -> list[Any]:
+    """A side panel per server, opened by the pill carrying its name."""
+    return [
+        cl.Text(
+            name=_tool_element_name(name, tools),
+            content=_tool_inventory_markdown(tools),
+            display="side",
+        )
+        for name, tools in (cl.user_session.get("mcp_tools") or {}).items()
+        if tools
+    ]
+
+
+def _server_line(name: str, tools: Any, sampling: bool) -> str:
+    """One bullet in the connected-servers list."""
+    if isinstance(tools, list) and tools:
+        # Bare, not in backticks: the pill styles itself, and a code span
+        # around it would leave the link looking like two separate things.
+        label = _tool_element_name(name, tools)
+    elif tools is None:
+        label = f"`{name}` (tools unavailable)"
+    elif isinstance(tools, list):
+        label = f"`{name}` (no tools)"
+    else:
+        label = f"`{name}`"
+    return f"- {label}" + (" — uses sampling" if sampling else "")
+
+
 def _update_mcp_info(
-    connected_names: list[str], failed_names: list[tuple[str, Exception]] | None = None
+    connected_names: list[str],
+    failed_names: list[tuple[str, Exception]] | None = None,
+    tools: dict[str, list[Any] | None] | None = None,
 ):
     """Update the mcp_info session variable."""
     parts = []
     sampling_servers = servers_using_sampling()
+    tools = tools or {}
     if connected_names:
         server_list = "\n".join(
-            f"- `{n}`" + (" — uses sampling" if n in sampling_servers else "")
-            for n in connected_names
+            _server_line(n, tools.get(n, _UNLISTED), n in sampling_servers) for n in connected_names
         )
         parts.append(f"Connected MCP servers:\n{server_list}")
     if failed_names:
@@ -529,6 +621,7 @@ async def on_settings_update(settings_values: dict):
         status_msg = cl.user_session.get("status_msg")
         mcp_info = cl.user_session.get("mcp_info", "")
         if status_msg:
+            status_msg.elements = _tool_elements()
             status_msg.content = (
                 f"**OrionBelt® Analytics Assistant** ready.\n\n"
                 f"Provider: `{provider}` | Model: `{model}`\n\n"
@@ -788,7 +881,12 @@ async def _reconnect_mcp() -> bool:
             still_failed.append((name, e))
 
     connected_names = [n for n, _ in healthy]
-    _update_mcp_info(connected_names, still_failed)
+    # A reconnected server has a cold tool cache, and may not even expose the
+    # same tools it did before, so this is a fresh listing rather than the map
+    # the session already holds.
+    tools = await _collect_tools(healthy)
+    cl.user_session.set("mcp_tools", tools)
+    _update_mcp_info(connected_names, still_failed, tools)
 
     # Rebuild agent with the mix of healthy + reconnected servers
     provider = cl.user_session.get("provider")
