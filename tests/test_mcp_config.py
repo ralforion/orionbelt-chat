@@ -248,3 +248,77 @@ class TestServerDef:
     )
     def test_is_url(self, endpoint, expected):
         assert ServerDef(name="X", endpoint=endpoint).is_url is expected
+
+
+class TestVariableExpansion:
+    """`${VAR}` keeps API keys in the environment and out of the config file."""
+
+    @pytest.fixture(autouse=True)
+    def _no_dotenv(self):
+        # The repository's own .env must not decide what these tests see.
+        with patch("orionbelt_chat.mcp_config.dotenv_values", return_value={}):
+            yield
+
+    def test_expands_in_endpoint(self):
+        with patch.dict("os.environ", {"SEARCH_KEY": "sk-123"}, clear=False):
+            defn = parse_server(
+                {"name": "S", "endpoint": "https://x.example/mcp?key=${SEARCH_KEY}"}, "cfg"
+            )
+        assert defn.endpoint == "https://x.example/mcp?key=sk-123"
+
+    def test_expands_in_env_values(self):
+        with patch.dict("os.environ", {"BRAVE_API_KEY": "brave-abc"}, clear=False):
+            defn = parse_server(
+                {
+                    "name": "B",
+                    "command": "npx",
+                    "args": ["-y", "@brave/brave-search-mcp-server"],
+                    "env": {"BRAVE_API_KEY": "${BRAVE_API_KEY}"},
+                },
+                "cfg",
+            )
+        assert defn.env == {"BRAVE_API_KEY": "brave-abc"}
+
+    def test_expands_in_args(self):
+        with patch.dict("os.environ", {"DATA_DIR": "/data"}, clear=False):
+            defn = parse_server(
+                {"name": "F", "command": "npx", "args": ["-y", "server-fs", "${DATA_DIR}"]}, "cfg"
+            )
+        assert defn.args == ("-y", "server-fs", "/data")
+
+    def test_falls_back_to_dotenv(self):
+        # Keys live in .env, which pydantic-settings parses without exporting
+        # to os.environ — the file must still be consulted.
+        with (
+            patch("orionbelt_chat.mcp_config.dotenv_values", return_value={"TAVILY_KEY": "tv-9"}),
+            patch.dict("os.environ", {}, clear=True),
+        ):
+            defn = parse_server({"name": "T", "endpoint": "https://t/mcp?k=${TAVILY_KEY}"}, "cfg")
+        assert defn.endpoint == "https://t/mcp?k=tv-9"
+
+    def test_unset_variable_is_an_error(self):
+        # Never silently substitute "" — a server that connects without its
+        # credentials fails much further from the cause.
+        with patch.dict("os.environ", {}, clear=True):
+            with pytest.raises(McpConfigError, match="NOT_SET_ANYWHERE"):
+                parse_server(
+                    {"name": "S", "endpoint": "https://x/mcp?k=${NOT_SET_ANYWHERE}"}, "cfg"
+                )
+
+    def test_unset_variable_does_not_take_other_servers_down(self, env, tmp_path):
+        env.analytics_server_dir = "https://a.example/mcp"
+        path = _write(
+            tmp_path, "servers:\n  - {name: S, endpoint: 'https://x/mcp?k=${NOPE_KEY}'}\n"
+        )
+        with patch.dict("os.environ", {}, clear=True):
+            with patch("orionbelt_chat.mcp_config.config_path", return_value=path):
+                defs, errors = load_server_defs()
+        assert [d.name for d in defs] == ["OrionBelt Analytics"]
+        assert "NOPE_KEY" in errors[0]
+
+    def test_value_without_a_placeholder_is_untouched(self):
+        # The common case must not pay for a .env read.
+        with patch("orionbelt_chat.mcp_config._env_lookup", side_effect=AssertionError) as lookup:
+            defn = parse_server({"name": "S", "endpoint": "https://x/mcp"}, "cfg")
+        assert defn.endpoint == "https://x/mcp"
+        lookup.assert_not_called()

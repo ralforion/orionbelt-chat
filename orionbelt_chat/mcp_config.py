@@ -25,6 +25,10 @@ The file looks like::
           LOG_LEVEL: debug
         sampling: false
 
+``${VAR}`` in an ``endpoint``, ``command``, ``args`` or ``env`` value is
+replaced by that environment variable (or the matching line in ``.env``), so an
+API key can be named here without being stored here.
+
 Servers from the file are *added* to whatever the ``ANALYTICS_SERVER_DIR`` and
 ``SEMANTIC_LAYER_SERVER_DIR`` variables define, so the common case — "I want one
 more server" — is a file with one entry. A file entry that reuses a built-in
@@ -34,13 +38,17 @@ unset its environment variable.
 
 from __future__ import annotations
 
+import functools
 import logging
 import os
+import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import dotenv_values
 
 from .settings import settings
 
@@ -135,6 +143,61 @@ def _require_str(entry: dict[str, Any], key: str, where: str) -> str:
     return value.strip()
 
 
+#: `${VAR}` anywhere in a value is replaced by that environment variable.
+_VAR_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def _env_lookup() -> dict[str, str]:
+    """Where `${VAR}` looks: the process environment, then the `.env` file.
+
+    Settings reads `.env` through pydantic-settings, which parses the file
+    itself rather than exporting it to `os.environ` — so a key that already
+    works for the LLM providers would otherwise not resolve here. Reading both
+    keeps one place for secrets.
+    """
+    values = {k: v for k, v in dotenv_values(".env").items() if v is not None}
+    values.update(os.environ)
+    return values
+
+
+def _expand(
+    value: str,
+    lookup: Callable[[], dict[str, str]],
+    where: str,
+    name: str,
+    key: str,
+) -> str:
+    """Substitute `${VAR}` so an API key stays out of the config file.
+
+    An unset variable is an error rather than an empty string: a server that
+    connects without its credentials fails later, somewhere far less obvious
+    than the file that forgot to name the variable.
+
+    `lookup` is deferred because the overwhelming majority of values hold no
+    `${...}` at all, and the config is re-read several times per session.
+    """
+    if "${" not in value:
+        return value
+
+    missing: list[str] = []
+    env = lookup()
+
+    def replace(match: re.Match[str]) -> str:
+        var = match.group(1)
+        if var not in env:
+            missing.append(var)
+            return ""
+        return env[var]
+
+    expanded = _VAR_PATTERN.sub(replace, value)
+    if missing:
+        raise McpConfigError(
+            f"{where} ({name}): '{key}' uses unset environment "
+            f"variable(s): {', '.join(sorted(set(missing)))}"
+        )
+    return expanded
+
+
 def parse_server(entry: Any, where: str) -> ServerDef:
     """Validate one entry from the ``servers:`` list.
 
@@ -149,9 +212,10 @@ def parse_server(entry: Any, where: str) -> ServerDef:
     if not name:
         raise McpConfigError(f"{where}: 'name' is required")
 
-    endpoint = _require_str(entry, "endpoint", where)
+    lookup = functools.cache(_env_lookup)
+    endpoint = _expand(_require_str(entry, "endpoint", where), lookup, where, name, "endpoint")
     module = _require_str(entry, "module", where)
-    command = _require_str(entry, "command", where)
+    command = _expand(_require_str(entry, "command", where), lookup, where, name, "command")
 
     if not endpoint and not command:
         raise McpConfigError(f"{where} ({name}): needs either 'endpoint' or 'command'")
@@ -163,8 +227,14 @@ def parse_server(entry: Any, where: str) -> ServerDef:
         endpoint=endpoint,
         module=module,
         command=command,
-        args=tuple(_parse_args(entry.get("args"), where, name)),
-        env=_parse_env(entry.get("env"), where, name),
+        args=tuple(
+            _expand(arg, lookup, where, name, "args")
+            for arg in _parse_args(entry.get("args"), where, name)
+        ),
+        env={
+            key: _expand(value, lookup, where, name, f"env.{key}")
+            for key, value in _parse_env(entry.get("env"), where, name).items()
+        },
         sampling=_parse_bool(entry.get("sampling"), where, name),
     )
 
