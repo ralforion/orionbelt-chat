@@ -12,6 +12,17 @@ Releases are cut from `main` and driven entirely by pushing a version tag.
    - `uv.lock` → run `uv lock` after bumping `pyproject.toml`; it pins the
      project's own version, and CI's `uv sync --frozen` fails if it's stale.
 
+   Then regenerate the committed attribution, which carries the version in its
+   heading and is checked by CI against the locked environment:
+
+   ```bash
+   uv sync --frozen --no-dev --python 3.13
+   version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/')
+   .venv/bin/python scripts/gen_third_party_licenses.py \
+     --venv .venv --version "$version" --overrides licenses \
+     --fail-on-missing-notice -o THIRD_PARTY_LICENSES.md
+   ```
+
 2. **Open a PR, get CI green, merge to `main`.** Never tag off a branch.
 
 3. **Tag the merge commit and push:**

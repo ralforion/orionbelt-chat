@@ -83,6 +83,9 @@ design/
 # Claude Code
 .claude/
 
-# Generated compliance artifacts (built by CI, see scripts/gen_third_party_licenses.py)
-THIRD_PARTY_LICENSES.md
+# Generated compliance artifacts (built by CI, see scripts/gen_third_party_licenses.py).
+# THIRD_PARTY_LICENSES.md is deliberately NOT here: it is generated but
+# committed, so attribution is readable in the repository rather than only
+# inside the image and the release assets. CI fails if the committed copy
+# drifts from what the locked environment produces.
 sbom.cdx.json

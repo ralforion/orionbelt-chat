@@ -83,6 +83,25 @@ jobs:
             --fail-on-missing-notice \
             -o "$RUNNER_TEMP/THIRD_PARTY_LICENSES.md"
 
+      # The committed copy is what a reader sees, and nothing regenerates it on
+      # their behalf: a dependency added, removed or bumped in uv.lock changes
+      # the attribution and leaves the file behind. The generator is
+      # deterministic for a given environment, so the check is a plain diff —
+      # against the file the step above just produced from the locked set, at
+      # the version pyproject declares.
+      - name: Committed attribution is up to date
+        run: |
+          if ! diff -u THIRD_PARTY_LICENSES.md "$RUNNER_TEMP/THIRD_PARTY_LICENSES.md"; then
+            echo
+            echo "THIRD_PARTY_LICENSES.md is stale. Regenerate it:"
+            echo "  uv sync --frozen --no-dev --python 3.13"
+            echo "  version=\$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = \"([^\"]+)\"/\\1/')"
+            echo "  .venv/bin/python scripts/gen_third_party_licenses.py \\"
+            echo "    --venv .venv --version \"\$version\" --overrides licenses \\"
+            echo "    --fail-on-missing-notice -o THIRD_PARTY_LICENSES.md"
+            exit 1
+          fi
+
   # Gated on `pins` for the same reason as `lint`, and required for the same
   # reason — see the note there before removing either half.
   test:
