@@ -1,36 +1,36 @@
-# Third-Party Licenses — OrionBelt Chat 1.6.1
+# Third-Party Licenses — OrionBelt Chat 1.6.2
 
 OrionBelt Chat is distributed under the Business Source License 1.1 (see `LICENSE`). This file covers the third-party open-source packages redistributed alongside it — every dependency installed into the runtime environment of the published container image.
 
 It is generated from installed package metadata by `scripts/gen_third_party_licenses.py`; do not edit it by hand.
 
-Packages: **175**
+Packages: **176**
 
 ## Summary
 
 | License | Packages |
 | --- | ---: |
-| Apache-2.0 | 63 |
+| Apache-2.0 | 64 |
 | MIT | 55 |
 | BSD-3-Clause | 16 |
-| MIT License | 9 |
-| BSD | 5 |
+| MIT License | 8 |
 | Apache 2.0 | 4 |
+| BSD | 4 |
 | BSD License | 3 |
+| BSD-2-Clause | 3 |
 | Apache License 2.0 | 2 |
 | Apache Software License | 2 |
-| BSD-2-Clause | 2 |
 | ISC | 2 |
+| MPL-2.0 | 2 |
 | PSF-2.0 | 2 |
 | 3-Clause BSD License | 1 |
 | Apache License, Version 2.0 | 1 |
-| Apache Software License / BSD License | 1 |
 | Apache-2.0 AND CNRI-Python | 1 |
 | Apache-2.0 AND MIT | 1 |
+| Apache-2.0 OR BSD-2-Clause | 1 |
 | Apache-2.0 OR BSD-3-Clause | 1 |
 | MIT OR Apache-2.0 | 1 |
-| MPL 2.0 | 1 |
-| MPL-2.0 | 1 |
+| MIT-0 | 1 |
 | Unlicense | 1 |
 
 ## Packages without an upstream license file
@@ -40,42 +40,42 @@ These distributions declare a license in their metadata but ship no license file
 | Package | Version | Declared license | Project |
 | --- | --- | --- | --- |
 | chainlit | 2.12.0 | Apache-2.0 | https://chainlit.io/ |
-| fastmcp-slim | 3.4.4 | Apache-2.0 | https://gofastmcp.com |
-| opentelemetry-instrumentation-agno | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-agno |
-| opentelemetry-instrumentation-alephalpha | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-alephalpha |
-| opentelemetry-instrumentation-anthropic | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-anthropic |
-| opentelemetry-instrumentation-bedrock | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-bedrock |
-| opentelemetry-instrumentation-chromadb | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-chromadb |
-| opentelemetry-instrumentation-cohere | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-cohere |
-| opentelemetry-instrumentation-crewai | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-crewai |
-| opentelemetry-instrumentation-google-generativeai | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-google-generativeai |
-| opentelemetry-instrumentation-groq | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-groq |
-| opentelemetry-instrumentation-haystack | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-haystack |
-| opentelemetry-instrumentation-lancedb | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-lancedb |
-| opentelemetry-instrumentation-langchain | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-langchain |
-| opentelemetry-instrumentation-llamaindex | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-llamaindex |
-| opentelemetry-instrumentation-marqo | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-marqo |
-| opentelemetry-instrumentation-mcp | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-mcp |
-| opentelemetry-instrumentation-milvus | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-milvus |
-| opentelemetry-instrumentation-mistralai | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-mistralai |
-| opentelemetry-instrumentation-ollama | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-ollama |
-| opentelemetry-instrumentation-openai | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-openai |
-| opentelemetry-instrumentation-openai-agents | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-openai-agents |
-| opentelemetry-instrumentation-pinecone | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-pinecone |
-| opentelemetry-instrumentation-qdrant | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-qdrant |
-| opentelemetry-instrumentation-replicate | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-replicate |
-| opentelemetry-instrumentation-sagemaker | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-sagemaker |
-| opentelemetry-instrumentation-together | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-together |
-| opentelemetry-instrumentation-transformers | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-transformers |
-| opentelemetry-instrumentation-vertexai | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-vertexai |
-| opentelemetry-instrumentation-voyageai | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-voyageai |
-| opentelemetry-instrumentation-watsonx | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-watsonx |
-| opentelemetry-instrumentation-weaviate | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-weaviate |
-| opentelemetry-instrumentation-writer | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-writer |
+| fastmcp-slim | 3.4.7 | Apache-2.0 | https://gofastmcp.com |
+| opentelemetry-instrumentation-agno | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-agno |
+| opentelemetry-instrumentation-alephalpha | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-alephalpha |
+| opentelemetry-instrumentation-anthropic | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-anthropic |
+| opentelemetry-instrumentation-bedrock | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-bedrock |
+| opentelemetry-instrumentation-chromadb | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-chromadb |
+| opentelemetry-instrumentation-cohere | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-cohere |
+| opentelemetry-instrumentation-crewai | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-crewai |
+| opentelemetry-instrumentation-google-generativeai | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-google-generativeai |
+| opentelemetry-instrumentation-groq | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-groq |
+| opentelemetry-instrumentation-haystack | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-haystack |
+| opentelemetry-instrumentation-lancedb | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-lancedb |
+| opentelemetry-instrumentation-langchain | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-langchain |
+| opentelemetry-instrumentation-litellm | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-litellm |
+| opentelemetry-instrumentation-llamaindex | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-llamaindex |
+| opentelemetry-instrumentation-marqo | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-marqo |
+| opentelemetry-instrumentation-mcp | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-mcp |
+| opentelemetry-instrumentation-milvus | 0.60.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-milvus |
+| opentelemetry-instrumentation-mistralai | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-mistralai |
+| opentelemetry-instrumentation-ollama | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-ollama |
+| opentelemetry-instrumentation-openai | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-openai |
+| opentelemetry-instrumentation-openai-agents | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-openai-agents |
+| opentelemetry-instrumentation-pinecone | 0.60.0 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-pinecone |
+| opentelemetry-instrumentation-qdrant | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-qdrant |
+| opentelemetry-instrumentation-replicate | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-replicate |
+| opentelemetry-instrumentation-sagemaker | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-sagemaker |
+| opentelemetry-instrumentation-together | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-together |
+| opentelemetry-instrumentation-transformers | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-transformers |
+| opentelemetry-instrumentation-vertexai | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-vertexai |
+| opentelemetry-instrumentation-voyageai | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-voyageai |
+| opentelemetry-instrumentation-watsonx | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-watsonx |
+| opentelemetry-instrumentation-weaviate | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-weaviate |
+| opentelemetry-instrumentation-writer | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-writer |
 | opentelemetry-semantic-conventions-ai | 0.5.1 | Apache-2.0 | — |
 | opentelemetry-util-http | 0.65b0 | Apache-2.0 | https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/util/opentelemetry-util-http |
-| py-key-value-aio | 0.4.4 | Apache-2.0 | — |
-| traceloop-sdk | 0.57.0 | Apache-2.0 | https://github.com/traceloop/openllmetry |
+| traceloop-sdk | 0.62.3 | Apache-2.0 | https://github.com/traceloop/openllmetry |
 
 ## Packages with a curated license text
 
@@ -84,218 +84,17 @@ These ship no license file either, and their licenses carry a holder-specific co
 | Package | Version | Declared license | Project |
 | --- | --- | --- | --- |
 | Lazify | 0.4.0 | BSD | https://github.com/numberly/lazify |
-| logfire-api | 4.31.0 | MIT | — |
+| logfire-api | 4.41.0 | MIT | — |
 
 ## Packages
 
-### aiofile 3.9.0
+### aiofile 3.12.3
 
 License: Apache-2.0
 
-Project: http://github.com/mosquito/aiofile
+Project: https://github.com/mosquito/aiofile
 
-<details><summary>aiofile-3.9.0.dist-info/LICENCE</summary>
-
-```text
-Apache License
-==============
-
-_Version 2.0, January 2004_  
-_&lt;<http://www.apache.org/licenses/>&gt;_
-
-### Terms and Conditions for use, reproduction, and distribution
-
-#### 1. Definitions
-
-“License” shall mean the terms and conditions for use, reproduction, and
-distribution as defined by Sections 1 through 9 of this document.
-
-“Licensor” shall mean the copyright owner or entity authorized by the copyright
-owner that is granting the License.
-
-“Legal Entity” shall mean the union of the acting entity and all other entities
-that control, are controlled by, or are under common control with that entity.
-For the purposes of this definition, “control” means **(i)** the power, direct or
-indirect, to cause the direction or management of such entity, whether by
-contract or otherwise, or **(ii)** ownership of fifty percent (50%) or more of the
-outstanding shares, or **(iii)** beneficial ownership of such entity.
-
-“You” (or “Your”) shall mean an individual or Legal Entity exercising
-permissions granted by this License.
-
-“Source” form shall mean the preferred form for making modifications, including
-but not limited to software source code, documentation source, and configuration
-files.
-
-“Object” form shall mean any form resulting from mechanical transformation or
-translation of a Source form, including but not limited to compiled object code,
-generated documentation, and conversions to other media types.
-
-“Work” shall mean the work of authorship, whether in Source or Object form, made
-available under the License, as indicated by a copyright notice that is included
-in or attached to the work (an example is provided in the Appendix below).
-
-“Derivative Works” shall mean any work, whether in Source or Object form, that
-is based on (or derived from) the Work and for which the editorial revisions,
-annotations, elaborations, or other modifications represent, as a whole, an
-original work of authorship. For the purposes of this License, Derivative Works
-shall not include works that remain separable from, or merely link (or bind by
-name) to the interfaces of, the Work and Derivative Works thereof.
-
-“Contribution” shall mean any work of authorship, including the original version
-of the Work and any modifications or additions to that Work or Derivative Works
-thereof, that is intentionally submitted to Licensor for inclusion in the Work
-by the copyright owner or by an individual or Legal Entity authorized to submit
-on behalf of the copyright owner. For the purposes of this definition,
-“submitted” means any form of electronic, verbal, or written communication sent
-to the Licensor or its representatives, including but not limited to
-communication on electronic mailing lists, source code control systems, and
-issue tracking systems that are managed by, or on behalf of, the Licensor for
-the purpose of discussing and improving the Work, but excluding communication
-that is conspicuously marked or otherwise designated in writing by the copyright
-owner as “Not a Contribution.”
-
-“Contributor” shall mean Licensor and any individual or Legal Entity on behalf
-of whom a Contribution has been received by Licensor and subsequently
-incorporated within the Work.
-
-#### 2. Grant of Copyright License
-
-Subject to the terms and conditions of this License, each Contributor hereby
-grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free,
-irrevocable copyright license to reproduce, prepare Derivative Works of,
-publicly display, publicly perform, sublicense, and distribute the Work and such
-Derivative Works in Source or Object form.
-
-#### 3. Grant of Patent License
-
-Subject to the terms and conditions of this License, each Contributor hereby
-grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free,
-irrevocable (except as stated in this section) patent license to make, have
-made, use, offer to sell, sell, import, and otherwise transfer the Work, where
-such license applies only to those patent claims licensable by such Contributor
-that are necessarily infringed by their Contribution(s) alone or by combination
-of their Contribution(s) with the Work to which such Contribution(s) was
-submitted. If You institute patent litigation against any entity (including a
-cross-claim or counterclaim in a lawsuit) alleging that the Work or a
-Contribution incorporated within the Work constitutes direct or contributory
-patent infringement, then any patent licenses granted to You under this License
-for that Work shall terminate as of the date such litigation is filed.
-
-#### 4. Redistribution
-
-You may reproduce and distribute copies of the Work or Derivative Works thereof
-in any medium, with or without modifications, and in Source or Object form,
-provided that You meet the following conditions:
-
-* **(a)** You must give any other recipients of the Work or Derivative Works a copy of
-this License; and
-* **(b)** You must cause any modified files to carry prominent notices stating that You
-changed the files; and
-* **(c)** You must retain, in the Source form of any Derivative Works that You distribute,
-all copyright, patent, trademark, and attribution notices from the Source form
-of the Work, excluding those notices that do not pertain to any part of the
-Derivative Works; and
-* **(d)** If the Work includes a “NOTICE” text file as part of its distribution, then any
-Derivative Works that You distribute must include a readable copy of the
-attribution notices contained within such NOTICE file, excluding those notices
-that do not pertain to any part of the Derivative Works, in at least one of the
-following places: within a NOTICE text file distributed as part of the
-Derivative Works; within the Source form or documentation, if provided along
-with the Derivative Works; or, within a display generated by the Derivative
-Works, if and wherever such third-party notices normally appear. The contents of
-the NOTICE file are for informational purposes only and do not modify the
-License. You may add Your own attribution notices within Derivative Works that
-You distribute, alongside or as an addendum to the NOTICE text from the Work,
-provided that such additional attribution notices cannot be construed as
-modifying the License.
-
-You may add Your own copyright statement to Your modifications and may provide
-additional or different license terms and conditions for use, reproduction, or
-distribution of Your modifications, or for any such Derivative Works as a whole,
-provided Your use, reproduction, and distribution of the Work otherwise complies
-with the conditions stated in this License.
-
-#### 5. Submission of Contributions
-
-Unless You explicitly state otherwise, any Contribution intentionally submitted
-for inclusion in the Work by You to the Licensor shall be under the terms and
-conditions of this License, without any additional terms or conditions.
-Notwithstanding the above, nothing herein shall supersede or modify the terms of
-any separate license agreement you may have executed with Licensor regarding
-such Contributions.
-
-#### 6. Trademarks
-
-This License does not grant permission to use the trade names, trademarks,
-service marks, or product names of the Licensor, except as required for
-reasonable and customary use in describing the origin of the Work and
-reproducing the content of the NOTICE file.
-
-#### 7. Disclaimer of Warranty
-
-Unless required by applicable law or agreed to in writing, Licensor provides the
-Work (and each Contributor provides its Contributions) on an “AS IS” BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied,
-including, without limitation, any warranties or conditions of TITLE,
-NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. You are
-solely responsible for determining the appropriateness of using or
-redistributing the Work and assume any risks associated with Your exercise of
-permissions under this License.
-
-#### 8. Limitation of Liability
-
-In no event and under no legal theory, whether in tort (including negligence),
-contract, or otherwise, unless required by applicable law (such as deliberate
-and grossly negligent acts) or agreed to in writing, shall any Contributor be
-liable to You for damages, including any direct, indirect, special, incidental,
-or consequential damages of any character arising as a result of this License or
-out of the use or inability to use the Work (including but not limited to
-damages for loss of goodwill, work stoppage, computer failure or malfunction, or
-any and all other commercial damages or losses), even if such Contributor has
-been advised of the possibility of such damages.
-
-#### 9. Accepting Warranty or Additional Liability
-
-While redistributing the Work or Derivative Works thereof, You may choose to
-offer, and charge a fee for, acceptance of support, warranty, indemnity, or
-other liability obligations and/or rights consistent with this License. However,
-in accepting such obligations, You may act only on Your own behalf and on Your
-sole responsibility, not on behalf of any other Contributor, and only if You
-agree to indemnify, defend, and hold each Contributor harmless for any liability
-incurred by, or claims asserted against, such Contributor by reason of your
-accepting any such warranty or additional liability.
-
-_END OF TERMS AND CONDITIONS_
-
-### APPENDIX: How to apply the Apache License to your work
-
-To apply the Apache License to your work, attach the following boilerplate
-notice, with the fields enclosed by brackets `[]` replaced with your own
-identifying information. (Don't include the brackets!) The text should be
-enclosed in the appropriate comment syntax for the file format. We also
-recommend that a file or class name and description of purpose be included on
-the same “printed page” as the copyright notice for easier identification within
-third-party archives.
-
-    Copyright [yyyy] [name of copyright owner]
-    
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-    
-      http://www.apache.org/licenses/LICENSE-2.0
-    
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-```
-
-</details>
-
-<details><summary>aiofile-3.9.0.dist-info/LICENCE.md</summary>
+<details><summary>aiofile-3.12.3.dist-info/licenses/LICENCE</summary>
 
 ```text
 Apache License
@@ -496,13 +295,214 @@ third-party archives.
 
 </details>
 
-### aiofiles 24.1.0
+<details><summary>aiofile-3.12.3.dist-info/licenses/LICENCE.md</summary>
+
+```text
+Apache License
+==============
+
+_Version 2.0, January 2004_  
+_&lt;<http://www.apache.org/licenses/>&gt;_
+
+### Terms and Conditions for use, reproduction, and distribution
+
+#### 1. Definitions
+
+“License” shall mean the terms and conditions for use, reproduction, and
+distribution as defined by Sections 1 through 9 of this document.
+
+“Licensor” shall mean the copyright owner or entity authorized by the copyright
+owner that is granting the License.
+
+“Legal Entity” shall mean the union of the acting entity and all other entities
+that control, are controlled by, or are under common control with that entity.
+For the purposes of this definition, “control” means **(i)** the power, direct or
+indirect, to cause the direction or management of such entity, whether by
+contract or otherwise, or **(ii)** ownership of fifty percent (50%) or more of the
+outstanding shares, or **(iii)** beneficial ownership of such entity.
+
+“You” (or “Your”) shall mean an individual or Legal Entity exercising
+permissions granted by this License.
+
+“Source” form shall mean the preferred form for making modifications, including
+but not limited to software source code, documentation source, and configuration
+files.
+
+“Object” form shall mean any form resulting from mechanical transformation or
+translation of a Source form, including but not limited to compiled object code,
+generated documentation, and conversions to other media types.
+
+“Work” shall mean the work of authorship, whether in Source or Object form, made
+available under the License, as indicated by a copyright notice that is included
+in or attached to the work (an example is provided in the Appendix below).
+
+“Derivative Works” shall mean any work, whether in Source or Object form, that
+is based on (or derived from) the Work and for which the editorial revisions,
+annotations, elaborations, or other modifications represent, as a whole, an
+original work of authorship. For the purposes of this License, Derivative Works
+shall not include works that remain separable from, or merely link (or bind by
+name) to the interfaces of, the Work and Derivative Works thereof.
+
+“Contribution” shall mean any work of authorship, including the original version
+of the Work and any modifications or additions to that Work or Derivative Works
+thereof, that is intentionally submitted to Licensor for inclusion in the Work
+by the copyright owner or by an individual or Legal Entity authorized to submit
+on behalf of the copyright owner. For the purposes of this definition,
+“submitted” means any form of electronic, verbal, or written communication sent
+to the Licensor or its representatives, including but not limited to
+communication on electronic mailing lists, source code control systems, and
+issue tracking systems that are managed by, or on behalf of, the Licensor for
+the purpose of discussing and improving the Work, but excluding communication
+that is conspicuously marked or otherwise designated in writing by the copyright
+owner as “Not a Contribution.”
+
+“Contributor” shall mean Licensor and any individual or Legal Entity on behalf
+of whom a Contribution has been received by Licensor and subsequently
+incorporated within the Work.
+
+#### 2. Grant of Copyright License
+
+Subject to the terms and conditions of this License, each Contributor hereby
+grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free,
+irrevocable copyright license to reproduce, prepare Derivative Works of,
+publicly display, publicly perform, sublicense, and distribute the Work and such
+Derivative Works in Source or Object form.
+
+#### 3. Grant of Patent License
+
+Subject to the terms and conditions of this License, each Contributor hereby
+grants to You a perpetual, worldwide, non-exclusive, no-charge, royalty-free,
+irrevocable (except as stated in this section) patent license to make, have
+made, use, offer to sell, sell, import, and otherwise transfer the Work, where
+such license applies only to those patent claims licensable by such Contributor
+that are necessarily infringed by their Contribution(s) alone or by combination
+of their Contribution(s) with the Work to which such Contribution(s) was
+submitted. If You institute patent litigation against any entity (including a
+cross-claim or counterclaim in a lawsuit) alleging that the Work or a
+Contribution incorporated within the Work constitutes direct or contributory
+patent infringement, then any patent licenses granted to You under this License
+for that Work shall terminate as of the date such litigation is filed.
+
+#### 4. Redistribution
+
+You may reproduce and distribute copies of the Work or Derivative Works thereof
+in any medium, with or without modifications, and in Source or Object form,
+provided that You meet the following conditions:
+
+* **(a)** You must give any other recipients of the Work or Derivative Works a copy of
+this License; and
+* **(b)** You must cause any modified files to carry prominent notices stating that You
+changed the files; and
+* **(c)** You must retain, in the Source form of any Derivative Works that You distribute,
+all copyright, patent, trademark, and attribution notices from the Source form
+of the Work, excluding those notices that do not pertain to any part of the
+Derivative Works; and
+* **(d)** If the Work includes a “NOTICE” text file as part of its distribution, then any
+Derivative Works that You distribute must include a readable copy of the
+attribution notices contained within such NOTICE file, excluding those notices
+that do not pertain to any part of the Derivative Works, in at least one of the
+following places: within a NOTICE text file distributed as part of the
+Derivative Works; within the Source form or documentation, if provided along
+with the Derivative Works; or, within a display generated by the Derivative
+Works, if and wherever such third-party notices normally appear. The contents of
+the NOTICE file are for informational purposes only and do not modify the
+License. You may add Your own attribution notices within Derivative Works that
+You distribute, alongside or as an addendum to the NOTICE text from the Work,
+provided that such additional attribution notices cannot be construed as
+modifying the License.
+
+You may add Your own copyright statement to Your modifications and may provide
+additional or different license terms and conditions for use, reproduction, or
+distribution of Your modifications, or for any such Derivative Works as a whole,
+provided Your use, reproduction, and distribution of the Work otherwise complies
+with the conditions stated in this License.
+
+#### 5. Submission of Contributions
+
+Unless You explicitly state otherwise, any Contribution intentionally submitted
+for inclusion in the Work by You to the Licensor shall be under the terms and
+conditions of this License, without any additional terms or conditions.
+Notwithstanding the above, nothing herein shall supersede or modify the terms of
+any separate license agreement you may have executed with Licensor regarding
+such Contributions.
+
+#### 6. Trademarks
+
+This License does not grant permission to use the trade names, trademarks,
+service marks, or product names of the Licensor, except as required for
+reasonable and customary use in describing the origin of the Work and
+reproducing the content of the NOTICE file.
+
+#### 7. Disclaimer of Warranty
+
+Unless required by applicable law or agreed to in writing, Licensor provides the
+Work (and each Contributor provides its Contributions) on an “AS IS” BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied,
+including, without limitation, any warranties or conditions of TITLE,
+NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. You are
+solely responsible for determining the appropriateness of using or
+redistributing the Work and assume any risks associated with Your exercise of
+permissions under this License.
+
+#### 8. Limitation of Liability
+
+In no event and under no legal theory, whether in tort (including negligence),
+contract, or otherwise, unless required by applicable law (such as deliberate
+and grossly negligent acts) or agreed to in writing, shall any Contributor be
+liable to You for damages, including any direct, indirect, special, incidental,
+or consequential damages of any character arising as a result of this License or
+out of the use or inability to use the Work (including but not limited to
+damages for loss of goodwill, work stoppage, computer failure or malfunction, or
+any and all other commercial damages or losses), even if such Contributor has
+been advised of the possibility of such damages.
+
+#### 9. Accepting Warranty or Additional Liability
+
+While redistributing the Work or Derivative Works thereof, You may choose to
+offer, and charge a fee for, acceptance of support, warranty, indemnity, or
+other liability obligations and/or rights consistent with this License. However,
+in accepting such obligations, You may act only on Your own behalf and on Your
+sole responsibility, not on behalf of any other Contributor, and only if You
+agree to indemnify, defend, and hold each Contributor harmless for any liability
+incurred by, or claims asserted against, such Contributor by reason of your
+accepting any such warranty or additional liability.
+
+_END OF TERMS AND CONDITIONS_
+
+### APPENDIX: How to apply the Apache License to your work
+
+To apply the Apache License to your work, attach the following boilerplate
+notice, with the fields enclosed by brackets `[]` replaced with your own
+identifying information. (Don't include the brackets!) The text should be
+enclosed in the appropriate comment syntax for the file format. We also
+recommend that a file or class name and description of purpose be included on
+the same “printed page” as the copyright notice for easier identification within
+third-party archives.
+
+    Copyright [yyyy] [name of copyright owner]
+    
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    
+      http://www.apache.org/licenses/LICENSE-2.0
+    
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+```
+
+</details>
+
+### aiofiles 25.1.0
 
 License: Apache-2.0
 
 Project: https://github.com/Tinche/aiofiles
 
-<details><summary>aiofiles-24.1.0.dist-info/licenses/LICENSE</summary>
+<details><summary>aiofiles-25.1.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -710,7 +710,7 @@ Apache License
 
 </details>
 
-<details><summary>aiofiles-24.1.0.dist-info/licenses/NOTICE</summary>
+<details><summary>aiofiles-25.1.0.dist-info/licenses/NOTICE</summary>
 
 ```text
 Asyncio support for files
@@ -719,13 +719,13 @@ Copyright 2016 Tin Tvrtkovic
 
 </details>
 
-### aiohappyeyeballs 2.6.1
+### aiohappyeyeballs 2.7.1
 
 License: PSF-2.0
 
 Project: https://github.com/aio-libs/aiohappyeyeballs
 
-<details><summary>aiohappyeyeballs-2.6.1.dist-info/LICENSE</summary>
+<details><summary>aiohappyeyeballs-2.7.1.dist-info/licenses/LICENSE</summary>
 
 ```text
 A. HISTORY OF THE SOFTWARE
@@ -1011,16 +1011,204 @@ PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### aiohttp 3.13.5
+### aiohttp 3.14.3
 
 License: Apache-2.0 AND MIT
 
 Project: https://github.com/aio-libs/aiohttp
 
-<details><summary>aiohttp-3.13.5.dist-info/licenses/LICENSE.txt</summary>
+<details><summary>aiohttp-3.14.3.dist-info/licenses/LICENSE.txt</summary>
 
 ```text
-Copyright aio-libs contributors.
+Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "{}"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright aio-libs contributors
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -1037,12 +1225,12 @@ Copyright aio-libs contributors.
 
 </details>
 
-<details><summary>aiohttp-3.13.5.dist-info/licenses/vendor/llhttp/LICENSE</summary>
+<details><summary>aiohttp-3.14.3.dist-info/licenses/vendor/llhttp/LICENSE</summary>
 
 ```text
-This software is licensed under the MIT License.
+MIT License
 
-Copyright Fedor Indutny, 2018.
+Copyright © 2018 Fedor Indutny
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the
@@ -1280,13 +1468,13 @@ Apache License
 
 </details>
 
-### annotated-doc 0.0.4
+### annotated-doc 0.0.5
 
 License: MIT
 
 Project: https://github.com/fastapi/annotated-doc
 
-<details><summary>annotated_doc-0.0.4.dist-info/licenses/LICENSE</summary>
+<details><summary>annotated_doc-0.0.5.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -1314,13 +1502,13 @@ THE SOFTWARE.
 
 </details>
 
-### annotated-types 0.7.0
+### annotated-types 0.8.0
 
-License: MIT License
+License: MIT
 
 Project: https://github.com/annotated-types/annotated-types
 
-<details><summary>annotated_types-0.7.0.dist-info/licenses/LICENSE</summary>
+<details><summary>annotated_types-0.8.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -1437,11 +1625,11 @@ promoted by the authors of httpx-aiohttp.
 
 </details>
 
-### anyio 4.13.0
+### anyio 4.14.2
 
 License: MIT
 
-<details><summary>anyio-4.13.0.dist-info/licenses/LICENSE</summary>
+<details><summary>anyio-4.14.2.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -1468,13 +1656,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### argcomplete 3.6.3
+### argcomplete 3.7.2
 
 License: Apache Software License
 
 Project: https://github.com/kislyuk/argcomplete
 
-<details><summary>argcomplete-3.6.3.dist-info/licenses/LICENSE.rst</summary>
+<details><summary>argcomplete-3.7.2.dist-info/licenses/LICENSE.rst</summary>
 
 ```text
 Apache License
@@ -1657,7 +1845,7 @@ Apache License
 
 </details>
 
-<details><summary>argcomplete-3.6.3.dist-info/licenses/NOTICE</summary>
+<details><summary>argcomplete-3.7.2.dist-info/licenses/NOTICE</summary>
 
 ```text
 argcomplete is a free open source library that integrates Python applications with Bash and Zsh shell completion.
@@ -1668,13 +1856,13 @@ https://github.com/kislyuk/argcomplete.
 
 </details>
 
-### asyncer 0.0.17
+### asyncer 0.0.18
 
 License: MIT
 
 Project: https://github.com/fastapi/asyncer
 
-<details><summary>asyncer-0.0.17.dist-info/licenses/LICENSE</summary>
+<details><summary>asyncer-0.0.18.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -1734,13 +1922,13 @@ SOFTWARE.
 
 </details>
 
-### Authlib 1.7.2
+### Authlib 1.8.0
 
 License: BSD-3-Clause
 
 Project: https://github.com/authlib/authlib
 
-<details><summary>authlib-1.7.2.dist-info/licenses/LICENSE</summary>
+<details><summary>authlib-1.8.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 BSD 3-Clause License
@@ -1808,19 +1996,19 @@ SOFTWARE.
 
 </details>
 
-### bidict 0.23.1
+### bidict 0.24.1
 
-License: MPL 2.0
+License: MPL-2.0
 
 Project: https://github.com/jab/bidict
 
-<details><summary>bidict-0.23.1.dist-info/LICENSE</summary>
+<details><summary>bidict-0.24.1.dist-info/licenses/LICENSE</summary>
 
 ```text
 Mozilla Public License Version 2.0
 ==================================
 
-Copyright 2009-2024 Joshua Bronson. All rights reserved.
+Copyright 2009-2026 Joshua Bronson. All rights reserved.
 
 
 1. Definitions
@@ -2197,13 +2385,13 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
 </details>
 
-### cachetools 7.0.5
+### cachetools 7.1.7
 
 License: MIT
 
 Project: https://github.com/tkem/cachetools/
 
-<details><summary>cachetools-7.0.5.dist-info/licenses/LICENSE</summary>
+<details><summary>cachetools-7.1.7.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -2230,11 +2418,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### caio 0.9.25
+### caio 0.12.2
 
 License: Apache-2.0
 
-<details><summary>caio-0.9.25.dist-info/licenses/COPYING</summary>
+<details><summary>caio-0.12.2.dist-info/licenses/COPYING</summary>
 
 ```text
 Apache License
@@ -2442,13 +2630,13 @@ Apache License
 
 </details>
 
-### certifi 2026.2.25
+### certifi 2026.7.22
 
 License: MPL-2.0
 
 Project: https://github.com/certifi/python-certifi
 
-<details><summary>certifi-2026.2.25.dist-info/licenses/LICENSE</summary>
+<details><summary>certifi-2026.7.22.dist-info/licenses/LICENSE</summary>
 
 ```text
 This package contains a modified version of ca-bundle.crt:
@@ -2475,26 +2663,11 @@ one at http://mozilla.org/MPL/2.0/.
 
 </details>
 
-### cffi 2.0.0
+### cffi 2.1.1
 
-License: MIT
+License: MIT-0
 
-<details><summary>cffi-2.0.0.dist-info/licenses/AUTHORS</summary>
-
-```text
-This package has been mostly done by Armin Rigo with help from
-Maciej Fijałkowski. The idea is heavily based (although not directly
-copied) from LuaJIT ffi by Mike Pall.
-
-
-Other contributors:
-
-  Google Inc.
-```
-
-</details>
-
-<details><summary>cffi-2.0.0.dist-info/licenses/LICENSE</summary>
+<details><summary>cffi-2.1.1.dist-info/licenses/LICENSE</summary>
 
 ```text
 Except when otherwise stated (look for LICENSE files in directories or
@@ -2530,11 +2703,11 @@ Project: https://chainlit.io/
 
 _No license file distributed by upstream._
 
-### charset-normalizer 3.4.7
+### charset-normalizer 3.5.1
 
 License: MIT
 
-<details><summary>charset_normalizer-3.4.7.dist-info/licenses/LICENSE</summary>
+<details><summary>charset_normalizer-3.5.1.dist-info/licenses/LICENSE</summary>
 
 ```text
 MIT License
@@ -2596,13 +2769,13 @@ SOFTWARE.
 
 </details>
 
-### click 8.3.2
+### click 8.5.0
 
 License: BSD-3-Clause
 
 Project: https://github.com/pallets/click/
 
-<details><summary>click-8.3.2.dist-info/licenses/LICENSE.txt</summary>
+<details><summary>click-8.5.0.dist-info/licenses/LICENSE.txt</summary>
 
 ```text
 Copyright 2014 Pallets
@@ -2677,13 +2850,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### cryptography 46.0.6
+### cryptography 50.0.1
 
 License: Apache-2.0 OR BSD-3-Clause
 
 Project: https://github.com/pyca/cryptography
 
-<details><summary>cryptography-46.0.6.dist-info/licenses/LICENSE</summary>
+<details><summary>cryptography-50.0.1.dist-info/licenses/LICENSE</summary>
 
 ```text
 This software is made available under the terms of *either* of the licenses
@@ -2693,7 +2866,7 @@ under the terms of *both* these licenses.
 
 </details>
 
-<details><summary>cryptography-46.0.6.dist-info/licenses/LICENSE.APACHE</summary>
+<details><summary>cryptography-50.0.1.dist-info/licenses/LICENSE.APACHE</summary>
 
 ```text
 Apache License
@@ -2901,7 +3074,7 @@ Apache License
 
 </details>
 
-<details><summary>cryptography-46.0.6.dist-info/licenses/LICENSE.BSD</summary>
+<details><summary>cryptography-50.0.1.dist-info/licenses/LICENSE.BSD</summary>
 
 ```text
 Copyright (c) Individual contributors.
@@ -3302,13 +3475,13 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### docstring_parser 0.17.0
+### docstring_parser 0.18.0
 
 License: MIT
 
 Project: https://github.com/rr-/docstring_parser
 
-<details><summary>docstring_parser-0.17.0.dist-info/licenses/LICENSE.md</summary>
+<details><summary>docstring_parser-0.18.0.dist-info/licenses/LICENSE.md</summary>
 
 ```text
 The MIT License (MIT)
@@ -3494,13 +3667,13 @@ SOFTWARE.
 
 </details>
 
-### fastapi 0.135.3
+### fastapi 0.141.1
 
 License: MIT
 
 Project: https://github.com/fastapi/fastapi
 
-<details><summary>fastapi-0.135.3.dist-info/licenses/LICENSE</summary>
+<details><summary>fastapi-0.141.1.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -3528,7 +3701,7 @@ THE SOFTWARE.
 
 </details>
 
-### fastmcp-slim 3.4.4
+### fastmcp-slim 3.4.7
 
 License: Apache-2.0
 
@@ -3818,13 +3991,13 @@ SOFTWARE.
 
 </details>
 
-### google-auth 2.56.3
+### google-auth 2.57.0
 
 License: Apache 2.0
 
 Project: https://github.com/googleapis/google-cloud-python/tree/main/packages/google-auth
 
-<details><summary>google_auth-2.56.3.dist-info/licenses/LICENSE</summary>
+<details><summary>google_auth-2.57.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -4032,13 +4205,13 @@ Apache License
 
 </details>
 
-### google-genai 2.19.0
+### google-genai 2.20.0
 
 License: Apache-2.0
 
 Project: https://github.com/googleapis/python-genai
 
-<details><summary>google_genai-2.19.0.dist-info/licenses/LICENSE</summary>
+<details><summary>google_genai-2.20.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -4246,13 +4419,13 @@ Apache License
 
 </details>
 
-### googleapis-common-protos 1.74.0
+### googleapis-common-protos 1.75.2
 
 License: Apache 2.0
 
 Project: https://github.com/googleapis/google-cloud-python/tree/main/packages/googleapis-common-protos
 
-<details><summary>googleapis_common_protos-1.74.0.dist-info/licenses/LICENSE</summary>
+<details><summary>googleapis_common_protos-1.75.2.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -4460,11 +4633,11 @@ Apache License
 
 </details>
 
-### griffelib 2.0.2
+### griffelib 2.2.0
 
 License: ISC
 
-<details><summary>griffelib-2.0.2.dist-info/licenses/LICENSE</summary>
+<details><summary>griffelib-2.2.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 ISC License
@@ -4486,13 +4659,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### grpcio 1.80.0
+### grpcio 1.83.1
 
 License: Apache-2.0
 
 Project: https://grpc.io
 
-<details><summary>grpcio-1.80.0.dist-info/licenses/LICENSE</summary>
+<details><summary>grpcio-1.83.1.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -5459,18 +5632,18 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### jaraco.functools 4.4.0
+### jaraco.functools 4.6.0
 
 License: MIT
 
 Project: https://github.com/jaraco/jaraco.functools
 
-<details><summary>jaraco_functools-4.4.0.dist-info/licenses/LICENSE</summary>
+<details><summary>jaraco_functools-4.6.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 MIT License
 
-Copyright (c) 2025 <copyright holders>
+Copyright (c) 2026 <copyright holders>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction, including
@@ -5597,13 +5770,13 @@ SOFTWARE.
 
 </details>
 
-### joserfc 1.7.3
+### joserfc 1.7.5
 
 License: BSD-3-Clause
 
 Project: https://github.com/authlib/joserfc
 
-<details><summary>joserfc-1.7.3.dist-info/licenses/LICENSE</summary>
+<details><summary>joserfc-1.7.5.dist-info/licenses/LICENSE</summary>
 
 ```text
 BSD 3-Clause License
@@ -6024,7 +6197,7 @@ SOFTWARE.
 
 </details>
 
-### logfire-api 4.31.0
+### logfire-api 4.41.0
 
 License: MIT
 
@@ -6056,13 +6229,13 @@ SOFTWARE.
 
 </details>
 
-### markdown-it-py 4.0.0
+### markdown-it-py 4.2.0
 
 License: MIT License
 
 Project: https://github.com/executablebooks/markdown-it-py
 
-<details><summary>markdown_it_py-4.0.0.dist-info/licenses/LICENSE</summary>
+<details><summary>markdown_it_py-4.2.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 MIT License
@@ -6090,7 +6263,7 @@ SOFTWARE.
 
 </details>
 
-<details><summary>markdown_it_py-4.0.0.dist-info/licenses/LICENSE.markdown-it</summary>
+<details><summary>markdown_it_py-4.2.0.dist-info/licenses/LICENSE.markdown-it</summary>
 
 ```text
 Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin.
@@ -6285,13 +6458,13 @@ IN THE SOFTWARE.
 
 </details>
 
-### more-itertools 11.0.1
+### more-itertools 11.1.0
 
 License: MIT
 
 Project: https://github.com/more-itertools/more-itertools
 
-<details><summary>more_itertools-11.0.1.dist-info/licenses/LICENSE</summary>
+<details><summary>more_itertools-11.1.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 Copyright (c) 2012 Erik Rose
@@ -6421,13 +6594,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### openai 3.3.1
+### openai 3.6.0
 
 License: Apache-2.0
 
 Project: https://github.com/openai/openai-python
 
-<details><summary>openai-3.3.1.dist-info/licenses/LICENSE</summary>
+<details><summary>openai-3.6.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -7739,7 +7912,7 @@ Apache License
 
 </details>
 
-### opentelemetry-instrumentation-agno 0.57.0
+### opentelemetry-instrumentation-agno 0.62.3
 
 License: Apache-2.0
 
@@ -7747,7 +7920,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-alephalpha 0.57.0
+### opentelemetry-instrumentation-alephalpha 0.62.3
 
 License: Apache-2.0
 
@@ -7755,7 +7928,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-anthropic 0.57.0
+### opentelemetry-instrumentation-anthropic 0.62.3
 
 License: Apache-2.0
 
@@ -7763,7 +7936,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-bedrock 0.57.0
+### opentelemetry-instrumentation-bedrock 0.62.3
 
 License: Apache-2.0
 
@@ -7771,7 +7944,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-chromadb 0.57.0
+### opentelemetry-instrumentation-chromadb 0.62.3
 
 License: Apache-2.0
 
@@ -7779,7 +7952,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-cohere 0.57.0
+### opentelemetry-instrumentation-cohere 0.62.3
 
 License: Apache-2.0
 
@@ -7787,7 +7960,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-crewai 0.57.0
+### opentelemetry-instrumentation-crewai 0.62.3
 
 License: Apache-2.0
 
@@ -7795,7 +7968,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-google-generativeai 0.57.0
+### opentelemetry-instrumentation-google-generativeai 0.62.3
 
 License: Apache-2.0
 
@@ -7803,7 +7976,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-groq 0.57.0
+### opentelemetry-instrumentation-groq 0.62.3
 
 License: Apache-2.0
 
@@ -7811,7 +7984,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-haystack 0.57.0
+### opentelemetry-instrumentation-haystack 0.62.3
 
 License: Apache-2.0
 
@@ -8033,7 +8206,7 @@ Apache License
 
 </details>
 
-### opentelemetry-instrumentation-lancedb 0.57.0
+### opentelemetry-instrumentation-lancedb 0.62.3
 
 License: Apache-2.0
 
@@ -8041,7 +8214,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-langchain 0.57.0
+### opentelemetry-instrumentation-langchain 0.62.3
 
 License: Apache-2.0
 
@@ -8049,7 +8222,15 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-llamaindex 0.57.0
+### opentelemetry-instrumentation-litellm 0.62.3
+
+License: Apache-2.0
+
+Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemetry-instrumentation-litellm
+
+_No license file distributed by upstream._
+
+### opentelemetry-instrumentation-llamaindex 0.62.3
 
 License: Apache-2.0
 
@@ -8271,7 +8452,7 @@ Apache License
 
 </details>
 
-### opentelemetry-instrumentation-marqo 0.57.0
+### opentelemetry-instrumentation-marqo 0.62.3
 
 License: Apache-2.0
 
@@ -8279,7 +8460,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-mcp 0.57.0
+### opentelemetry-instrumentation-mcp 0.62.3
 
 License: Apache-2.0
 
@@ -8287,7 +8468,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-milvus 0.57.0
+### opentelemetry-instrumentation-milvus 0.60.0
 
 License: Apache-2.0
 
@@ -8295,7 +8476,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-mistralai 0.57.0
+### opentelemetry-instrumentation-mistralai 0.62.3
 
 License: Apache-2.0
 
@@ -8303,7 +8484,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-ollama 0.57.0
+### opentelemetry-instrumentation-ollama 0.62.3
 
 License: Apache-2.0
 
@@ -8311,7 +8492,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-openai 0.57.0
+### opentelemetry-instrumentation-openai 0.62.3
 
 License: Apache-2.0
 
@@ -8319,7 +8500,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-openai-agents 0.57.0
+### opentelemetry-instrumentation-openai-agents 0.62.3
 
 License: Apache-2.0
 
@@ -8327,7 +8508,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-pinecone 0.57.0
+### opentelemetry-instrumentation-pinecone 0.60.0
 
 License: Apache-2.0
 
@@ -8335,7 +8516,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-qdrant 0.57.0
+### opentelemetry-instrumentation-qdrant 0.62.3
 
 License: Apache-2.0
 
@@ -8557,7 +8738,7 @@ Apache License
 
 </details>
 
-### opentelemetry-instrumentation-replicate 0.57.0
+### opentelemetry-instrumentation-replicate 0.62.3
 
 License: Apache-2.0
 
@@ -8779,7 +8960,7 @@ Apache License
 
 </details>
 
-### opentelemetry-instrumentation-sagemaker 0.57.0
+### opentelemetry-instrumentation-sagemaker 0.62.3
 
 License: Apache-2.0
 
@@ -9215,7 +9396,7 @@ Apache License
 
 </details>
 
-### opentelemetry-instrumentation-together 0.57.0
+### opentelemetry-instrumentation-together 0.62.3
 
 License: Apache-2.0
 
@@ -9223,7 +9404,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-transformers 0.57.0
+### opentelemetry-instrumentation-transformers 0.62.3
 
 License: Apache-2.0
 
@@ -9445,7 +9626,7 @@ Apache License
 
 </details>
 
-### opentelemetry-instrumentation-vertexai 0.57.0
+### opentelemetry-instrumentation-vertexai 0.62.3
 
 License: Apache-2.0
 
@@ -9453,7 +9634,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-voyageai 0.57.0
+### opentelemetry-instrumentation-voyageai 0.62.3
 
 License: Apache-2.0
 
@@ -9461,7 +9642,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-watsonx 0.57.0
+### opentelemetry-instrumentation-watsonx 0.62.3
 
 License: Apache-2.0
 
@@ -9469,7 +9650,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-weaviate 0.57.0
+### opentelemetry-instrumentation-weaviate 0.62.3
 
 License: Apache-2.0
 
@@ -9477,7 +9658,7 @@ Project: https://github.com/traceloop/openllmetry/tree/main/packages/opentelemet
 
 _No license file distributed by upstream._
 
-### opentelemetry-instrumentation-writer 0.57.0
+### opentelemetry-instrumentation-writer 0.62.3
 
 License: Apache-2.0
 
@@ -10141,13 +10322,13 @@ Project: https://github.com/open-telemetry/opentelemetry-python-contrib/tree/mai
 
 _No license file distributed by upstream._
 
-### packaging 25.0
+### packaging 26.3
 
-License: Apache Software License / BSD License
+License: Apache-2.0 OR BSD-2-Clause
 
 Project: https://github.com/pypa/packaging
 
-<details><summary>packaging-25.0.dist-info/licenses/LICENSE</summary>
+<details><summary>packaging-26.3.dist-info/licenses/LICENSE</summary>
 
 ```text
 This software is made available under the terms of *either* of the licenses
@@ -10157,7 +10338,7 @@ under the terms of *both* these licenses.
 
 </details>
 
-<details><summary>packaging-25.0.dist-info/licenses/LICENSE.APACHE</summary>
+<details><summary>packaging-26.3.dist-info/licenses/LICENSE.APACHE</summary>
 
 ```text
 Apache License
@@ -10340,7 +10521,7 @@ Apache License
 
 </details>
 
-<details><summary>packaging-25.0.dist-info/licenses/LICENSE.BSD</summary>
+<details><summary>packaging-26.3.dist-info/licenses/LICENSE.BSD</summary>
 
 ```text
 Copyright (c) Donald Stufft and individual contributors.
@@ -10370,13 +10551,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### platformdirs 4.9.4
+### platformdirs 4.11.5
 
 License: MIT
 
 Project: https://github.com/tox-dev/platformdirs
 
-<details><summary>platformdirs-4.9.4.dist-info/licenses/LICENSE</summary>
+<details><summary>platformdirs-4.11.5.dist-info/licenses/LICENSE</summary>
 
 ```text
 MIT License
@@ -10404,13 +10585,13 @@ SOFTWARE.
 
 </details>
 
-### prompt_toolkit 3.0.52
+### prompt_toolkit 3.0.53
 
 License: BSD License
 
 Project: https://github.com/prompt-toolkit/python-prompt-toolkit
 
-<details><summary>prompt_toolkit-3.0.52.dist-info/licenses/AUTHORS.rst</summary>
+<details><summary>prompt_toolkit-3.0.53.dist-info/licenses/AUTHORS.rst</summary>
 
 ```text
 Authors
@@ -10428,7 +10609,7 @@ Contributors
 
 </details>
 
-<details><summary>prompt_toolkit-3.0.52.dist-info/licenses/LICENSE</summary>
+<details><summary>prompt_toolkit-3.0.53.dist-info/licenses/LICENSE</summary>
 
 ```text
 Copyright (c) 2014, Jonathan Slenders
@@ -10462,13 +10643,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### propcache 0.4.1
+### propcache 0.5.2
 
 License: Apache-2.0
 
 Project: https://github.com/aio-libs/propcache
 
-<details><summary>propcache-0.4.1.dist-info/licenses/LICENSE</summary>
+<details><summary>propcache-0.5.2.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -10676,7 +10857,7 @@ Apache License
 
 </details>
 
-<details><summary>propcache-0.4.1.dist-info/licenses/NOTICE</summary>
+<details><summary>propcache-0.5.2.dist-info/licenses/NOTICE</summary>
 
 ```text
 Copyright 2016-2021, Andrew Svetlov and aio-libs team
@@ -10696,13 +10877,13 @@ Copyright 2016-2021, Andrew Svetlov and aio-libs team
 
 </details>
 
-### protobuf 6.33.6
+### protobuf 7.36.0
 
 License: 3-Clause BSD License
 
 Project: https://developers.google.com/protocol-buffers/
 
-<details><summary>protobuf-6.33.6.dist-info/LICENSE</summary>
+<details><summary>protobuf-7.36.0.dist-info/LICENSE</summary>
 
 ```text
 Copyright 2008 Google Inc.  All rights reserved.
@@ -10741,19 +10922,225 @@ support library is itself covered by the above license.
 
 </details>
 
-### py-key-value-aio 0.4.4
+### py-key-value-aio 0.4.5
 
 License: Apache-2.0
 
-_No license file distributed by upstream._
+<details><summary>py_key_value_aio-0.4.5.dist-info/licenses/LICENSE</summary>
 
-### pyasn1 0.6.3
+```text
+Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright 2025 strawgate
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+```
+
+</details>
+
+### pyasn1 0.6.4
 
 License: BSD-2-Clause
 
 Project: https://github.com/pyasn1/pyasn1
 
-<details><summary>pyasn1-0.6.3.dist-info/licenses/LICENSE.rst</summary>
+<details><summary>pyasn1-0.6.4.dist-info/licenses/LICENSE.rst</summary>
 
 ```text
 Copyright (c) 2005-2020, Ilya Etingof <etingof@gmail.com>
@@ -10861,13 +11248,13 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### pydantic 2.12.5
+### pydantic 2.13.5
 
 License: MIT
 
 Project: https://github.com/pydantic/pydantic
 
-<details><summary>pydantic-2.12.5.dist-info/licenses/LICENSE</summary>
+<details><summary>pydantic-2.13.5.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -10895,13 +11282,13 @@ SOFTWARE.
 
 </details>
 
-### pydantic-ai 2.35.3
+### pydantic-ai 2.36.0
 
 License: MIT
 
 Project: https://pydantic.dev/docs/ai/
 
-<details><summary>pydantic_ai-2.35.3.dist-info/licenses/LICENSE</summary>
+<details><summary>pydantic_ai-2.36.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -10929,13 +11316,13 @@ SOFTWARE.
 
 </details>
 
-### pydantic-ai-slim 2.35.3
+### pydantic-ai-slim 2.36.0
 
 License: MIT
 
 Project: https://github.com/pydantic/pydantic-ai/tree/main/pydantic_ai_slim
 
-<details><summary>pydantic_ai_slim-2.35.3.dist-info/licenses/LICENSE</summary>
+<details><summary>pydantic_ai_slim-2.36.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -10963,13 +11350,13 @@ SOFTWARE.
 
 </details>
 
-### pydantic-evals 2.35.3
+### pydantic-evals 2.36.0
 
 License: MIT
 
 Project: https://pydantic.dev/docs/ai/evals/evals/
 
-<details><summary>pydantic_evals-2.35.3.dist-info/licenses/LICENSE</summary>
+<details><summary>pydantic_evals-2.36.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -10997,13 +11384,13 @@ SOFTWARE.
 
 </details>
 
-### pydantic-graph 2.35.3
+### pydantic-graph 2.36.0
 
 License: MIT
 
 Project: https://pydantic.dev/docs/ai/graph/graph/
 
-<details><summary>pydantic_graph-2.35.3.dist-info/licenses/LICENSE</summary>
+<details><summary>pydantic_graph-2.36.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -11065,13 +11452,13 @@ SOFTWARE.
 
 </details>
 
-### pydantic_core 2.41.5
+### pydantic_core 2.46.5
 
 License: MIT
 
-Project: https://github.com/pydantic/pydantic-core
+Project: https://github.com/pydantic
 
-<details><summary>pydantic_core-2.41.5.dist-info/licenses/LICENSE</summary>
+<details><summary>pydantic_core-2.46.5.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -11099,13 +11486,13 @@ SOFTWARE.
 
 </details>
 
-### Pygments 2.20.0
+### Pygments 2.21.0
 
 License: BSD-2-Clause
 
 Project: https://pygments.org
 
-<details><summary>pygments-2.20.0.dist-info/licenses/AUTHORS</summary>
+<details><summary>pygments-2.21.0.dist-info/licenses/AUTHORS</summary>
 
 ```text
 Pygments is written and maintained by Georg Brandl <georg@python.org>.
@@ -11164,6 +11551,7 @@ Other contributors, listed alphabetically, are:
 * Leaf Corcoran -- MoonScript lexer
 * Fraser Cormack -- TableGen lexer
 * Gabriel Corona -- ASN.1 lexer
+* Radu Costache -- Boogie and Civl Verifier lexer improvements
 * Christopher Creutzig -- MuPAD lexer
 * Daniël W. Crompton -- Pike lexer
 * Pete Curry -- bugfixes
@@ -11204,6 +11592,7 @@ Other contributors, listed alphabetically, are:
 * Patrick Gotthardt -- PHP namespaces support
 * Hubert Gruniaux -- C and C++ lexer improvements
 * Olivier Guibe -- Asymptote lexer
+* Armin Günther -- Go lexer improvements
 * Phil Hagelberg -- Fennel lexer
 * Florian Hahn -- Boogie lexer
 * Martin Harriman -- SNOBOL lexer
@@ -11276,6 +11665,7 @@ Other contributors, listed alphabetically, are:
 * Kurt McKee -- Tera Term macro lexer, PostgreSQL updates, MySQL overhaul, JSON lexer
 * Joe Eli McIlvain -- Savi lexer
 * Lukas Meuser -- BBCode formatter, Lua lexer
+* Bruno Mesquita -- Night Owl style
 * Cat Miller -- Pig lexer
 * Paul Miller -- LiveScript lexer
 * Hong Minhee -- HTTP lexer
@@ -11374,6 +11764,7 @@ Other contributors, listed alphabetically, are:
 * Nathan Whetsell -- Csound lexers
 * Dietmar Winkler -- Modelica lexer
 * Nils Winter -- Smalltalk lexer
+* Trevor Woerner -- BitBake lexer
 * Davy Wybiral -- Clojure lexer
 * Whitney Young -- ObjectiveC lexer
 * Diego Zamboni -- CFengine3 lexer
@@ -11404,7 +11795,7 @@ Many thanks for all contributions!
 
 </details>
 
-<details><summary>pygments-2.20.0.dist-info/licenses/LICENSE</summary>
+<details><summary>pygments-2.21.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 Copyright (c) 2006-2022 by the respective authors (see AUTHORS file).
@@ -11628,13 +12019,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### python-engineio 4.13.1
+### python-engineio 4.14.0
 
 License: MIT
 
-Project: https://github.com/miguelgrinberg/python-engineio
+Project: https://code.miguelgrinberg.com/miguelgrinberg/python-engineio
 
-<details><summary>python_engineio-4.13.1.dist-info/licenses/LICENSE</summary>
+<details><summary>python_engineio-4.14.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -11875,13 +12266,13 @@ Apache License
 
 </details>
 
-### python-socketio 5.16.1
+### python-socketio 5.16.4
 
 License: MIT
 
 Project: https://github.com/miguelgrinberg/python-socketio
 
-<details><summary>python_socketio-5.16.1.dist-info/licenses/LICENSE</summary>
+<details><summary>python_socketio-5.16.4.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -11973,13 +12364,13 @@ THE SOFTWARE.
 
 </details>
 
-### regex 2026.4.4
+### regex 2026.8.31
 
 License: Apache-2.0 AND CNRI-Python
 
 Project: https://github.com/mrabarnett/mrab-regex
 
-<details><summary>regex-2026.4.4.dist-info/licenses/LICENSE.txt</summary>
+<details><summary>regex-2026.8.31.dist-info/licenses/LICENSE.txt</summary>
 
 ```text
 This work was derived from the 're' module of CPython 2.6 and CPython 3.1,
@@ -12194,13 +12585,13 @@ All additions and alterations are licensed under the Apache 2.0 License.
 
 </details>
 
-### requests 2.33.1
+### requests 2.34.2
 
 License: Apache-2.0
 
 Project: https://github.com/psf/requests
 
-<details><summary>requests-2.33.1.dist-info/licenses/LICENSE</summary>
+<details><summary>requests-2.34.2.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -12381,7 +12772,7 @@ Apache License
 
 </details>
 
-<details><summary>requests-2.33.1.dist-info/licenses/NOTICE</summary>
+<details><summary>requests-2.34.2.dist-info/licenses/NOTICE</summary>
 
 ```text
 Requests
@@ -12390,13 +12781,13 @@ Copyright 2019 Kenneth Reitz
 
 </details>
 
-### rich 14.3.3
+### rich 15.0.0
 
 License: MIT
 
 Project: https://github.com/Textualize/rich
 
-<details><summary>rich-14.3.3.dist-info/licenses/LICENSE</summary>
+<details><summary>rich-15.0.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 Copyright (c) 2020 Will McGugan
@@ -12422,13 +12813,13 @@ SOFTWARE.
 
 </details>
 
-### rpds-py 0.30.0
+### rpds-py 2026.6.3
 
 License: MIT
 
 Project: https://github.com/crate-py/rpds
 
-<details><summary>rpds_py-0.30.0.dist-info/licenses/LICENSE</summary>
+<details><summary>rpds_py-2026.6.3.dist-info/licenses/LICENSE</summary>
 
 ```text
 Copyright (c) 2023 Julian Berman
@@ -12777,13 +13168,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### sse-starlette 3.3.4
+### sse-starlette 3.4.8
 
 License: BSD-3-Clause
 
 Project: https://github.com/sysid/sse-starlette
 
-<details><summary>sse_starlette-3.3.4.dist-info/licenses/AUTHORS</summary>
+<details><summary>sse_starlette-3.4.8.dist-info/licenses/AUTHORS</summary>
 
 ```text
 sysid <sysid@gmx.de>
@@ -12800,7 +13191,7 @@ Cyprien <courtot.c@gmail.com>
 
 </details>
 
-<details><summary>sse_starlette-3.3.4.dist-info/licenses/LICENSE</summary>
+<details><summary>sse_starlette-3.4.8.dist-info/licenses/LICENSE</summary>
 
 ```text
 Copyright © 2020, [sysid](https://sysid.github.io/).
@@ -12834,13 +13225,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### starlette 1.3.1
+### starlette 1.6.0
 
 License: BSD-3-Clause
 
 Project: https://github.com/Kludex/starlette
 
-<details><summary>starlette-1.3.1.dist-info/licenses/LICENSE.md</summary>
+<details><summary>starlette-1.6.0.dist-info/licenses/LICENSE.md</summary>
 
 ```text
 Copyright © 2018, [Encode OSS Ltd](https://www.encode.io/).
@@ -13122,11 +13513,11 @@ Apache License
 
 </details>
 
-### tiktoken 0.12.0
+### tiktoken 0.14.0
 
 License: MIT License
 
-<details><summary>tiktoken-0.12.0.dist-info/licenses/LICENSE</summary>
+<details><summary>tiktoken-0.14.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 MIT License
@@ -13188,7 +13579,7 @@ SOFTWARE.
 
 </details>
 
-### traceloop-sdk 0.57.0
+### traceloop-sdk 0.62.3
 
 License: Apache-2.0
 
@@ -13263,13 +13654,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 </details>
 
-### typing-inspection 0.4.2
+### typing-inspection 0.4.4
 
 License: MIT
 
 Project: https://github.com/pydantic/typing-inspection
 
-<details><summary>typing_inspection-0.4.2.dist-info/licenses/LICENSE</summary>
+<details><summary>typing_inspection-0.4.4.dist-info/licenses/LICENSE</summary>
 
 ```text
 MIT License
@@ -13297,13 +13688,13 @@ SOFTWARE.
 
 </details>
 
-### typing_extensions 4.15.0
+### typing_extensions 4.16.0
 
 License: PSF-2.0
 
 Project: https://github.com/python/typing_extensions
 
-<details><summary>typing_extensions-4.15.0.dist-info/licenses/LICENSE</summary>
+<details><summary>typing_extensions-4.16.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 A. HISTORY OF THE SOFTWARE
@@ -13589,11 +13980,11 @@ PERFORMANCE OF THIS SOFTWARE.
 
 </details>
 
-### urllib3 2.6.3
+### urllib3 2.7.0
 
 License: MIT
 
-<details><summary>urllib3-2.6.3.dist-info/licenses/LICENSE.txt</summary>
+<details><summary>urllib3-2.7.0.dist-info/licenses/LICENSE.txt</summary>
 
 ```text
 MIT License
@@ -13621,13 +14012,13 @@ SOFTWARE.
 
 </details>
 
-### uvicorn 0.43.0
+### uvicorn 0.52.4
 
 License: BSD-3-Clause
 
 Project: https://uvicorn.dev/
 
-<details><summary>uvicorn-0.43.0.dist-info/licenses/LICENSE.md</summary>
+<details><summary>uvicorn-0.52.4.dist-info/licenses/LICENSE.md</summary>
 
 ```text
 Copyright © 2017-present, [Encode OSS Ltd](https://www.encode.io/).
@@ -13661,13 +14052,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### watchfiles 1.1.1
+### watchfiles 1.2.0
 
 License: MIT
 
 Project: https://github.com/samuelcolvin/watchfiles
 
-<details><summary>watchfiles-1.1.1.dist-info/licenses/LICENSE</summary>
+<details><summary>watchfiles-1.2.0.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -13695,13 +14086,13 @@ SOFTWARE.
 
 </details>
 
-### wcwidth 0.6.0
+### wcwidth 0.8.3
 
 License: MIT
 
 Project: https://github.com/jquast/wcwidth
 
-<details><summary>wcwidth-0.6.0.dist-info/licenses/LICENSE</summary>
+<details><summary>wcwidth-0.8.3.dist-info/licenses/LICENSE</summary>
 
 ```text
 The MIT License (MIT)
@@ -13735,13 +14126,13 @@ disclaims all warranties with regard to this software.
 
 </details>
 
-### websockets 16.0
+### websockets 16.1.1
 
 License: BSD-3-Clause
 
 Project: https://github.com/python-websockets/websockets
 
-<details><summary>websockets-16.0.dist-info/licenses/LICENSE</summary>
+<details><summary>websockets-16.1.1.dist-info/licenses/LICENSE</summary>
 
 ```text
 Copyright (c) Aymeric Augustin and contributors
@@ -13772,16 +14163,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 </details>
 
-### wrapt 1.17.3
+### wrapt 2.4.0
 
-License: BSD
+License: BSD-2-Clause
 
 Project: https://github.com/GrahamDumpleton/wrapt
 
-<details><summary>wrapt-1.17.3.dist-info/licenses/LICENSE</summary>
+<details><summary>wrapt-2.4.0.dist-info/licenses/LICENSE</summary>
 
 ```text
-Copyright (c) 2013-2023, Graham Dumpleton
+Copyright (c) 2013-2026, Graham Dumpleton
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -13843,13 +14234,13 @@ THE SOFTWARE.
 
 </details>
 
-### yarl 1.23.0
+### yarl 1.24.5
 
 License: Apache-2.0
 
 Project: https://github.com/aio-libs/yarl
 
-<details><summary>yarl-1.23.0.dist-info/licenses/LICENSE</summary>
+<details><summary>yarl-1.24.5.dist-info/licenses/LICENSE</summary>
 
 ```text
 Apache License
@@ -14057,7 +14448,7 @@ Apache License
 
 </details>
 
-<details><summary>yarl-1.23.0.dist-info/licenses/NOTICE</summary>
+<details><summary>yarl-1.24.5.dist-info/licenses/NOTICE</summary>
 
 ```text
 Copyright 2016-2021, Andrew Svetlov and aio-libs team
