@@ -52,7 +52,7 @@ jobs:
       # own copy of the attribution file (see the Dockerfile), but anyone
       # running from source gets it here instead of having to build the image.
       - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           # Must match the Dockerfile's base image: the resolved set is
