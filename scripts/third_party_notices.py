@@ -294,11 +294,16 @@ ACKNOWLEDGED: dict[str, Acknowledgement | Pending] = {
         "and its license text. Do not patch certifi in place — patch it and the "
         "modified files must be published under MPL-2.0.",
     ),
-    "bidict": Pending(
-        "is MPL-2.0, the same file-level copyleft as certifi above. The reasoning "
-        "that clears certifi almost certainly applies — shipped unmodified as a "
-        "separate installed package — but it has to be checked against bidict and "
-        "written down rather than inherited"
+    "bidict": Acknowledgement(
+        "MPL-2.0",
+        "MPL-2.0 is file-level copyleft: it reaches the files themselves, not the "
+        "program that imports them. We ship bidict unmodified as a separate "
+        "installed package inside the image's virtualenv — never vendored into "
+        "`orionbelt_chat`, never patched — so the obligation is satisfied by "
+        "shipping this notice and its licence text, exactly as for certifi above. "
+        "Do not patch bidict in place: modified files would have to be published "
+        "under MPL-2.0. Complete corresponding source for the version shipped is "
+        "the sdist on PyPI and <https://github.com/jab/bidict>.",
     ),
 }
 

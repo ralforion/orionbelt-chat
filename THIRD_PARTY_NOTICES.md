@@ -238,20 +238,11 @@ uv run --no-sync python scripts/third_party_notices.py
 | yarl | 1.24.5 | Apache-2.0 | yes |
 | zipp | 4.1.0 | MIT | yes |
 
-## ⚠️ Unresolved licence questions
-
-**This notice is incomplete.** The packages below are redistributed but their
-terms have not been reviewed and accepted, so nothing here should be treated as
-a licence clearance for them. The generator exits non-zero while this section
-exists; it is present so the open questions are visible rather than implied by
-a build failure nobody reads.
-
-| Package | Version | Declared license | What is open |
-| --- | --- | --- | --- |
-| bidict | 0.24.1 | MPL-2.0 | is MPL-2.0, the same file-level copyleft as certifi above. The reasoning that clears certifi almost certainly applies — shipped unmodified as a separate installed package — but it has to be checked against bidict and written down rather than inherited |
-
-
 ## Conditions worth knowing (⚠️ above)
+
+### bidict — MPL-2.0
+
+MPL-2.0 is file-level copyleft: it reaches the files themselves, not the program that imports them. We ship bidict unmodified as a separate installed package inside the image's virtualenv — never vendored into `orionbelt_chat`, never patched — so the obligation is satisfied by shipping this notice and its licence text, exactly as for certifi above. Do not patch bidict in place: modified files would have to be published under MPL-2.0. Complete corresponding source for the version shipped is the sdist on PyPI and <https://github.com/jab/bidict>.
 
 ### certifi — Mozilla Public License 2.0 (MPL 2.0)
 
