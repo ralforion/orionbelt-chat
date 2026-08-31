@@ -21,6 +21,14 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # `groups` covers version updates only unless a group says otherwise, so
+      # without this one a batch of advisories arrives as one PR per package —
+      # four separate rewrites of the same lockfile, each conflicting with the
+      # next. That is what enabling security updates produced before v1.6.2.
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -35,6 +43,10 @@ updates:
       - "github-actions"
     groups:
       actions:
+        patterns:
+          - "*"
+      actions-security:
+        applies-to: security-updates
         patterns:
           - "*"
 
