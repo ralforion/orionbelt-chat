@@ -57,49 +57,51 @@ jobs:
       - name: Format check (ruff)
         run: uv run ruff format --check .
 
-      # The image generates this at build time (see the Dockerfile) and the
-      # release attaches it. Running it here means a break surfaces on the PR
-      # that caused it, not during a tagged release build.
-      #
-      # Deliberately its own --no-dev 3.13 environment rather than the lint
-      # venv above: the gate must see exactly what the image redistributes.
-      # Dev-only packages are not redistributed and must not be able to fail
-      # it, and the resolved set differs by interpreter.
+  # Its own job rather than a step inside `lint`, for two reasons. The gate must
+  # run against the environment the image ships -- --no-dev, resolved for 3.13 --
+  # which is not the lint venv; and an open licence question should fail on its
+  # own line rather than turning the linter red, where it reads as a code problem
+  # and blocks a merge that has nothing to do with it.
+  #
+  # It also cannot be reproduced from a developer's laptop: jeepney and
+  # SecretStorage resolve on Linux and not on macOS, and the notice describes a
+  # Linux image. See RELEASING.md for the container one-liner.
+  #
+  # Resolved on 3.11, the floor in requires-python, rather than the 3.13 the
+  # image ships. The notice credits the union of every interpreter this project
+  # supports, and only the floor installs all of it -- backports-tarfile,
+  # importlib-metadata and zipp carry `python_full_version < 3.12` markers, so on
+  # 3.13 they are absent and the gate cannot read the licences of packages the
+  # notice lists. Over-crediting is the safe direction here: the 3.13 image
+  # contains a subset of what is credited, never more.
+  licences:
+    needs: pins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.11"
+
       - name: Resolve the shipping environment
         env:
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/shipping-venv
-        run: uv sync --frozen --no-dev --python 3.13
+        run: uv sync --frozen --no-dev --python 3.11
 
-      # --fail-on-missing-notice is the point of this step: a new dependency
-      # that ships no license text stops here, with the licenses/ file to add
-      # named in the error. Output is discarded; only the exit code matters.
-      - name: Attribution covers every shipped package
+      # --check fails on a stale committed notice *and* on any dependency whose
+      # licence is neither permissive nor written up in ACKNOWLEDGED. A package
+      # shipping no licence text stops here too, naming the override to add.
+      #
+      # packaging is installed with `uv pip`, not `python -m pip`: the venv uv
+      # builds has no pip in it. It cannot come from the dev extra either, since
+      # this environment is deliberately --no-dev.
+      - name: Attribution is complete and up to date
         run: |
-          version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/')
-          python3 scripts/gen_third_party_licenses.py \
-            --venv "$RUNNER_TEMP/shipping-venv" \
-            --version "$version" \
-            --overrides licenses \
-            --fail-on-missing-notice \
-            -o "$RUNNER_TEMP/THIRD_PARTY_LICENSES.md"
-
-      # The committed copy is what a reader sees, and nothing regenerates it on
-      # their behalf: a dependency added, removed or bumped in uv.lock changes
-      # the attribution and leaves the file behind. The generator is
-      # deterministic for a given environment, so the check is a plain diff —
-      # against the file the step above just produced from the locked set, at
-      # the version pyproject declares.
-      - name: Committed attribution is up to date
-        run: |
-          if ! diff -u THIRD_PARTY_LICENSES.md "$RUNNER_TEMP/THIRD_PARTY_LICENSES.md"; then
-            echo
-            echo "THIRD_PARTY_LICENSES.md is stale — regenerate it ON LINUX."
-            echo "The resolved set is platform-dependent (jeepney and"
-            echo "SecretStorage install on Linux and not on macOS), and the"
-            echo "image this describes is Linux. See RELEASING.md for the"
-            echo "container one-liner if you are not on Linux."
-            exit 1
-          fi
+          uv pip install --python "$RUNNER_TEMP/shipping-venv/bin/python" -q packaging
+          "$RUNNER_TEMP/shipping-venv/bin/python" scripts/third_party_notices.py --check
 
   # Gated on `pins` for the same reason as `lint`, and required for the same
   # reason — see the note there before removing either half.

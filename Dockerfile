@@ -41,15 +41,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # The image ships binary copies of every dependency in /app/.venv, which is
 # redistribution: Apache-2.0 §4, the MIT/BSD/ISC notice clauses and MPL-2.0
 # §3.2 all require their notices to travel with those copies. Most wheels carry
-# a LICENSE in their .dist-info and uv copies it in, but ~39 do not, so collect
-# the lot into one file the recipient can actually find.
-RUN version=$(grep -m1 '^version = ' pyproject.toml | sed -E 's/^version = "([^"]+)"/\1/') \
-    && python scripts/gen_third_party_licenses.py \
-        --venv /app/.venv \
-        --version "$version" \
-        --overrides licenses \
-        --fail-on-missing-notice \
-        -o /app/THIRD_PARTY_LICENSES.md
+# a LICENSE in their .dist-info and uv copies it in, but ~39 do not, so the
+# notice has to account for those too.
+#
+# Copied in rather than generated here. The notice is committed and reviewed in
+# the same diff as the dependency change that altered it, and CI proves the
+# committed copy matches the locked set — so building it again inside the image
+# would only create a second answer that could disagree with the reviewed one.
+COPY THIRD_PARTY_NOTICES.md /app/THIRD_PARTY_NOTICES.md
 
 # Chainlit's app root: where public/, chainlit.md, .chainlit/config.toml are
 # seeded from the package and where runtime state (.files/) is written.

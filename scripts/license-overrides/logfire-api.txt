@@ -1,3 +1,8 @@
+SPDX: MIT
+Transcribed from https://github.com/pydantic/logfire/blob/main/LICENSE
+because the logfire-api wheel ships no LICENSE file in either its wheel or its
+sdist. Carried over from this repository's previous licenses/logfire-api.txt.
+
 The MIT License (MIT)
 
 Copyright (c) 2023 - present Pydantic Services inc.

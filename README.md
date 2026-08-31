@@ -694,9 +694,9 @@ See [LICENSE](./LICENSE) for full terms.
 ### Third-party dependencies
 
 The published container image redistributes ~180 open-source packages, so their
-attribution notices ship with it as `/app/THIRD_PARTY_LICENSES.md`. The same
+attribution notices ship with it as `/app/THIRD_PARTY_NOTICES.md`. The same
 file is committed here as
-[`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md), so the attribution is
+[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md), so the attribution is
 readable without downloading anything, and CI fails if it drifts from what the
 locked environment produces. It is generated, not written — regenerate it
 rather than editing it. That file, plus a CycloneDX SBOM (`sbom.cdx.json`), is
@@ -705,22 +705,22 @@ build-provenance attestation. The dependency tree is permissive throughout — A
 BSD, ISC and MPL-2.0, with no GPL/LGPL/AGPL — so nothing there constrains the
 BSL terms above.
 
-Attribution texts are read out of each installed distribution, including ones
-vendored into a package tree rather than its `.dist-info`. The handful of
-projects that ship no text at all in either their wheel or their sdist are
-covered by curated copies in [`licenses/`](./licenses/README.md), taken verbatim
-from upstream; `--fail-on-missing-notice` (which CI and the image build both
-pass) stops a release if a new dependency needs one and hasn't got it.
+Attribution texts are read out of each installed distribution. Apache-2.0 names
+no copyright holder, so the ~37 packages under it that ship no text of their own
+point at a single verbatim copy in Appendix A rather than repeating ~10 KB each;
+that alone halves the file. A package under any other licence that ships no text
+gets a curated copy in [`scripts/license-overrides/`](./scripts/license-overrides),
+taken verbatim from upstream, and the generator refuses to run until it has one.
 
-Regenerate locally with:
+The same run is also the licence gate: a dependency that is neither permissive
+nor written up in `ACKNOWLEDGED` fails the build, so adding one is a decision
+somebody records rather than something that arrives with a Dependabot bump.
+
+Regenerate locally with (Linux only — see RELEASING.md for the container form):
 
 ```bash
 uv sync --frozen --no-dev
-.venv/bin/python scripts/gen_third_party_licenses.py \
-  --venv .venv \
-  --overrides licenses \
-  --fail-on-missing-notice \
-  --version "$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2)"
+.venv/bin/python scripts/third_party_notices.py
 ```
 
 ## Links

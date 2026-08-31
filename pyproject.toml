@@ -69,7 +69,7 @@ include = [
     "/orionbelt_chat",
     "/tests",
     "/scripts",
-    "/licenses",
+    "/THIRD_PARTY_NOTICES.md",
     "/README.md",
     "/mcp_servers.example.yaml",
     "/LICENSE",

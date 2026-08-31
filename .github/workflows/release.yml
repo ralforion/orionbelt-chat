@@ -63,14 +63,13 @@ jobs:
       - name: Resolve the runtime environment
         run: uv sync --frozen --no-dev
 
-      - name: Generate attribution file
+      # Verified, not regenerated. The notice attached to a release must be the
+      # file the repository was reviewed with, so a tag pushed past a bypassed CI
+      # run fails here instead of publishing a notice nobody read.
+      - name: THIRD_PARTY_NOTICES.md is current
         run: |
-          .venv/bin/python scripts/gen_third_party_licenses.py \
-            --venv .venv \
-            --version "${GITHUB_REF_NAME#v}" \
-            --overrides licenses \
-            --fail-on-missing-notice \
-            -o THIRD_PARTY_LICENSES.md
+          .venv/bin/python -m pip install -q packaging
+          .venv/bin/python scripts/third_party_notices.py --check
 
       # CycloneDX rather than the image attestation, so the SBOM is fetchable
       # without a registry client. --output-reproducible keeps it diffable
@@ -105,7 +104,7 @@ jobs:
         with:
           name: release-assets
           path: |
-            THIRD_PARTY_LICENSES.md
+            THIRD_PARTY_NOTICES.md
             sbom.cdx.json
           if-no-files-found: error
           retention-days: 1
@@ -134,7 +133,7 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME already exists — refreshing its assets."
             gh release upload "$GITHUB_REF_NAME" \
-              THIRD_PARTY_LICENSES.md sbom.cdx.json --clobber
+              THIRD_PARTY_NOTICES.md sbom.cdx.json --clobber
             exit 0
           fi
           gh release create "$GITHUB_REF_NAME" \
@@ -142,4 +141,4 @@ jobs:
             --generate-notes \
             --verify-tag \
             --latest \
-            THIRD_PARTY_LICENSES.md sbom.cdx.json
+            THIRD_PARTY_NOTICES.md sbom.cdx.json

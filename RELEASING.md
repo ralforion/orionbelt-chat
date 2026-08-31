@@ -25,10 +25,8 @@ Releases are cut from `main` and driven entirely by pushing a version tag.
    docker run --rm --platform linux/amd64 -v "$PWD":/w -w /w python:3.13-slim bash -c '
      pip install -q uv
      UV_PROJECT_ENVIRONMENT=/tmp/venv uv sync --frozen --no-dev
-     version=$(grep -m1 "^version = " pyproject.toml | sed -E "s/^version = \"([^\"]+)\"/\\1/")
-     /tmp/venv/bin/python scripts/gen_third_party_licenses.py \
-       --venv /tmp/venv --version "$version" --overrides licenses \
-       --fail-on-missing-notice -o THIRD_PARTY_LICENSES.md
+     /tmp/venv/bin/python -m pip install -q packaging
+     /tmp/venv/bin/python scripts/third_party_notices.py
    '
    ```
 
