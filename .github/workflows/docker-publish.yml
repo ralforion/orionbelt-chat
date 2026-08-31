@@ -81,7 +81,7 @@ jobs:
           # The image redistributes ~180 third-party packages; the SBOM is what
           # lets a consumer (and, from 2027, the CRA) enumerate them without
           # unpacking the layers. Attribution texts ride along in the image
-          # itself as /app/THIRD_PARTY_LICENSES.md — see the Dockerfile.
+          # itself as /app/THIRD_PARTY_NOTICES.md — see the Dockerfile.
           sbom: true
           provenance: mode=max
           cache-from: type=gha

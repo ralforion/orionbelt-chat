@@ -1,3 +1,8 @@
+SPDX: BSD-3-Clause
+Transcribed from https://github.com/numberly/lazify/blob/master/LICENSE
+because the Lazify 0.4.0 wheel ships no LICENSE file in either its wheel or its
+sdist. Carried over from this repository's previous licenses/lazify.txt.
+
 BSD 3-Clause License
 
 Copyright (c) 2013-2017, Babel Team
