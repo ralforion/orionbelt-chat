@@ -69,7 +69,8 @@ that performs the OIDC exchange and the table below is unaffected by the split.
 ## PyPI
 
 `pypi-publish.yml` uses PyPI **Trusted Publishing** (OIDC), so no API token is
-stored anywhere. One-time setup, matching what the workflow declares:
+stored anywhere. The publisher is configured as follows, matching what the
+workflow declares:
 
 | Field | Value |
 |---|---|
@@ -78,11 +79,15 @@ stored anywhere. One-time setup, matching what the workflow declares:
 | Workflow | `pypi-publish.yml` |
 | Environment | `pypi` |
 
-Because the project does not exist on PyPI yet, register it as a **pending
-publisher** at <https://pypi.org/manage/account/publishing/>; PyPI converts it
-into a normal trusted publisher on the first successful upload. Create the
-`pypi` environment under Settings → Environments if you want uploads gated on a
-required reviewer.
+The trusted publisher is already live — the project has published to PyPI
+since 1.0.0 in April 2026 — so there is nothing to register. The table above
+documents the configuration that exists; it only needs revisiting if the
+workflow filename, the environment or the repository name changes, because
+those are what PyPI matches on.
+
+The `pypi` environment exists under Settings → Environments. It carries no
+required reviewer, so uploads are not gated on a manual approval; add one
+there if you ever want them to be.
 
 **A version can only be uploaded once** — PyPI rejects a re-upload of a filename
 it has already seen, even after you delete the release — so a botched publish
