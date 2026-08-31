@@ -701,9 +701,10 @@ readable without downloading anything, and CI fails if it drifts from what the
 locked environment produces. It is generated, not written — regenerate it
 rather than editing it. That file, plus a CycloneDX SBOM (`sbom.cdx.json`), is
 attached to every GitHub Release; the image additionally carries an SBOM and
-build-provenance attestation. The dependency tree is permissive throughout — Apache-2.0, MIT,
-BSD, ISC and MPL-2.0, with no GPL/LGPL/AGPL — so nothing there constrains the
-BSL terms above.
+build-provenance attestation. The dependency tree is permissive apart from two
+MPL-2.0 packages, `certifi` and `bidict` — MPL-2.0 is file-level copyleft, which
+reaches those files rather than the program importing them — and carries no
+GPL/LGPL/AGPL at all, so nothing there constrains the BUSL-1.1 terms above.
 
 Attribution texts are read out of each installed distribution. Apache-2.0 names
 no copyright holder, so the ~37 packages under it that ship no text of their own
