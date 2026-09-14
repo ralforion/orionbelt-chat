@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # main is guarded by a merge queue, which tests each PR on a temporary branch
+  # that already contains everything queued ahead of it. The queue only sees
+  # checks that run on this event; without it every required check stays
+  # "expected" forever and nothing can merge.
+  merge_group:
 
 permissions:
   contents: read
