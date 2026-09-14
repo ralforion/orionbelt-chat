@@ -135,7 +135,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | multidict | 6.7.1 | Apache License 2.0 | yes |
 | mypy-extensions | 1.1.0 | MIT | yes |
 | nest-asyncio | 1.6.0 | BSD License | yes |
-| openai | 3.6.0 | Apache-2.0 | yes |
+| openai | 3.13.0 | Apache-2.0 | yes |
 | opentelemetry-api | 1.44.0 | Apache-2.0 | yes |
 | opentelemetry-exporter-otlp-proto-common | 1.44.0 | Apache-2.0 | yes |
 | opentelemetry-exporter-otlp-proto-grpc | 1.44.0 | Apache-2.0 | yes |
@@ -195,11 +195,11 @@ uv run --no-sync python scripts/third_party_notices.py
 | pyasn1-modules | 0.4.2 | BSD License | yes |
 | pycparser | 3.0 | BSD-3-Clause | yes |
 | pydantic | 2.13.5 | MIT | yes |
-| pydantic-ai | 2.38.0 | MIT | yes |
-| pydantic-ai-slim | 2.38.0 | MIT | yes |
+| pydantic-ai | 2.42.0 | MIT | yes |
+| pydantic-ai-slim | 2.42.0 | MIT | yes |
 | pydantic-core | 2.46.5 | MIT | yes |
-| pydantic-evals | 2.38.0 | MIT | yes |
-| pydantic-graph | 2.38.0 | MIT | yes |
+| pydantic-evals | 2.42.0 | MIT | yes |
+| pydantic-graph | 2.42.0 | MIT | yes |
 | pydantic-settings | 2.15.0 | MIT | yes |
 | pygments | 2.21.0 | BSD-2-Clause | yes |
 | pyjwt | 2.13.0 | MIT | yes |
@@ -4351,7 +4351,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### openai 3.6.0
+### openai 3.13.0
 
 *LICENSE*
 
@@ -5382,7 +5382,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-ai 2.38.0
+### pydantic-ai 2.42.0
 
 *LICENSE*
 
@@ -5410,7 +5410,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-ai-slim 2.38.0
+### pydantic-ai-slim 2.42.0
 
 *LICENSE*
 
@@ -5466,7 +5466,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-evals 2.38.0
+### pydantic-evals 2.42.0
 
 *LICENSE*
 
@@ -5494,7 +5494,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-graph 2.38.0
+### pydantic-graph 2.42.0
 
 *LICENSE*
 
