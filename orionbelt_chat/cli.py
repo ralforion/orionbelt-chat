@@ -57,6 +57,9 @@ def _seed(root: Path) -> None:
     for asset in (_PACKAGE_ROOT / "public").iterdir():
         if asset.is_file():
             shutil.copyfile(asset, public_dst / asset.name)
+        elif asset.is_dir() and asset.name != "__pycache__":
+            # `elements/` holds Chainlit custom elements (the MCP elicitation form).
+            shutil.copytree(asset, public_dst / asset.name, dirs_exist_ok=True)
 
     markdown = root / "chainlit.md"
     if not markdown.exists():

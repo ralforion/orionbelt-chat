@@ -308,6 +308,64 @@ async def _collect_uploads(message: cl.Message) -> str:
     return augment_message(message.content, uploads)
 
 
+# What the chat shows in place of the elicitation form once it is answered.
+# "Answered", not "Submitted": a form answer is validated after the card
+# closes, and an invalid one is asked again rather than sent.
+_ELICITATION_OUTCOMES = {
+    "accept": "Answered.",
+    "decline": "Declined.",
+    "cancel": "Cancelled.",
+}
+
+
+async def ask_user(view: dict[str, Any]) -> dict[str, Any] | None:
+    """Show an MCP elicitation to the user and wait for their answer.
+
+    The ``prompt`` behind every server's elicitation handler (see
+    ``mcp_elicitation.make_elicitation_handler``): renders the
+    ``McpElicitation`` custom element and returns ``{"action", "content"}``,
+    or None when the user did not answer in time.
+
+    Serialized per chat session: Chainlit shows one pending question at a
+    time, and a 2026-07-28 server can put several elicitations into a single
+    ``InputRequiredResult``, which FastMCP dispatches concurrently.
+    """
+    lock = cl.user_session.get("elicitation_lock")
+    if lock is None:
+        lock = asyncio.Lock()
+        cl.user_session.set("elicitation_lock", lock)
+    async with lock:
+        server = view["server"]
+        request = (
+            "needs a correction to your answer"
+            if view.get("errors")
+            else "is asking for your input"
+        )
+        ask = cl.AskElementMessage(
+            content=f"MCP server `{server}` {request}.",
+            element=cl.CustomElement(name="McpElicitation", props=view, display="inline"),
+            author=server,
+            timeout=settings.mcp_elicitation_timeout_seconds,
+        )
+        res = await ask.send()
+        answer: dict[str, Any] | None
+        if res is None:
+            answer = None
+            outcome = "No answer in time — cancelled."
+        elif not res.get("submitted"):
+            answer = {"action": "cancel"}
+            outcome = _ELICITATION_OUTCOMES["cancel"]
+        else:
+            # Chainlit types the reply as `{submitted}` only; the rest is
+            # whatever the element passed to submitElement().
+            submitted: dict[str, Any] = dict(res)
+            answer = {"action": submitted.get("action"), "content": submitted.get("content")}
+            outcome = _ELICITATION_OUTCOMES.get(str(answer["action"]), "Cancelled.")
+        ask.content = f"MCP server `{server}` asked for your input. {outcome}"
+        await ask.update()
+        return answer
+
+
 def _wrap_sampling_for_chainlit(server, server_name: str) -> None:
     """Wrap the MCP toolset's sampling callback to render a Chainlit Step.
 
@@ -386,7 +444,7 @@ async def _init_agent(provider: str, model: str) -> bool:
         except Exception:
             pass
 
-    named_servers = get_mcp_servers_named()
+    named_servers = get_mcp_servers_named(elicitation_prompt=ask_user)
     connected = []
     connected_names = []
     failed_names = []
@@ -884,7 +942,7 @@ async def _reconnect_mcp() -> bool:
     ).send()
 
     # Reconnect only failed servers
-    named_servers = get_mcp_servers_named()
+    named_servers = get_mcp_servers_named(elicitation_prompt=ask_user)
     reconnected: list[str] = []
     still_failed: list[tuple[str, Exception]] = []
     for name, server in named_servers:

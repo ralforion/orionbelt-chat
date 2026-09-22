@@ -8,6 +8,7 @@ from pydantic_ai.mcp import MCPToolset, StdioTransport, StreamableHttpTransport
 
 from .file_uploads import process_tool_call
 from .mcp_config import ServerDef, load_server_defs
+from .mcp_elicitation import Prompt, make_elicitation_handler
 from .mcp_sampling import enable_sampling_tools
 from .providers import default_model_for, resolve_model
 from .settings import settings
@@ -82,7 +83,9 @@ def _transport(defn: ServerDef) -> StreamableHttpTransport | StdioTransport:
     )
 
 
-def _make_server(defn: ServerDef, sampling_model) -> MCPToolset[Any]:
+def _make_server(
+    defn: ServerDef, sampling_model, elicitation_prompt: Prompt | None = None
+) -> MCPToolset[Any]:
     # Sampling is enabled purely by passing a model: `_resolve_sampling_model`
     # already returns None when MCP_ALLOW_SAMPLING is false, which is what the
     # dropped `allow_sampling=` flag used to express.
@@ -94,12 +97,21 @@ def _make_server(defn: ServerDef, sampling_model) -> MCPToolset[Any]:
     if not defn.sampling:
         sampling_model = None
     transport = _transport(defn)
+    # Installing a handler is what advertises the elicitation capability, so
+    # with it off a server is told up front not to ask, rather than asking and
+    # being refused.
+    elicitation_handler = (
+        make_elicitation_handler(defn.name, elicitation_prompt)
+        if elicitation_prompt is not None and settings.mcp_allow_elicitation
+        else None
+    )
     return enable_sampling_tools(
         MCPToolset(
             transport,
             read_timeout=settings.mcp_request_timeout_seconds,
             max_retries=3,
             sampling_model=sampling_model,
+            elicitation_handler=elicitation_handler,
             # Expands `@upload:` handles into the uploaded file's content, so a
             # dropped OBSL model or ontology reaches the server in full without
             # ever passing through the model's context.
@@ -125,8 +137,14 @@ def get_mcp_server_errors() -> list[str]:
     return errors
 
 
-def get_mcp_servers_named() -> list[tuple[str, MCPToolset[Any]]]:
+def get_mcp_servers_named(
+    elicitation_prompt: Prompt | None = None,
+) -> list[tuple[str, MCPToolset[Any]]]:
     """Return (display_name, server) pairs for configured MCP servers.
+
+    `elicitation_prompt` is how a server's questions reach the user; without
+    one no server is offered elicitation. It is passed in rather than imported
+    so this module stays free of the UI.
 
     A server only receives a sampling model if it declares `sampling: true`.
     MCP_ALLOW_SAMPLING remains the global kill switch — this is the per-server
@@ -136,5 +154,9 @@ def get_mcp_servers_named() -> list[tuple[str, MCPToolset[Any]]]:
     sampling_model = _resolve_sampling_model()
     defs, _ = load_server_defs()
     return [
-        (defn.name, _make_server(defn, sampling_model if defn.sampling else None)) for defn in defs
+        (
+            defn.name,
+            _make_server(defn, sampling_model if defn.sampling else None, elicitation_prompt),
+        )
+        for defn in defs
     ]
