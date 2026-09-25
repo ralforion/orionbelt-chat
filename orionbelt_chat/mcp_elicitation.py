@@ -21,6 +21,7 @@ under test against a real MCP server without a browser.
 """
 
 import logging
+import math
 import re
 from collections.abc import Awaitable, Callable
 from datetime import date, datetime
@@ -153,8 +154,14 @@ def validate_form(
     for field in fields:
         name = field["name"]
         raw = values.get(name)
-        if _is_blank(raw) and field["kind"] != "boolean":
-            if field["required"]:
+        if _is_unset(field["kind"], raw):
+            if not field["required"]:
+                continue
+            # An untouched checkbox is a definite "no", which is a complete
+            # answer for a required boolean — the other kinds have none.
+            if field["kind"] == "boolean":
+                content[name] = False
+            else:
                 errors[name] = "Required"
             continue
         try:
@@ -164,7 +171,15 @@ def validate_form(
     return content, errors
 
 
-def _is_blank(value: Any) -> bool:
+def _is_unset(kind: str, value: Any) -> bool:
+    """Whether the user left this field alone.
+
+    For a boolean only a missing value counts: `False` is an answer, and
+    sending it for an optional box nobody touched would erase the difference
+    between "unticked" and "not asked about".
+    """
+    if kind == "boolean":
+        return value is None
     return value is None or value == "" or value == []
 
 
@@ -197,8 +212,15 @@ def _to_number(raw: Any, *, integer: bool) -> int | float:
         raise ValueError("Enter a number")
     try:
         number = float(raw)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
+        # OverflowError: an integer too large to convert, e.g. a schema default
+        # of 10**400 — a crash rather than a rejected value without this.
         raise ValueError("Enter a number") from None
+    # NaN and infinity pass every range check (all comparisons against NaN are
+    # false, and infinity has no bound to exceed) and are not JSON numbers:
+    # `json.dumps` writes a bare NaN that a strict parser refuses.
+    if not math.isfinite(number):
+        raise ValueError("Enter a finite number")
     if integer:
         if not number.is_integer():
             raise ValueError("Enter a whole number")

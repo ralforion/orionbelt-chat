@@ -105,7 +105,9 @@ class TestValidateForm:
     def test_browser_strings_are_coerced_and_blanks_dropped(self):
         content, errors = validate_form(self.FIELDS, {"name": " Ann ", "age": "30", "when": ""})
         assert errors == {}
-        assert content == {"name": "Ann", "age": 30, "ok": False}
+        # `ok` is an optional boolean nobody touched, so it is left out entirely
+        # rather than sent as false — see TestBooleanFields.
+        assert content == {"name": "Ann", "age": 30}
 
     def test_each_constraint_reports_on_its_own_field(self):
         _, errors = validate_form(
@@ -120,6 +122,38 @@ class TestValidateForm:
     def test_integer_rejects_fractions(self):
         _, errors = validate_form(self.FIELDS, {"name": "a", "age": "20.5"})
         assert "age" in errors
+
+    @pytest.mark.parametrize("raw", [float("nan"), float("inf"), "1e309", "nan"])
+    def test_non_finite_numbers_are_refused(self, raw):
+        """They pass every range check (NaN compares false, infinity has no bound)
+        and `json.dumps` writes them as bare NaN/Infinity, which is not JSON."""
+        fields = parse_form_schema({"properties": {"n": {"type": "number", "minimum": 0}}})
+        content, errors = validate_form(fields, {"n": raw})
+        assert content == {} and errors == {"n": "Enter a finite number"}
+
+    def test_a_number_too_large_to_convert_is_refused_not_raised(self):
+        fields = parse_form_schema({"properties": {"i": {"type": "integer"}}})
+        assert validate_form(fields, {"i": 10**400}) == ({}, {"i": "Enter a number"})
+
+
+class TestBooleanFields:
+    """`False` is an answer; a box nobody touched is not."""
+
+    FIELDS = parse_form_schema(
+        {
+            "properties": {"opt": {"type": "boolean"}, "req": {"type": "boolean"}},
+            "required": ["req"],
+        }
+    )
+
+    def test_untouched_optional_box_is_left_out(self):
+        assert validate_form(self.FIELDS, {})[0] == {"req": False}
+
+    def test_explicit_false_is_kept(self):
+        assert validate_form(self.FIELDS, {"opt": False})[0] == {"opt": False, "req": False}
+
+    def test_ticked_box_is_sent(self):
+        assert validate_form(self.FIELDS, {"opt": True})[0]["opt"] is True
 
 
 class TestInspectUrl:
