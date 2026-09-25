@@ -53,6 +53,18 @@ class Settings(BaseSettings):
     # manual review path they implement.
     mcp_allow_sampling: bool = True
 
+    # ── MCP elicitation ─────────────────────────────────────
+    # When true (default), advertises the elicitation capability (form and URL
+    # mode) so a server can ask the user for input mid tool call — over
+    # `elicitation/create` up to protocol 2025-11-25, inside an
+    # `InputRequiredResult` from 2026-07-28. Every request waits for the user,
+    # who can always decline, so unlike sampling there is no per-server opt-in.
+    mcp_allow_elicitation: bool = True
+    # How long an elicitation prompt waits for the user before it counts as
+    # cancelled. The wait is part of the tool call, so keep it well inside
+    # TOOL_CALL_TIMEOUT_SECONDS.
+    mcp_elicitation_timeout_seconds: int = 120
+
     # ── System prompt ───────────────────────────────────────
     # Path to the markdown/text file holding the agent's system prompt.
     # If empty, defaults to `system_prompt.md` at the project root.

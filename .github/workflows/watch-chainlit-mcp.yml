@@ -1,0 +1,68 @@
+name: Watch Chainlit mcp pin
+
+# MCP protocol 2026-07-28 needs the mcp 2.x SDK, which Chainlit's `mcp<2` pin
+# keeps out of this app's environment (Chainlit#3002, PR #3030). The
+# elicitation handler already works on 2.x unchanged; what is left is a
+# dependency bump, and it can only happen once a Chainlit release lifts the pin.
+#
+# Weekly, this checks the latest Chainlit on PyPI and opens one issue the first
+# time its metadata allows mcp 2.x. Delete this workflow in the PR that does
+# the bump.
+#
+# Scheduled runs happen on main only, and GitHub pauses them after 60 days
+# without repository activity; re-enable from the Actions tab if that happens.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Check the latest Chainlit release
+        id: pin
+        run: uv run --no-project --with packaging python scripts/check_chainlit_mcp_pin.py
+
+      - name: Open the tracking issue once
+        if: steps.pin.outputs.unblocked == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.pin.outputs.version }}
+          REQUIREMENT: ${{ steps.pin.outputs.requirement }}
+          TITLE: "Chainlit allows mcp 2.x — bump to MCP protocol 2026-07-28"
+        run: |
+          # Any state: a closed issue means it was handled, so never file again.
+          existing=$(gh issue list --state all --search "in:title \"$TITLE\"" --json number --jq 'length')
+          if [ "$existing" != "0" ]; then
+            echo "Tracking issue already exists — nothing to do."
+            exit 0
+          fi
+          gh issue create --label dependencies --title "$TITLE" --body-file - <<EOF
+          Chainlit **$VERSION** is on PyPI and now requires \`$REQUIREMENT\`, which allows the mcp 2.x SDK.
+
+          That unblocks MCP protocol **2026-07-28**. MCP elicitation already works on it unchanged (the handler was verified against mcp 2.2 / fastmcp 4 / pydantic-ai 2.47); what is left:
+
+          - [ ] Bump \`chainlit\` to >= $VERSION, \`pydantic-ai-slim\` to >= 2.47, \`mcp\` to >= 2.2, and add \`fastmcp-tasks\`; run \`uv lock\`
+          - [ ] Keep passing the sampling and elicitation handlers as \`MCPToolset\` arguments. pydantic-ai 2.47 warns that they "will never be called" on 2026-07-28 sessions, but both fire (verified: a sampling round trip succeeded with that warning printed). Filter the warning rather than switching to a pre-built \`fastmcp.Client\`, which would bypass pydantic-ai's tool-cache invalidation
+          - [ ] Move \`tests/fake_mcp_server.py\` off \`mcp.server.fastmcp\`, which mcp 2.x removed
+          - [ ] Re-check \`orionbelt_chat/mcp_sampling.py\`, which edits FastMCP's private \`_session_kwargs\`
+          - [ ] Add a round-trip test against a server that returns \`InputRequiredResult\`
+          - [ ] Delete \`.github/workflows/watch-chainlit-mcp.yml\` and \`scripts/check_chainlit_mcp_pin.py\`
+
+          Opened by the *Watch Chainlit mcp pin* workflow.
+          EOF

@@ -59,6 +59,7 @@ A production-ready chat application that connects to OrionBelt Analytics and Ori
 - **Tool call resilience** - Retries failed tool calls up to 3 times; preserves conversation context on errors
 - **Flexible transport** - Stdio (local subprocess) or Streamable HTTP (remote) per server
 - **MCP sampling (with tools)** - Servers can delegate LLM calls back to the chat client via `sampling/createMessage`. The client advertises the `sampling.tools` sub-capability so servers can include tool definitions; sampling requests are handled by the env-configured default model (`DEFAULT_PROVIDER` + the matching `*_DEFAULT_MODEL`)
+- **MCP elicitation** - Servers can ask the user for input mid tool call. Form mode renders the server's schema as an in-chat form the user reviews before submitting, with Submit / Decline / Cancel; URL mode shows the full link with its domain highlighted and warnings for look-alike or unencrypted hosts, and opens it only when the user clicks. Handles both protocol 2025-11-25 (`elicitation/create`) and 2026-07-28 (the tool call returns an `InputRequiredResult` and is retried with the answer)
 - **Tool visibility** - Collapsible steps show tool calls with arguments and results
 - **Multi-turn context** - Full conversation history management with Pydantic AI
 
@@ -334,6 +335,8 @@ file; see [`.env.example`](./.env.example) for a copyable starting point.
 | `SEMANTIC_LAYER_SERVER_DIR` | _(empty)_ | OrionBelt Semantic Layer, same forms |
 | `MCP_SERVERS_FILE` | _(empty)_ | YAML file declaring any other servers. When empty, `mcp_servers.yaml` is searched for in the working directory, then the app root |
 | `MCP_ALLOW_SAMPLING` | `true` | Whether servers may make LLM calls back through this client, answered with the default model. Set `false` as a cost/privacy kill switch |
+| `MCP_ALLOW_ELICITATION` | `true` | Whether servers may ask the user for input mid tool call (form or URL mode). Set `false` and servers are told the client cannot be asked |
+| `MCP_ELICITATION_TIMEOUT_SECONDS` | `120` | How long an elicitation prompt waits for the user before it counts as cancelled. Counts against `TOOL_CALL_TIMEOUT_SECONDS` |
 
 **Behaviour**
 
