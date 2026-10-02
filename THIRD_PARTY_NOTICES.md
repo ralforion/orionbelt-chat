@@ -202,7 +202,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | pydantic-graph | 2.49.0 | MIT | yes |
 | pydantic-settings | 2.15.0 | MIT | yes |
 | pygments | 2.21.0 | BSD-2-Clause | yes |
-| pyjwt | 2.13.0 | MIT | yes |
+| pyjwt | 2.15.0 | MIT | yes |
 | pyperclip | 1.11.0 | BSD License | yes |
 | python-dotenv | 1.2.3 | BSD-3-Clause | yes |
 | python-engineio | 4.14.0 | MIT | yes |
@@ -228,7 +228,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | typing-extensions | 4.16.0 | PSF-2.0 | yes |
 | typing-inspect | 0.9.0 | MIT License | yes |
 | typing-inspection | 0.4.4 | MIT | yes |
-| urllib3 | 2.7.0 | MIT | yes |
+| urllib3 | 2.8.0 | MIT | yes |
 | uvicorn | 0.52.4 | BSD-3-Clause | yes |
 | watchfiles | 1.2.0 | MIT License | yes |
 | wcwidth | 0.8.3 | MIT | yes |
@@ -5883,7 +5883,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### pyjwt 2.13.0
+### pyjwt 2.15.0
 
 *AUTHORS.rst*
 
@@ -7347,7 +7347,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### urllib3 2.7.0
+### urllib3 2.8.0
 
 *LICENSE.txt*
 
