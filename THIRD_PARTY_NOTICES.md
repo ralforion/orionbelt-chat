@@ -65,7 +65,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | aiosignal | 1.4.0 | Apache Software License | yes |
 | annotated-doc | 0.0.5 | MIT | yes |
 | annotated-types | 0.8.0 | MIT | yes |
-| anthropic | 1.8.0 | MIT License | yes |
+| anthropic | 1.11.0 | MIT License | yes |
 | anyio | 4.14.2 | MIT | yes |
 | argcomplete | 3.7.2 | Apache Software License | yes |
 | asyncer | 0.0.18 | MIT | yes |
@@ -99,7 +99,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | frozenlist | 1.8.0 | Apache-2.0 | yes |
 | genai-prices | 0.1.9 | MIT | yes |
 | google-auth | 2.57.0 | Apache Software License | yes |
-| google-genai | 2.20.0 | Apache-2.0 | yes |
+| google-genai | 2.28.0 | Apache-2.0 | yes |
 | googleapis-common-protos | 1.75.2 | Apache Software License | yes |
 | griffelib | 2.2.0 | ISC | yes |
 | grpcio | 1.83.1 | Apache-2.0 | yes |
@@ -135,7 +135,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | multidict | 6.7.1 | Apache License 2.0 | yes |
 | mypy-extensions | 1.1.0 | MIT | yes |
 | nest-asyncio | 1.6.0 | BSD License | yes |
-| openai | 3.13.0 | Apache-2.0 | yes |
+| openai | 3.24.0 | Apache-2.0 | yes |
 | opentelemetry-api | 1.44.0 | Apache-2.0 | yes |
 | opentelemetry-exporter-otlp-proto-common | 1.44.0 | Apache-2.0 | yes |
 | opentelemetry-exporter-otlp-proto-grpc | 1.44.0 | Apache-2.0 | yes |
@@ -195,16 +195,16 @@ uv run --no-sync python scripts/third_party_notices.py
 | pyasn1-modules | 0.4.2 | BSD License | yes |
 | pycparser | 3.0 | BSD-3-Clause | yes |
 | pydantic | 2.13.5 | MIT | yes |
-| pydantic-ai | 2.49.0 | MIT | yes |
-| pydantic-ai-slim | 2.49.0 | MIT | yes |
+| pydantic-ai | 2.53.0 | MIT | yes |
+| pydantic-ai-slim | 2.53.0 | MIT | yes |
 | pydantic-core | 2.46.5 | MIT | yes |
-| pydantic-evals | 2.49.0 | MIT | yes |
-| pydantic-graph | 2.49.0 | MIT | yes |
+| pydantic-evals | 2.53.0 | MIT | yes |
+| pydantic-graph | 2.53.0 | MIT | yes |
 | pydantic-settings | 2.15.0 | MIT | yes |
 | pygments | 2.21.0 | BSD-2-Clause | yes |
 | pyjwt | 2.15.0 | MIT | yes |
 | pyperclip | 1.11.0 | BSD License | yes |
-| python-dotenv | 1.2.3 | BSD-3-Clause | yes |
+| python-dotenv | 1.2.4 | BSD-3-Clause | yes |
 | python-engineio | 4.14.0 | MIT | yes |
 | python-multipart | 0.0.32 | Apache-2.0 | yes |
 | python-socketio | 5.16.4 | MIT | yes |
@@ -1217,7 +1217,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### anthropic 1.8.0
+### anthropic 1.11.0
 
 *LICENSE*
 
@@ -2778,7 +2778,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### google-genai 2.20.0
+### google-genai 2.28.0
 
 *LICENSE*
 
@@ -4351,7 +4351,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### openai 3.13.0
+### openai 3.24.0
 
 *LICENSE*
 
@@ -5382,7 +5382,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-ai 2.49.0
+### pydantic-ai 2.53.0
 
 *LICENSE*
 
@@ -5410,7 +5410,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-ai-slim 2.49.0
+### pydantic-ai-slim 2.53.0
 
 *LICENSE*
 
@@ -5466,7 +5466,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-evals 2.49.0
+### pydantic-evals 2.53.0
 
 *LICENSE*
 
@@ -5494,7 +5494,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-graph 2.49.0
+### pydantic-graph 2.53.0
 
 *LICENSE*
 
@@ -6019,7 +6019,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-### python-dotenv 1.2.3
+### python-dotenv 1.2.4
 
 *LICENSE*
 
