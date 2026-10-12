@@ -195,11 +195,11 @@ uv run --no-sync python scripts/third_party_notices.py
 | pyasn1-modules | 0.4.2 | BSD License | yes |
 | pycparser | 3.0 | BSD-3-Clause | yes |
 | pydantic | 2.13.5 | MIT | yes |
-| pydantic-ai | 2.53.0 | MIT | yes |
-| pydantic-ai-slim | 2.53.0 | MIT | yes |
+| pydantic-ai | 2.54.0 | MIT | yes |
+| pydantic-ai-slim | 2.54.0 | MIT | yes |
 | pydantic-core | 2.46.5 | MIT | yes |
-| pydantic-evals | 2.53.0 | MIT | yes |
-| pydantic-graph | 2.53.0 | MIT | yes |
+| pydantic-evals | 2.54.0 | MIT | yes |
+| pydantic-graph | 2.54.0 | MIT | yes |
 | pydantic-settings | 2.15.0 | MIT | yes |
 | pygments | 2.21.0 | BSD-2-Clause | yes |
 | pyjwt | 2.15.0 | MIT | yes |
@@ -5382,7 +5382,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-ai 2.53.0
+### pydantic-ai 2.54.0
 
 *LICENSE*
 
@@ -5410,7 +5410,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-ai-slim 2.53.0
+### pydantic-ai-slim 2.54.0
 
 *LICENSE*
 
@@ -5466,7 +5466,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-evals 2.53.0
+### pydantic-evals 2.54.0
 
 *LICENSE*
 
@@ -5494,7 +5494,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-graph 2.53.0
+### pydantic-graph 2.54.0
 
 *LICENSE*
 
