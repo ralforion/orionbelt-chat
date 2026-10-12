@@ -132,7 +132,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | mcp | 1.29.1 | MIT License | yes |
 | mdurl | 0.1.2 | MIT License | yes |
 | more-itertools | 11.1.0 | MIT | yes |
-| multidict | 6.7.1 | Apache License 2.0 | yes |
+| multidict | 6.9.1 | Apache License 2.0 | yes |
 | mypy-extensions | 1.1.0 | MIT | yes |
 | nest-asyncio | 1.6.0 | BSD License | yes |
 | openai | 3.24.0 | Apache-2.0 | yes |
@@ -4265,12 +4265,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### multidict 6.7.1
+### multidict 6.9.1
 
 *LICENSE*
 
+Opens with the Apache License 2.0 terms, reproduced verbatim in [Appendix A](#appendix-a--apache-license-20), and continues:
+
 ```text
-Copyright 2016 Andrew Svetlov and aio-libs contributors
+APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "{}"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright aio-libs contributors
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
