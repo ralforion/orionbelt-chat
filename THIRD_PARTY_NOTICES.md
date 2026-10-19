@@ -129,7 +129,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | markdown-it-py | 4.2.0 | MIT License | yes |
 | markupsafe | 3.0.3 | BSD-3-Clause | yes |
 | marshmallow | 3.26.2 | MIT License | yes |
-| mcp | 1.29.1 | MIT License | yes |
+| mcp | 1.30.0 | MIT License | yes |
 | mdurl | 0.1.2 | MIT License | yes |
 | more-itertools | 11.1.0 | MIT | yes |
 | multidict | 6.9.1 | Apache License 2.0 | yes |
@@ -4158,7 +4158,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### mcp 1.29.1
+### mcp 1.30.0
 
 *LICENSE*
 
