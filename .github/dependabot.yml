@@ -61,3 +61,15 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # The image's Python is not a free-floating base: it has to sit inside
+    # requires-python (<3.14) and the CI test matrix, and 3.14+ breaks Chainlit's
+    # static-file serving (anyio.NoEventLoopError -- see the matrix note in
+    # ci.yml). THIRD_PARTY_NOTICES.md also names the interpreter's licence path.
+    # A minor or major bump therefore moves pyproject, ci.yml, the Dockerfile and
+    # the notice together, deliberately -- a tag-only PR here is always wrong and
+    # passes CI anyway, since CI never builds the image.
+    ignore:
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
