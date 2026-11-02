@@ -21,10 +21,10 @@ license texts are present inside the image too, at
 `/app/.venv/lib/python*/site-packages/*.dist-info/licenses/`, alongside
 `/app/LICENSE` and `/app/THIRD_PARTY_NOTICES.md`.
 
-One exception: `lazify` and `logfire-api` ship no license file of their own —
-upstream omits it from the wheel — so inside the image this file is the only
-copy of those terms. Their texts are reproduced below from the projects' own
-repositories.
+One exception: `dnspython`, `lazify` and `logfire-api` ship no license file of
+their own — upstream omits it from the wheel — so inside the image this file
+is the only copy of those terms. Their texts are reproduced below from the
+projects' own repositories.
 
 Apache-2.0's terms carry no copyright holder and are byte-identical wherever
 they appear, so the packages under them point at [Appendix
@@ -54,7 +54,7 @@ uv run --no-sync python scripts/third_party_notices.py
 
 ## Summary
 
-179 packages, all of them redistributed by the published image.
+182 packages, all of them redistributed by the published image.
 
 | Package | Version | License | In image |
 | --- | --- | --- | --- |
@@ -70,13 +70,13 @@ uv run --no-sync python scripts/third_party_notices.py
 | argcomplete | 3.7.2 | Apache Software License | yes |
 | asyncer | 0.0.18 | MIT | yes |
 | attrs | 26.1.0 | MIT | yes |
-| authlib | 1.8.0 | BSD License | yes |
+| authlib | 1.9.1 | BSD License | yes |
 | backports-tarfile | 1.2.0 | MIT License | yes |
 | beartype | 0.22.9 | MIT License | yes |
 | bidict | 0.24.1 | MPL-2.0 ⚠️ | yes |
 | cachetools | 7.1.7 | MIT | yes |
 | caio | 0.12.2 | Apache-2.0 | yes |
-| certifi | 2026.7.22 | Mozilla Public License 2.0 (MPL 2.0) ⚠️ | yes |
+| certifi | 2026.10.23 | Mozilla Public License 2.0 (MPL 2.0) ⚠️ | yes |
 | cffi | 2.1.1 | MIT-0 | yes |
 | chainlit | 2.12.0 | Apache-2.0 | yes |
 | charset-normalizer | 3.5.1 | MIT | yes |
@@ -88,13 +88,13 @@ uv run --no-sync python scripts/third_party_notices.py
 | dataclasses-json | 0.6.7 | MIT License | yes |
 | deprecated | 1.3.1 | MIT License | yes |
 | distro | 1.9.0 | Apache Software License | yes |
-| dnspython | 2.8.0 | ISC License (ISCL) | yes |
+| dnspython | 2.9.0 | ISC | yes |
 | docstring-parser | 0.18.0 | MIT License | yes |
 | email-validator | 2.3.0 | The Unlicense (Unlicense) | yes |
 | exceptiongroup | 1.3.1 | MIT License | yes |
 | executing | 2.2.1 | MIT License | yes |
 | fastapi | 0.141.1 | MIT | yes |
-| fastmcp-slim | 3.4.7 | Apache-2.0 | yes |
+| fastmcp-slim | 3.4.10 | Apache-2.0 | yes |
 | filetype | 1.2.0 | MIT License | yes |
 | frozenlist | 1.8.0 | Apache-2.0 | yes |
 | genai-prices | 0.1.13 | MIT | yes |
@@ -118,14 +118,15 @@ uv run --no-sync python scripts/third_party_notices.py
 | jeepney | 0.9.0 | MIT | yes |
 | jinja2 | 3.1.6 | BSD License | yes |
 | jiter | 0.16.0 | MIT | yes |
-| joserfc | 1.7.5 | BSD License | yes |
+| joserfc | 1.7.6 | BSD License | yes |
 | jsonschema | 4.26.0 | MIT | yes |
 | jsonschema-specifications | 2025.9.1 | MIT | yes |
 | keyring | 25.7.0 | MIT | yes |
 | lazify | 0.4.0 | BSD-3-Clause | yes |
 | literalai | 0.1.201 | Apache License 2.0 | yes |
-| logfire | 4.41.0 | MIT | yes |
+| logfire | 5.4.0 | MIT | yes |
 | logfire-api | 4.41.0 | MIT | yes |
+| logfire-sdk | 5.4.0 | MIT | yes |
 | markdown-it-py | 4.2.0 | MIT License | yes |
 | markupsafe | 3.0.3 | BSD-3-Clause | yes |
 | marshmallow | 3.26.2 | MIT License | yes |
@@ -136,11 +137,13 @@ uv run --no-sync python scripts/third_party_notices.py
 | mypy-extensions | 1.1.0 | MIT | yes |
 | nest-asyncio | 1.6.0 | BSD License | yes |
 | openai | 3.35.1 | Apache-2.0 | yes |
-| opentelemetry-api | 1.44.0 | Apache-2.0 | yes |
-| opentelemetry-exporter-otlp-proto-common | 1.44.0 | Apache-2.0 | yes |
-| opentelemetry-exporter-otlp-proto-grpc | 1.44.0 | Apache-2.0 | yes |
-| opentelemetry-exporter-otlp-proto-http | 1.44.0 | Apache-2.0 | yes |
-| opentelemetry-instrumentation | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-api | 1.45.1 | Apache-2.0 | yes |
+| opentelemetry-exporter-http-transport | 0.66b1 | Apache-2.0 | yes |
+| opentelemetry-exporter-otlp-common | 0.66b1 | Apache-2.0 | yes |
+| opentelemetry-exporter-otlp-proto-common | 1.45.1 | Apache-2.0 | yes |
+| opentelemetry-exporter-otlp-proto-grpc | 1.45.1 | Apache-2.0 | yes |
+| opentelemetry-exporter-otlp-proto-http | 1.45.1 | Apache-2.0 | yes |
+| opentelemetry-instrumentation | 0.66b1 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-agno | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-alephalpha | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-anthropic | 0.62.3 | Apache-2.0 | yes |
@@ -151,12 +154,12 @@ uv run --no-sync python scripts/third_party_notices.py
 | opentelemetry-instrumentation-google-generativeai | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-groq | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-haystack | 0.62.3 | Apache-2.0 | yes |
-| opentelemetry-instrumentation-httpx | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-instrumentation-httpx | 0.66b1 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-lancedb | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-langchain | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-litellm | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-llamaindex | 0.62.3 | Apache-2.0 | yes |
-| opentelemetry-instrumentation-logging | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-instrumentation-logging | 0.66b1 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-marqo | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-mcp | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-milvus | 0.60.0 | Apache-2.0 | yes |
@@ -166,32 +169,32 @@ uv run --no-sync python scripts/third_party_notices.py
 | opentelemetry-instrumentation-openai-agents | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-pinecone | 0.60.0 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-qdrant | 0.62.3 | Apache-2.0 | yes |
-| opentelemetry-instrumentation-redis | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-instrumentation-redis | 0.66b1 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-replicate | 0.62.3 | Apache-2.0 | yes |
-| opentelemetry-instrumentation-requests | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-instrumentation-requests | 0.66b1 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-sagemaker | 0.62.3 | Apache-2.0 | yes |
-| opentelemetry-instrumentation-sqlalchemy | 0.65b0 | Apache-2.0 | yes |
-| opentelemetry-instrumentation-threading | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-instrumentation-sqlalchemy | 0.66b1 | Apache-2.0 | yes |
+| opentelemetry-instrumentation-threading | 0.66b1 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-together | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-transformers | 0.62.3 | Apache-2.0 | yes |
-| opentelemetry-instrumentation-urllib3 | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-instrumentation-urllib3 | 0.66b1 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-vertexai | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-voyageai | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-watsonx | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-weaviate | 0.62.3 | Apache-2.0 | yes |
 | opentelemetry-instrumentation-writer | 0.62.3 | Apache-2.0 | yes |
-| opentelemetry-proto | 1.44.0 | Apache-2.0 | yes |
-| opentelemetry-sdk | 1.44.0 | Apache-2.0 | yes |
-| opentelemetry-semantic-conventions | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-proto | 1.45.1 | Apache-2.0 | yes |
+| opentelemetry-sdk | 1.45.1 | Apache-2.0 | yes |
+| opentelemetry-semantic-conventions | 0.66b1 | Apache-2.0 | yes |
 | opentelemetry-semantic-conventions-ai | 0.5.1 | Apache-2.0 | yes |
-| opentelemetry-util-http | 0.65b0 | Apache-2.0 | yes |
+| opentelemetry-util-http | 0.66b1 | Apache-2.0 | yes |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | yes |
 | platformdirs | 4.11.5 | MIT | yes |
 | prompt-toolkit | 3.0.53 | BSD License | yes |
 | propcache | 0.5.2 | Apache Software License | yes |
 | protobuf | 7.36.0 | 3-Clause BSD License | yes |
 | py-key-value-aio | 0.4.5 | Apache-2.0 | yes |
-| pyasn1 | 0.6.4 | BSD-2-Clause | yes |
+| pyasn1 | 0.6.5 | BSD-2-Clause | yes |
 | pyasn1-modules | 0.4.2 | BSD License | yes |
 | pycparser | 3.0 | BSD-3-Clause | yes |
 | pydantic | 2.13.5 | MIT | yes |
@@ -303,7 +306,7 @@ instead, because only the project itself can supply its copyright line.
 | Package | Version | Declared license |
 | --- | --- | --- |
 | chainlit | 2.12.0 | Apache-2.0 |
-| fastmcp-slim | 3.4.7 | Apache-2.0 |
+| fastmcp-slim | 3.4.10 | Apache-2.0 |
 | opentelemetry-instrumentation-agno | 0.62.3 | Apache-2.0 |
 | opentelemetry-instrumentation-alephalpha | 0.62.3 | Apache-2.0 |
 | opentelemetry-instrumentation-anthropic | 0.62.3 | Apache-2.0 |
@@ -337,7 +340,7 @@ instead, because only the project itself can supply its copyright line.
 | opentelemetry-instrumentation-weaviate | 0.62.3 | Apache-2.0 |
 | opentelemetry-instrumentation-writer | 0.62.3 | Apache-2.0 |
 | opentelemetry-semantic-conventions-ai | 0.5.1 | Apache-2.0 |
-| opentelemetry-util-http | 0.65b0 | Apache-2.0 |
+| opentelemetry-util-http | 0.66b1 | Apache-2.0 |
 | traceloop-sdk | 0.62.3 | Apache-2.0 |
 
 ## Full license texts
@@ -1329,7 +1332,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### authlib 1.8.0
+### authlib 1.9.1
 
 *LICENSE*
 
@@ -1860,7 +1863,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### certifi 2026.7.22
+### certifi 2026.10.23
 
 *LICENSE*
 
@@ -2412,11 +2415,15 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### dnspython 2.8.0
+### dnspython 2.9.0
 
-*LICENSE*
+*dnspython.txt (vendored)*
 
 ```text
+Transcribed from https://github.com/rthalley/dnspython/blob/v2.9.0/LICENSE
+because the dnspython 2.9.0 wheel and sdist ship no LICENSE file; 2.8.0 still
+did, and its text is identical to this one.
+
 ISC License
 
 Copyright (C) Dnspython Contributors
@@ -2652,7 +2659,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### fastmcp-slim 3.4.7
+### fastmcp-slim 3.4.10
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
@@ -3794,7 +3801,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### joserfc 1.7.5
+### joserfc 1.7.6
 
 *LICENSE*
 
@@ -3982,7 +3989,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### logfire 4.41.0
+### logfire 5.4.0
 
 *LICENSE*
 
@@ -4019,6 +4026,34 @@ Transcribed from https://github.com/pydantic/logfire/blob/main/LICENSE
 because the logfire-api wheel ships no LICENSE file in either its wheel or its
 sdist. Carried over from this repository's previous licenses/logfire-api.txt.
 
+The MIT License (MIT)
+
+Copyright (c) 2023 - present Pydantic Services inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### logfire-sdk 5.4.0
+
+*LICENSE*
+
+```text
 The MIT License (MIT)
 
 Copyright (c) 2023 - present Pydantic Services inc.
@@ -4397,7 +4432,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### opentelemetry-api 1.44.0
+### opentelemetry-api 1.45.1
 
 *LICENSE*
 
@@ -4430,7 +4465,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### opentelemetry-exporter-otlp-proto-common 1.44.0
+### opentelemetry-exporter-http-transport 0.66b1
 
 *LICENSE*
 
@@ -4463,7 +4498,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### opentelemetry-exporter-otlp-proto-grpc 1.44.0
+### opentelemetry-exporter-otlp-common 0.66b1
 
 *LICENSE*
 
@@ -4496,7 +4531,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### opentelemetry-exporter-otlp-proto-http 1.44.0
+### opentelemetry-exporter-otlp-proto-common 1.45.1
 
 *LICENSE*
 
@@ -4529,7 +4564,73 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### opentelemetry-instrumentation 0.65b0
+### opentelemetry-exporter-otlp-proto-grpc 1.45.1
+
+*LICENSE*
+
+Opens with the Apache License 2.0 terms, reproduced verbatim in [Appendix A](#appendix-a--apache-license-20), and continues:
+
+```text
+APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+```
+
+### opentelemetry-exporter-otlp-proto-http 1.45.1
+
+*LICENSE*
+
+Opens with the Apache License 2.0 terms, reproduced verbatim in [Appendix A](#appendix-a--apache-license-20), and continues:
+
+```text
+APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+```
+
+### opentelemetry-instrumentation 0.66b1
 
 *LICENSE*
 
@@ -4602,7 +4703,7 @@ Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appen
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
-### opentelemetry-instrumentation-httpx 0.65b0
+### opentelemetry-instrumentation-httpx 0.66b1
 
 *LICENSE*
 
@@ -4651,7 +4752,7 @@ Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appen
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
-### opentelemetry-instrumentation-logging 0.65b0
+### opentelemetry-instrumentation-logging 0.66b1
 
 *LICENSE*
 
@@ -4720,7 +4821,7 @@ Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appen
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
-### opentelemetry-instrumentation-redis 0.65b0
+### opentelemetry-instrumentation-redis 0.66b1
 
 *LICENSE*
 
@@ -4757,7 +4858,7 @@ APPENDIX: How to apply the Apache License to your work.
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
-### opentelemetry-instrumentation-requests 0.65b0
+### opentelemetry-instrumentation-requests 0.66b1
 
 *LICENSE*
 
@@ -4794,7 +4895,7 @@ APPENDIX: How to apply the Apache License to your work.
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
-### opentelemetry-instrumentation-sqlalchemy 0.65b0
+### opentelemetry-instrumentation-sqlalchemy 0.66b1
 
 *LICENSE*
 
@@ -4827,7 +4928,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### opentelemetry-instrumentation-threading 0.65b0
+### opentelemetry-instrumentation-threading 0.66b1
 
 *LICENSE*
 
@@ -4868,7 +4969,7 @@ Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appen
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
-### opentelemetry-instrumentation-urllib3 0.65b0
+### opentelemetry-instrumentation-urllib3 0.66b1
 
 *LICENSE*
 
@@ -4921,7 +5022,7 @@ Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appen
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
-### opentelemetry-proto 1.44.0
+### opentelemetry-proto 1.45.1
 
 *LICENSE*
 
@@ -4954,7 +5055,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### opentelemetry-sdk 1.44.0
+### opentelemetry-sdk 1.45.1
 
 *LICENSE*
 
@@ -4987,7 +5088,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### opentelemetry-semantic-conventions 0.65b0
+### opentelemetry-semantic-conventions 0.66b1
 
 *LICENSE*
 
@@ -5024,7 +5125,7 @@ APPENDIX: How to apply the Apache License to your work.
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
-### opentelemetry-util-http 0.65b0
+### opentelemetry-util-http 0.66b1
 
 Ships no license file. Declares Apache-2.0, whose terms are reproduced in [Appendix A](#appendix-a--apache-license-20).
 
@@ -5271,7 +5372,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### pyasn1 0.6.4
+### pyasn1 0.6.5
 
 *LICENSE.rst*
 
