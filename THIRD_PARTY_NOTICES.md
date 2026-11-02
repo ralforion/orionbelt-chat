@@ -61,7 +61,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | aiofile | 3.12.3 | Apache-2.0 | yes |
 | aiofiles | 25.1.0 | Apache Software License | yes |
 | aiohappyeyeballs | 2.7.1 | Python Software Foundation License | yes |
-| aiohttp | 3.14.3 | Apache-2.0 AND MIT | yes |
+| aiohttp | 3.14.4 | Apache-2.0 AND MIT | yes |
 | aiosignal | 1.4.0 | Apache Software License | yes |
 | annotated-doc | 0.0.5 | MIT | yes |
 | annotated-types | 0.8.0 | MIT | yes |
@@ -235,7 +235,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | websockets | 16.1.1 | BSD-3-Clause | yes |
 | wrapt | 2.4.0 | BSD-2-Clause | yes |
 | wsproto | 1.3.2 | MIT | yes |
-| yarl | 1.24.5 | Apache-2.0 | yes |
+| yarl | 1.25.1 | Apache-2.0 | yes |
 | zipp | 4.1.0 | MIT | yes |
 
 ## Conditions worth knowing (⚠️ above)
@@ -1068,7 +1068,7 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 ```
 
-### aiohttp 3.14.3
+### aiohttp 3.14.4
 
 *LICENSE.txt*
 
@@ -7574,7 +7574,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### yarl 1.24.5
+### yarl 1.25.1
 
 *LICENSE*
 
