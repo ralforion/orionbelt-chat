@@ -650,6 +650,17 @@ class TestGreeting:
         for prop in ("skills", "disabled", "cookie", "action"):
             assert f"props.{prop}" in source
 
+    def test_the_element_and_the_composer_pane_speak_the_same_events(self):
+        # The element owns the choice; header.js draws the Skills button and
+        # its pane. Nothing but these names connects the two.
+        public = Path(app.__file__).parent / "public"
+        element = (public / "elements" / f"{app.SKILLS_PANEL}.jsx").read_text(encoding="utf-8")
+        pane = (public / "header.js").read_text(encoding="utf-8")
+        for event in ("orionbelt:skills-state", "orionbelt:skills-open", "orionbelt:skills-choose"):
+            assert f'"{event}"' in element, event
+            assert f'"{event}"' in pane, event
+        assert "window.__orionbeltSkills" in element and "window.__orionbeltSkills" in pane
+
     def test_skipped_skills_are_named_with_the_reason(self, session):
         session["skill_errors"] = ["/x/SKILL.md: 'description' is required"]
         assert app._skills_info() == "⚠️ Skill ignored — /x/SKILL.md: 'description' is required"

@@ -561,3 +561,248 @@
     dismissAutoOpen(0);
   }).observe(document.body, { childList: true, subtree: true });
 })();
+
+// Skills button right of Upload under the chat input, and the floating pane it
+// opens: a checklist of the skills the assistant may use in this chat.
+//
+// The choice itself — the cookie, and the action that applies it on the server
+// — belongs to the SkillsPanel element under the greeting
+// (public/elements/SkillsPanel.jsx), since only an element can call a Chainlit
+// action. This draws the button and the pane, which live at page level so they
+// stay in reach however long the chat gets, and talks to the element through
+// window events:
+//   orionbelt:skills-state   element → here   {skills, disabled, error}, or null
+//   orionbelt:skills-open    element → here   its Manage button
+//   orionbelt:skills-choose  here → element   {disabled}
+(function skillsPane() {
+  var STATE_EVENT = "orionbelt:skills-state";
+  var OPEN_EVENT = "orionbelt:skills-open";
+  var CHOOSE_EVENT = "orionbelt:skills-choose";
+  // Upload's own classes, so the button reads as one of the composer's.
+  var BUTTON_CLASSES =
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background " +
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+    "focus-visible:ring-offset-2 hover:text-accent-foreground relative p-2 h-9 text-[13px] " +
+    "font-medium rounded-full transition-all duration-300 ease-out hover:bg-muted " +
+    "orionbelt-skills-button";
+  // lucide "list-checks"
+  var ICON =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" ' +
+    'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round" class="!h-5 !w-5" aria-hidden="true">' +
+    '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/>' +
+    '<path d="M13 12h8"/><path d="M13 18h8"/></svg>';
+
+  var state = window.__orionbeltSkills || null;
+  var pane = null;
+
+  function names() {
+    return state ? state.skills.map(function (s) { return s.name; }) : [];
+  }
+
+  function enabledCount() {
+    var off = state ? state.disabled : [];
+    return names().filter(function (n) { return off.indexOf(n) === -1; }).length;
+  }
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    // textContent, never innerHTML: names and descriptions come from MCP servers.
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function setText(node, text) {
+    // Only on change: the observer below would otherwise wake itself forever.
+    if (node && node.textContent !== text) node.textContent = text;
+  }
+
+  // ── The button ──
+
+  function button() {
+    return document.querySelector(".orionbelt-skills-button");
+  }
+
+  function ensureButton() {
+    var existing = button();
+    if (!state || !state.skills.length) {
+      if (existing) existing.remove();
+      closePane();
+      return;
+    }
+    if (existing) {
+      setText(existing.querySelector(".orionbelt-skills-count"), enabledCount() + "/" + names().length);
+      return;
+    }
+    var anchor =
+      document.querySelector(".command-buttons-container") ||
+      document.getElementById("chat-settings-open-modal");
+    if (!anchor || !anchor.parentElement) return;
+
+    var btn = el("button", BUTTON_CLASSES);
+    btn.type = "button";
+    btn.title = "Choose the skills the assistant may use";
+    btn.setAttribute("aria-haspopup", "dialog");
+    btn.setAttribute("aria-expanded", "false");
+    var inner = el("div", "flex items-center");
+    inner.innerHTML = ICON; // a constant, not data
+    inner.appendChild(el("span", "ml-1.5 max-sm:hidden", "Skills"));
+    inner.appendChild(el("span", "orionbelt-skills-count", enabledCount() + "/" + names().length));
+    btn.appendChild(inner);
+    btn.addEventListener("click", function (event) {
+      event.preventDefault();
+      if (pane) closePane();
+      else openPane();
+    });
+    anchor.parentElement.insertBefore(btn, anchor.nextSibling);
+  }
+
+  // ── The pane ──
+
+  function choose(disabled) {
+    window.dispatchEvent(new CustomEvent(CHOOSE_EVENT, { detail: { disabled: disabled } }));
+  }
+
+  function checkboxes() {
+    return pane ? Array.prototype.slice.call(pane.querySelectorAll("input[type=checkbox]")) : [];
+  }
+
+  function onBoxChange() {
+    choose(checkboxes().filter(function (b) { return !b.checked; }).map(function (b) { return b.value; }));
+  }
+
+  function build() {
+    pane.textContent = "";
+    pane.dataset.names = names().join("\n");
+
+    var head = el("div", "orionbelt-skills-head");
+    head.appendChild(el("strong", "", "Skills"));
+    head.appendChild(el("span", "orionbelt-skills-summary"));
+    var all = el("button", "", "All");
+    all.type = "button";
+    all.addEventListener("click", function () { choose([]); });
+    var none = el("button", "", "None");
+    none.type = "button";
+    none.addEventListener("click", function () { choose(names()); });
+    head.appendChild(all);
+    head.appendChild(none);
+    pane.appendChild(head);
+
+    var list = el("div", "orionbelt-skills-list");
+    state.skills.forEach(function (skill) {
+      var item = el("label", "orionbelt-skills-item");
+      var box = el("input");
+      box.type = "checkbox";
+      box.value = skill.name;
+      box.addEventListener("change", onBoxChange);
+      var text = el("div", "orionbelt-skills-text");
+      var top = el("div");
+      top.appendChild(el("span", "orionbelt-skills-name", skill.name));
+      top.appendChild(el("span", "orionbelt-skills-badge", skill.source));
+      var desc = el("div", "orionbelt-skills-desc", skill.description);
+      desc.title = skill.description;
+      text.appendChild(top);
+      text.appendChild(desc);
+      item.appendChild(box);
+      item.appendChild(text);
+      list.appendChild(item);
+    });
+    pane.appendChild(list);
+
+    var foot = el(
+      "div",
+      "orionbelt-skills-foot",
+      "The assistant loads a ticked skill when a task calls for it. Your choice applies " +
+        "at once and is remembered in this browser."
+    );
+    foot.appendChild(el("div", "orionbelt-skills-error"));
+    pane.appendChild(foot);
+  }
+
+  function sync() {
+    if (!pane || !state) return;
+    // Rebuild only when the skills themselves change: a rebuild per tick would
+    // throw away the list's scroll position and the keyboard focus.
+    if (pane.dataset.names !== names().join("\n")) build();
+    checkboxes().forEach(function (box) {
+      box.checked = state.disabled.indexOf(box.value) === -1;
+    });
+    setText(pane.querySelector(".orionbelt-skills-summary"), enabledCount() + " of " + names().length + " on");
+    setText(pane.querySelector(".orionbelt-skills-error"), state.error || "");
+  }
+
+  function position() {
+    if (!pane) return;
+    var width = Math.min(448, window.innerWidth - 16);
+    pane.style.width = width + "px";
+    var btn = button();
+    if (btn) {
+      // Above the whole composer, not just the button inside it, so the pane
+      // never covers the message being typed.
+      var composer = btn;
+      while (composer.parentElement && !composer.querySelector("#chat-input")) {
+        composer = composer.parentElement;
+      }
+      var left = btn.getBoundingClientRect().left;
+      pane.style.left = Math.max(8, Math.min(left, window.innerWidth - width - 8)) + "px";
+      pane.style.bottom = window.innerHeight - composer.getBoundingClientRect().top + 8 + "px";
+    } else {
+      pane.style.left = (window.innerWidth - width) / 2 + "px";
+      pane.style.bottom = "112px";
+    }
+  }
+
+  function onOutside(event) {
+    var btn = button();
+    if (pane && !pane.contains(event.target) && !(btn && btn.contains(event.target))) closePane();
+  }
+
+  function onKey(event) {
+    // On window, in the capture phase: ahead of the Escape-to-stop handler on
+    // document, so closing the pane does not also stop a running answer.
+    if (event.key !== "Escape" || !pane) return;
+    event.stopPropagation();
+    closePane();
+    var btn = button();
+    if (btn) btn.focus();
+  }
+
+  function openPane() {
+    if (pane || !state || !state.skills.length) return;
+    pane = el("div", "orionbelt-skills-pane");
+    pane.setAttribute("role", "dialog");
+    pane.setAttribute("aria-label", "Skills");
+    document.body.appendChild(pane);
+    sync();
+    position();
+    var btn = button();
+    if (btn) btn.setAttribute("aria-expanded", "true");
+    var first = checkboxes()[0];
+    if (first) first.focus();
+    document.addEventListener("mousedown", onOutside, true);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("resize", position);
+  }
+
+  function closePane() {
+    if (!pane) return;
+    pane.remove();
+    pane = null;
+    var btn = button();
+    if (btn) btn.setAttribute("aria-expanded", "false");
+    document.removeEventListener("mousedown", onOutside, true);
+    window.removeEventListener("keydown", onKey, true);
+    window.removeEventListener("resize", position);
+  }
+
+  window.addEventListener(STATE_EVENT, function (event) {
+    state = event.detail;
+    ensureButton();
+    sync();
+  });
+  window.addEventListener(OPEN_EVENT, openPane);
+  // React re-renders the composer at will, which can take the button with it.
+  new MutationObserver(ensureButton).observe(document.body, { childList: true, subtree: true });
+  ensureButton();
+})();

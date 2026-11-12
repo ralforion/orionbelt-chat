@@ -71,7 +71,7 @@ A production-ready chat application that connects to OrionBelt Analytics and Ori
 - **Progressive disclosure** - Only each skill's name and description go out with a request; the assistant loads a skill's full instructions with `load_skill` when a task matches, and a bundled file with `read_skill_file` only when the instructions point to it
 - **Kept in context** - A loaded skill is never trimmed out of the conversation history, so the assistant keeps following it for the rest of the task
 - **Instructions only** - Nothing in a skill directory is executed; bundled scripts can be read but not run
-- **Switch skills on and off** - Under the greeting, a scrollable checklist shows every skill with its description and where it comes from — `local` or the server's name — plus *All* / *None*. Unticking one takes it out of the running chat at once, history kept; the choice is remembered in this browser (a cookie), so it carries into the next chat and is each user's own on a shared deployment
+- **Switch skills on and off** - A **Skills** button sits right of **Upload** under the message box, so it is in reach however long the chat gets; it opens a floating, scrollable checklist of every skill with its description and where it comes from — `local` or the server's name — plus *All* / *None*. Unticking one takes it out of the running chat at once, history kept; the choice is remembered in this browser (a cookie), so it carries into the next chat and is each user's own on a shared deployment. The greeting shows how many are on, with a **Manage** button to the same pane
 - **Visible** - A skill that was skipped is named in the greeting with the reason. Loading a skill shows as a **Skill: name** step, and the answer it shaped ends with a *Skills used* line
 
 ### Interactive Charts
@@ -359,7 +359,7 @@ UTF-8 text.
 | From MCP servers | Every connected server publishing `skill://<name>/SKILL.md`, unless its entry says `skills: false` |
 | Same name twice | The first one found is used — local folders before servers, servers in configured order; the other is reported |
 | Picked up | On the next session start, model switch or reconnect — no restart needed |
-| Switch one off | Untick it in the checklist under the greeting. Remembered per browser; to remove it for everyone, move its folder away, or set `skills: false` on its server |
+| Switch one off | Untick it under **Skills**, right of **Upload** below the message box. Remembered per browser; to remove it for everyone, move its folder away, or set `skills: false` on its server |
 
 A `SKILL.md` that cannot be used — no frontmatter, no description, a malformed
 name — is listed in the greeting with the reason, and the other skills still
