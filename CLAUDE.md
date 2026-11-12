@@ -17,6 +17,9 @@ Code is reviewed with OpenAI Codex. Write clean, well-structured code that passe
     against the tag and refuses to cut a release if they disagree
   - `uv.lock` — run `uv lock` after `pyproject.toml`; it pins the project's own
     version and CI's `uv sync --frozen` fails if it is stale
+- A version bump also needs its `## [X.Y.Z] - date` section in `CHANGELOG.md`:
+  `release.yml` publishes it as the GitHub Release notes, and CI fails the bump
+  without one
 - See [RELEASING.md](./RELEASING.md) for the full release procedure
 
 ## Layout
