@@ -5,10 +5,11 @@ Every test runs in a scratch working directory with a scratch app root, so a
 """
 
 import asyncio
+import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pydantic_ai import Agent
@@ -23,7 +24,7 @@ from pydantic_ai.messages import (
     ToolReturnPart,
     UserPromptPart,
 )
-from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -1089,3 +1090,211 @@ class TestServerInstructionsBlock:
         monkeypatch.setattr(agent_module, "resolve_model", lambda provider, name: model)
         asyncio.run(agent_module.make_agent("openrouter", "any").run("go"))
         assert seen == [None]
+
+
+# ── Review fixes ─────────────────────────────────────────────────────────
+
+
+class TestSessionLossCheck:
+    """A skill's own text must not read as a dropped MCP connection."""
+
+    def test_a_skill_with_a_heredoc_is_not_a_lost_session(self):
+        body = '<skill name="shell">\nRun:\n\n    cat <<EOF > out.txt\n    hi\n    EOF\n</skill>'
+        assert not app._signals_session_loss(LOAD_SKILL_TOOL, body)
+
+    def test_a_reference_file_mentioning_a_broken_pipe_is_not_one_either(self):
+        assert not app._signals_session_loss(READ_SKILL_FILE_TOOL, "Broken pipe: retry the job.")
+
+    def test_a_server_skill_that_lost_its_session_still_counts(self):
+        error = f"{skills.SKILL_ERROR_PREFIX}could not read skill://x/SKILL.md: Session terminated"
+        assert app._signals_session_loss(LOAD_SKILL_TOOL, error)
+
+    def test_mcp_tool_results_are_checked_as_before(self):
+        assert app._signals_session_loss("execute_sql_query", "upstream: unexpected EOF")
+        assert not app._signals_session_loss("execute_sql_query", "42 rows")
+
+    def test_the_tools_report_errors_with_the_prefix_the_check_looks_for(self, tmp_path):
+        toolset = skills_toolset([parse_skill(make_skill(tmp_path, "demo"))])
+        model, _ = script((LOAD_SKILL_TOOL, {"name": "nope"}))
+        (event,) = asyncio.run(run_collecting(Agent(model=model, toolsets=[toolset])))
+        assert app._tool_result_fields(event).text.startswith(skills.SKILL_ERROR_PREFIX)
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="no symlinks")
+class TestSkillFileConfinement:
+    """SKILL.md is held to the same rule as every other file in a skill."""
+
+    @staticmethod
+    def outside_file(tmp_path: Path) -> Path:
+        target = tmp_path / "elsewhere" / "notes.md"
+        target.parent.mkdir()
+        target.write_text(
+            f"---\nname: linked\ndescription: {DESCRIPTION}\n---\nSECRET NOTES\n", encoding="utf-8"
+        )
+        return target
+
+    def test_a_skill_md_linking_out_of_its_folder_is_not_discovered(self, env):
+        skill_dir = env.cwd / "skills" / "linked"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / SKILL_FILENAME).symlink_to(self.outside_file(env.tmp))
+        found, errors = discover_skills()
+        assert found == []
+        assert len(errors) == 1 and "outside its skill directory" in errors[0]
+
+    def test_a_skill_md_swapped_for_a_link_after_discovery_is_not_loaded(self, tmp_path):
+        skill = parse_skill(make_skill(tmp_path / "skills", "linked"))
+        skill.skill_file.unlink()
+        skill.skill_file.symlink_to(self.outside_file(tmp_path))
+        with pytest.raises(SkillError, match="outside the skill 'linked'"):
+            render_skill(skill)
+        toolset = skills_toolset([skill])
+        model, _ = script((LOAD_SKILL_TOOL, {"name": "linked"}))
+        (event,) = asyncio.run(run_collecting(Agent(model=model, toolsets=[toolset])))
+        text = app._tool_result_fields(event).text
+        assert "SECRET NOTES" not in text and "outside the skill" in text
+
+    def test_a_whole_skill_folder_may_be_a_link(self, env):
+        # Linking a skill folder in is how skills are commonly shared; the
+        # folder it points to is then the skill, and its files are inside it.
+        real = make_skill(env.tmp / "shared", "shared-skill")
+        (env.cwd / "skills").mkdir()
+        (env.cwd / "skills" / "shared-skill").symlink_to(real, target_is_directory=True)
+        (found,), errors = discover_skills()
+        assert errors == []
+        assert "Follow these steps." in render_skill(found)
+
+
+class TestReconnectKeepsConfiguredOrder:
+    def test_the_helper_sorts_by_configuration_and_keeps_unknowns_last(self):
+        servers = [("B", 2), ("Z", 9), ("A", 1)]
+        assert app._in_configured_order(servers, ["A", "B"]) == [("A", 1), ("B", 2), ("Z", 9)]
+
+    def test_a_reconnected_server_keeps_its_place(self):
+        """Configured A, B; A drops and comes back. A must still come first."""
+        old_a = SimpleNamespace(
+            list_tools=AsyncMock(side_effect=RuntimeError("Session terminated")),
+            __aexit__=AsyncMock(),
+        )
+        b = SimpleNamespace(list_tools=AsyncMock(return_value=[]))
+        new_a = SimpleNamespace(__aenter__=AsyncMock())
+        store: dict = {"mcp_contexts": [("A", old_a), ("B", b)], "provider": "p", "model": "m"}
+        gathered: list = []
+
+        async def gather_skills(servers):
+            gathered.append([name for name, _ in servers])
+            return []
+
+        message = MagicMock()
+        message.return_value.send = AsyncMock()
+        with (
+            patch.object(app.cl, "user_session") as user_session,
+            patch.object(app.cl, "Message", message),
+            patch.object(
+                app, "get_mcp_servers_named", return_value=[("A", new_a), ("B", object())]
+            ),
+            patch.object(app, "_collect_tools", AsyncMock(return_value={})),
+            patch.object(app, "_gather_skills", side_effect=gather_skills),
+            patch.object(app, "make_agent", MagicMock()),
+            patch.object(app, "server_instructions", return_value=[]),
+            patch.object(app, "_update_mcp_info"),
+            patch.object(app, "_refresh_status_message", AsyncMock()),
+            patch.object(app, "_tool_elements", return_value=[]),
+        ):
+            user_session.set.side_effect = store.__setitem__
+            user_session.get.side_effect = lambda k, d=None: store.get(k, d)
+            assert asyncio.run(app._reconnect_mcp()) is True
+
+        assert gathered == [["A", "B"]]
+        assert [name for name, _ in store["mcp_contexts"]] == ["A", "B"]
+        assert store["mcp_contexts"][0][1] is new_a
+
+
+class TestOnMessageWithASkill:
+    """The whole turn, through the real `on_message`: the path the review reproduced.
+
+    A skill whose text contains `cat <<EOF` used to trip the connection-loss
+    check, so the turn reconnected twice and ended with no answer and no
+    history. Chainlit's UI objects are stubbed; the agent run is genuine.
+    """
+
+    class FakeMessage:
+        def __init__(self, content="", elements=None, **_kwargs):
+            self.content = content
+            self.elements = elements or []
+
+        async def send(self):
+            TestOnMessageWithASkill.sent.append(self)
+            return self
+
+        async def update(self):
+            return self
+
+    class FakeStep:
+        def __init__(self, name="", **_kwargs):
+            self.name = name
+            self.id = f"step-{name}"
+            self.input = self.output = ""
+
+        async def send(self):
+            TestOnMessageWithASkill.steps.append(self)
+            return self
+
+        async def update(self):
+            return self
+
+    sent: list = []
+    steps: list = []
+
+    @staticmethod
+    def streamed(*calls: tuple[str, dict]) -> FunctionModel:
+        """Like `script`, but streamed: `on_message` reads the model through `node.stream`."""
+
+        async def stream_fn(messages: list[ModelMessage], info: AgentInfo):
+            made = sum(
+                isinstance(part, ToolCallPart)
+                for message in messages
+                if isinstance(message, ModelResponse)
+                for part in message.parts
+            )
+            if made < len(calls):
+                tool_name, args = calls[made]
+                yield {0: DeltaToolCall(name=tool_name, json_args=json.dumps(args))}
+            else:
+                yield "done"
+
+        return FunctionModel(stream_function=stream_fn)
+
+    def test_a_skill_with_a_heredoc_is_answered_not_reconnected(self, tmp_path):
+        type(self).sent, type(self).steps = [], []
+        heredoc = "Write the file with:\n\n    cat <<EOF > report.sql\n    SELECT 1;\n    EOF\n"
+        skill = parse_skill(make_skill(tmp_path, "shell-recipes", body=heredoc))
+        store: dict = {
+            "agent": Agent(
+                model=self.streamed((LOAD_SKILL_TOOL, {"name": "shell-recipes"})),
+                toolsets=[skills_toolset([skill])],
+            ),
+            "skills": [skill],
+            "provider": "openrouter",
+            "model": "m",
+        }
+        full_reconnect = AsyncMock(return_value=True)
+        with (
+            patch.object(app.cl, "user_session") as user_session,
+            patch.object(app.cl, "Message", self.FakeMessage),
+            patch.object(app.cl, "Step", self.FakeStep),
+            patch.object(app, "local_steps", SimpleNamespace(get=lambda: [])),
+            patch.object(app, "_collect_uploads", AsyncMock(return_value="use the shell recipe")),
+            patch.object(app, "_full_reconnect_mcp", full_reconnect),
+            patch.object(app, "_reconnect_mcp", AsyncMock(return_value=True)),
+        ):
+            user_session.set.side_effect = store.__setitem__
+            user_session.get.side_effect = lambda k, d=None: store.get(k, d)
+            asyncio.run(app.on_message(SimpleNamespace(content="use the shell recipe")))
+
+        full_reconnect.assert_not_awaited()
+        assert [s.name for s in self.steps if s.name.startswith("Skill")] == [
+            "Skill: shell-recipes"
+        ]
+        (answer,) = [m for m in self.sent if m.content.startswith("done")]
+        assert answer.content.endswith("_Skill used:_ `shell-recipes`")
+        assert store["pydantic_history"], "the turn's history must be kept"

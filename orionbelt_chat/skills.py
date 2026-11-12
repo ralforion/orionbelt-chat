@@ -86,6 +86,11 @@ DISABLED_SKILLS_COOKIE = "orionbelt_disabled_skills"
 #: this; the cap is for a value that did not come from the checklist.
 MAX_DISABLED_SKILLS = 200
 
+#: Opens every error the skill tools return. The app tells a failed skill read
+#: from a successful one by it: only a failure can mean a lost MCP session,
+#: while a skill's own text may say "EOF" or "Broken pipe" for its own reasons.
+SKILL_ERROR_PREFIX = "Error: "
+
 #: Tool names, shared with the history trimmer that has to recognise them.
 LOAD_SKILL_TOOL = "load_skill"
 READ_SKILL_FILE_TOOL = "read_skill_file"
@@ -382,9 +387,26 @@ def _description(meta: dict[str, Any], where: Path | str) -> str:
     return _one_line(description)
 
 
+def _inside(root: Path, relative: str, name: str) -> Path:
+    """*relative* within the skill folder *root*, resolved; SkillError if it lands elsewhere.
+
+    Resolving follows symlinks, so a link to a file outside the folder is
+    refused like a ``..`` that climbs out. The folder itself may be a link —
+    linking a skill in is how one is shared — and is then the folder it names.
+    """
+    target = (root / relative).resolve()
+    if not target.is_relative_to(root.resolve()):
+        raise SkillError(f"{relative!r} is outside the skill '{name}'")
+    return target
+
+
 def parse_skill(skill_dir: Path) -> LocalSkill:
     """Read a skill's frontmatter. Raises SkillError if it cannot be used."""
     path = skill_dir / SKILL_FILENAME
+    # Held to the rule read_skill_file applies to every other file: a SKILL.md
+    # linking out of its folder would put an arbitrary file in front of the model.
+    if not path.resolve().is_relative_to(skill_dir.resolve()):
+        raise SkillError(f"{path}: links to {path.resolve()}, outside its skill directory")
     meta, _body = split_frontmatter(_read_text(path), path)
 
     # The specification requires `name`, but the directory carries the same
@@ -603,7 +625,10 @@ def render_skill(skill: LocalSkill) -> str:
     Read from disk on every call, so an edit applies the next time it is loaded.
     The frontmatter is dropped — the model already has it from the catalog.
     """
-    _meta, body = split_frontmatter(_read_text(skill.skill_file), skill.skill_file)
+    # Checked again on every load, not only at discovery: the file may have
+    # been replaced by a link since.
+    skill_file = _inside(skill.path, SKILL_FILENAME, skill.name)
+    _meta, body = split_frontmatter(_read_text(skill_file), skill.skill_file)
     files, truncated = _bundled_files(skill)
     return _render(skill.name, body, files, truncated)
 
@@ -620,9 +645,7 @@ def read_bundled_file(skill: LocalSkill, relative: str) -> str:
     if Path(relative).is_absolute():
         raise SkillError(f"{relative!r} is an absolute path — give one inside the skill")
 
-    target = (skill.path / relative).resolve()
-    if not target.is_relative_to(skill.path):
-        raise SkillError(f"{relative!r} is outside the skill '{skill.name}'")
+    target = _inside(skill.path, relative, skill.name)
     if not target.is_file():
         raise SkillError(f"the skill '{skill.name}' has no file {relative!r}")
 
@@ -667,7 +690,7 @@ def skills_toolset(skills: Sequence[Skill]) -> FunctionToolset[Any] | None:
         try:
             return await lookup(name).instructions()
         except (SkillError, OSError) as exc:
-            return f"Error: {exc}"
+            return f"{SKILL_ERROR_PREFIX}{exc}"
 
     async def read_skill_file(name: str, path: str) -> str:
         """Read a file bundled with a skill, such as a reference document its instructions point to.
@@ -681,6 +704,6 @@ def skills_toolset(skills: Sequence[Skill]) -> FunctionToolset[Any] | None:
             # `skill://<name>/references/a.md` → `references/a.md`
             return await skill.read_file(path.strip().removeprefix(skill_uri(skill.name, "")))
         except (SkillError, OSError) as exc:
-            return f"Error: {exc}"
+            return f"{SKILL_ERROR_PREFIX}{exc}"
 
     return FunctionToolset([load_skill, read_skill_file], instructions=catalog(skills))

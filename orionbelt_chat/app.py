@@ -55,6 +55,7 @@ from orionbelt_chat.skills import (
     DISABLED_SKILLS_COOKIE,
     LOAD_SKILL_TOOL,
     READ_SKILL_FILE_TOOL,
+    SKILL_ERROR_PREFIX,
     ServerSkill,
     Skill,
     disabled_skills_from_cookie,
@@ -1048,6 +1049,31 @@ _MCP_ERROR_PHRASES = (
     "stream has been closed",
 )
 
+#: The skill tools: function tools of this app, whose results are skill text.
+_SKILL_TOOLS = frozenset({LOAD_SKILL_TOOL, READ_SKILL_FILE_TOOL})
+
+
+def _signals_session_loss(tool_name: str | None, content: str) -> bool:
+    """Whether a tool result reads like a dropped MCP session.
+
+    A skill's text is its author's: a shell example with `cat <<EOF` is not a
+    closed stream, and treating it as one abandoned the answer to reconnect.
+    So a skill result counts only when the tool reports a failure — which is
+    where a server skill whose session died says so.
+    """
+    if tool_name in _SKILL_TOOLS and not content.startswith(SKILL_ERROR_PREFIX):
+        return False
+    return any(phrase in content for phrase in _MCP_ERROR_PHRASES)
+
+
+def _in_configured_order(
+    servers: list[tuple[str, Any]], configured: list[str]
+) -> list[tuple[str, Any]]:
+    """*servers* in the order the configuration lists them; unknown names last, as given."""
+    rank = {name: i for i, name in enumerate(configured)}
+    return sorted(servers, key=lambda item: rank.get(item[0], len(rank)))
+
+
 _MCP_ERROR_TYPES = (
     ConnectionError,
     ConnectionResetError,
@@ -1185,6 +1211,10 @@ async def _reconnect_mcp() -> bool:
             logger.warning("MCP server reconnect failed: %s — %s", name, e)
             still_failed.append((name, e))
 
+    # Back into configured order: `healthy` lists the servers that stayed up
+    # first, and the order settles which of two servers' same-named skills wins
+    # (and how the greeting lists them) — a reconnect must not change either.
+    healthy = _in_configured_order(healthy, [name for name, _ in named_servers])
     connected_names = [n for n, _ in healthy]
     # A reconnected server has a cold tool cache, and may not even expose the
     # same tools it did before, so this is a fresh listing rather than the map
@@ -1447,9 +1477,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                         result_content[:200],
                                     )
 
-                                    if any(
-                                        phrase in result_content for phrase in _MCP_ERROR_PHRASES
-                                    ):
+                                    if _signals_session_loss(tool_result.tool_name, result_content):
                                         logger.warning(
                                             "MCP session error detected in tool result — will reconnect: %s",
                                             result_content[:200],
