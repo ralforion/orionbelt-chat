@@ -25,7 +25,9 @@ The file looks like::
         args: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
         env:
           LOG_LEVEL: debug
-        sampling: false
+        sampling: false       # may it call back for LLM sampling? (default false)
+        skills: true          # offer its `skill://` skills? (default true)
+        instructions: true    # pass its instructions to the model? (default true)
 
 ``${VAR}`` in an ``endpoint``, ``headers``, ``command``, ``args`` or ``env``
 value is replaced by that environment variable (or the matching line in
@@ -89,6 +91,10 @@ class ServerDef:
     headers: dict[str, str] = field(default_factory=dict)
     env: dict[str, str] = field(default_factory=dict)
     sampling: bool = False
+    #: Offer the agent the skills this server publishes as `skill://` resources.
+    skills: bool = True
+    #: Pass the instructions this server sends at initialization on to the model.
+    instructions: bool = True
 
     @property
     def is_url(self) -> bool:
@@ -113,8 +119,8 @@ def _builtin_defs() -> list[ServerDef]:
     return defs
 
 
-def _app_root() -> Path:
-    """Mirror the app root the CLI seeds, so a config can live beside it."""
+def app_root() -> Path:
+    """Mirror the app root the CLI seeds, so a config — or skills — can live beside it."""
     for var in ("CHAINLIT_APP_ROOT", "ORIONBELT_CHAT_HOME"):
         value = os.environ.get(var, "").strip()
         if value:
@@ -131,7 +137,7 @@ def config_path() -> Path | None:
     configured = settings.mcp_servers_file.strip()
     if configured:
         return Path(configured).expanduser()
-    for candidate in (Path.cwd() / DEFAULT_FILENAME, _app_root() / DEFAULT_FILENAME):
+    for candidate in (Path.cwd() / DEFAULT_FILENAME, app_root() / DEFAULT_FILENAME):
         if candidate.is_file():
             return candidate
     return None
@@ -160,7 +166,7 @@ def _dotenv_candidates() -> list[Path]:
     and the working directory wins over both, matching how `config_path`
     already prefers the closest file.
     """
-    candidates = [_app_root() / ".env"]
+    candidates = [app_root() / ".env"]
     configured = config_path()
     if configured is not None:
         candidates.append(configured.parent / ".env")
@@ -282,7 +288,11 @@ def parse_server(entry: Any, where: str) -> ServerDef:
             key: _expand(value, lookup, where, name, f"env.{key}")
             for key, value in _parse_string_mapping(entry.get("env"), "env", where, name).items()
         },
-        sampling=_parse_bool(entry.get("sampling"), where, name),
+        sampling=_parse_bool(entry.get("sampling"), where, name, "sampling", default=False),
+        skills=_parse_bool(entry.get("skills"), where, name, "skills", default=True),
+        instructions=_parse_bool(
+            entry.get("instructions"), where, name, "instructions", default=True
+        ),
     )
 
     if command and module:
@@ -322,15 +332,15 @@ _TRUE = frozenset({"true", "yes", "on", "1"})
 _FALSE = frozenset({"false", "no", "off", "0"})
 
 
-def _parse_bool(raw: Any, where: str, name: str) -> bool:
-    """Parse `sampling:` without letting a quoted "false" mean True.
+def _parse_bool(raw: Any, where: str, name: str, key: str, *, default: bool) -> bool:
+    """Parse a true/false field without letting a quoted "false" mean True.
 
     `bool("false")` is True, so a template tool that quotes YAML scalars could
     silently grant a server access to the LLM. Anything unrecognised is refused
     rather than coerced.
     """
     if raw is None:
-        return False
+        return default
     if isinstance(raw, bool):
         return raw
     if isinstance(raw, str):
@@ -339,7 +349,7 @@ def _parse_bool(raw: Any, where: str, name: str) -> bool:
             return True
         if text in _FALSE:
             return False
-    raise McpConfigError(f"{where} ({name}): 'sampling' must be true or false, got {raw!r}")
+    raise McpConfigError(f"{where} ({name}): '{key}' must be true or false, got {raw!r}")
 
 
 def _parse_string_mapping(raw: Any, key: str, where: str, name: str) -> dict[str, str]:

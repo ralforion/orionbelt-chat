@@ -13,4 +13,7 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    # Agent Skills: the app root is /app/runtime, so skills go in its skills/.
+    # volumes:
+    #   - ./skills:/app/runtime/skills:ro
     restart: unless-stopped

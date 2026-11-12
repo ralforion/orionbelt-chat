@@ -5,13 +5,22 @@ over stdio, exactly the way the app launches a real OrionBelt server. Its tools
 exist to produce the *shapes* the streaming handler has to cope with: plain
 text, structured data, binary content, and an upstream session error — plus two
 that ask the user for input through MCP elicitation.
+
+It also sends initialization instructions and publishes skills the way
+FastMCP's ``SkillsDirectoryProvider`` does: ``skill://<name>/SKILL.md`` listed
+with the skill's description, ``skill://<name>/_manifest`` naming its files,
+and the files themselves behind a resource template, unlisted.
 """
+
+import json
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.fastmcp.utilities.types import Image
 from pydantic import BaseModel, Field
 
-mcp = FastMCP("fake-orionbelt")
+INSTRUCTIONS = "Fake server instructions: call echo before row_count."
+
+mcp = FastMCP("fake-orionbelt", instructions=INSTRUCTIONS)
 
 # Smallest valid PNG: 1x1, fully transparent.
 ONE_PIXEL_PNG = bytes.fromhex(
@@ -68,6 +77,63 @@ async def connect_warehouse(ctx: Context) -> str:
         elicitation_id="wh-1",
     )
     return result.action
+
+
+# ── Skills, laid out as FastMCP's SkillsDirectoryProvider serves them ──
+
+FAKE_SKILL_MD = """---
+name: fake-skill
+description: Fake skill for tests. Use when testing skills over MCP.
+---
+# Fake skill
+
+Call echo first. For details, read references/guide.md.
+"""
+
+# Folded over two lines, which FastMCP before 4 lists as the description ">-".
+FOLDED_SKILL_MD = """---
+name: folded-skill
+description: >-
+  Folded description
+  over two lines.
+---
+# Folded skill
+"""
+
+
+@mcp.resource(
+    "skill://fake-skill/SKILL.md",
+    description="Fake skill for tests. Use when testing skills over MCP.",
+    mime_type="text/markdown",
+)
+def fake_skill() -> str:
+    return FAKE_SKILL_MD
+
+
+@mcp.resource("skill://fake-skill/_manifest", mime_type="application/json")
+def fake_skill_manifest() -> str:
+    files = [
+        {"path": "SKILL.md", "size": len(FAKE_SKILL_MD), "hash": "sha256:0"},
+        {"path": "references/guide.md", "size": 20, "hash": "sha256:1"},
+    ]
+    return json.dumps({"skill": "fake-skill", "files": files})
+
+
+@mcp.resource("skill://fake-skill/references/{filename}")
+def fake_skill_reference(filename: str) -> str:
+    if filename != "guide.md":
+        raise ValueError(f"File not found: references/{filename}")
+    return "Guide: use row_count."
+
+
+@mcp.resource("skill://folded-skill/SKILL.md", description=">-", mime_type="text/markdown")
+def folded_skill() -> str:
+    return FOLDED_SKILL_MD
+
+
+@mcp.resource("notes://readme", description="Not a skill.")
+def readme() -> str:
+    return "nothing to see"
 
 
 if __name__ == "__main__":

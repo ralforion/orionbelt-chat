@@ -54,6 +54,17 @@ class TestDisclosureInUi:
         assert 'var APP_NAME = "Chat – AI Assistant";' in text
 
 
+def _empty_session() -> MagicMock:
+    """A session holding nothing: ``get`` returns the caller's default, as Chainlit's does.
+
+    A bare MagicMock answers every key with another truthy mock, so a greeting
+    that lists what the session holds would try to render the mock.
+    """
+    session = MagicMock()
+    session.get.side_effect = lambda key, default=None: default
+    return session
+
+
 @pytest.fixture
 def chainlit_session():
     """Patch the Chainlit surface ``on_start`` touches, yielding cl.Message."""
@@ -62,7 +73,7 @@ def chainlit_session():
     with (
         patch.object(app.cl, "Message") as message_cls,
         patch.object(app.cl, "ChatSettings") as chat_settings,
-        patch.object(app.cl, "user_session", MagicMock()),
+        patch.object(app.cl, "user_session", _empty_session()),
         patch.object(app.cl, "context", context),
         patch.object(app, "build_chat_settings", MagicMock(return_value=[])),
     ):

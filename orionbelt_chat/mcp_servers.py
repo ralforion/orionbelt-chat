@@ -131,6 +131,47 @@ def servers_using_sampling() -> frozenset[str]:
     return frozenset(defn.name for defn in defs if defn.sampling)
 
 
+def servers_with_skills() -> frozenset[str]:
+    """Names of servers whose `skill://` skills the agent is offered.
+
+    On unless a server's entry says `skills: false`: a skill costs one catalog
+    line until it is used, and its text reaches the model only as a tool result,
+    the same footing as everything else the server returns.
+    """
+    defs, _ = load_server_defs()
+    return frozenset(defn.name for defn in defs if defn.skills)
+
+
+def servers_with_instructions() -> frozenset[str]:
+    """Names of servers whose initialization instructions reach the model.
+
+    On unless a server's entry says `instructions: false` — for a server whose
+    instructions are long, or written for a different client.
+    """
+    defs, _ = load_server_defs()
+    return frozenset(defn.name for defn in defs if defn.instructions)
+
+
+def server_instructions(named_servers: list[tuple[str, Any]]) -> list[tuple[str, str]]:
+    """``(name, instructions)`` for each connected server that sent some and may pass them on.
+
+    Read after the servers are entered: the text arrives with the
+    initialization handshake, and a toolset that never connected has none.
+    """
+    allowed = servers_with_instructions()
+    found: list[tuple[str, str]] = []
+    for name, server in named_servers:
+        if name not in allowed:
+            continue
+        try:
+            text = server.instructions
+        except AttributeError:
+            continue
+        if isinstance(text, str) and text.strip():
+            found.append((name, text.strip()))
+    return found
+
+
 def get_mcp_server_errors() -> list[str]:
     """Configuration problems worth showing the user, empty when all is well."""
     _, errors = load_server_defs()

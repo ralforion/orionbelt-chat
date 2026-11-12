@@ -4,6 +4,7 @@ import asyncio
 import copy
 import json
 import logging
+import re
 from typing import Any, NamedTuple
 
 import chainlit as cl
@@ -42,12 +43,25 @@ from orionbelt_chat.mcp_servers import (
     get_mcp_server_errors,
     get_mcp_servers_named,
     get_sampling_model_label,
+    server_instructions,
     servers_using_sampling,
+    servers_with_skills,
 )
 from orionbelt_chat.mermaid_renderer import extract_mermaid_from_tool_results
 from orionbelt_chat.provenance import APP_VERSION, mark_png, provenance_record
 from orionbelt_chat.providers import PROVIDER_LABELS, default_model_for, models_for
 from orionbelt_chat.settings import settings
+from orionbelt_chat.skills import (
+    LOAD_SKILL_TOOL,
+    READ_SKILL_FILE_TOOL,
+    ServerSkill,
+    Skill,
+    discover_server_skills,
+    discover_skills,
+    merge_skills,
+    skill_name,
+    skill_uri,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -216,17 +230,16 @@ async def on_start():
     await cl.context.emitter.set_commands([UPLOAD_COMMAND])
 
     if init_success:
-        mcp_info = cl.user_session.get("mcp_info", "")
         status_msg = cl.Message(
             content=(
                 f"**OrionBelt® Analytics Assistant** ready.\n\n"
                 f"Provider: `{provider}` | Model: `{model}`\n\n"
-                f"{mcp_info}\n\n"
+                f"{_status_info()}\n\n"
                 f"Ask me anything about your data, or use **Upload** next to the message "
                 f"box to attach an OBSL semantic model or an RDF ontology."
             ),
-            # Each server's tool list, opened by the pill naming it above.
-            elements=_tool_elements(),
+            # Each server's tool list, and the skills, opened by the pill naming it above.
+            elements=_status_elements(),
         )
         await status_msg.send()
         cl.user_session.set("status_msg", status_msg)
@@ -463,13 +476,23 @@ async def _init_agent(provider: str, model: str) -> bool:
             logger.warning("MCP server failed: %s — %s", name, e)
             failed_names.append((name, e))
 
-    tools = await _collect_tools(active_contexts)
+    # Both listings ask every server, so they run side by side rather than
+    # adding their waits together before the greeting can appear.
+    tools, skills = await asyncio.gather(
+        _collect_tools(active_contexts), _gather_skills(active_contexts)
+    )
     cl.user_session.set("mcp_tools", tools)
     _update_mcp_info(connected_names, failed_names, tools)
 
     # Create agent with whatever servers connected
     try:
-        agent = make_agent(provider, model, toolsets=connected)
+        agent = make_agent(
+            provider,
+            model,
+            toolsets=connected,
+            skills=skills,
+            server_instructions=server_instructions(active_contexts),
+        )
         cl.user_session.set("agent", agent)
         cl.user_session.set("mcp_contexts", active_contexts)
         return True
@@ -587,15 +610,152 @@ async def _refresh_status_message() -> None:
         return
     provider = cl.user_session.get("provider")
     model = cl.user_session.get("model")
-    mcp_info = cl.user_session.get("mcp_info", "")
-    status_msg.elements = _tool_elements()
+    status_msg.elements = _status_elements()
     status_msg.content = (
         f"**OrionBelt® Analytics Assistant** ready.\n\n"
         f"Provider: `{provider}` | Model: `{model}`\n\n"
-        f"{mcp_info}\n\n"
+        f"{_status_info()}\n\n"
         f"Ask me anything about your data."
     )
     await status_msg.update()
+
+
+# ── Agent skills ───────────────────────────────────────────────────────────
+
+
+async def _gather_skills(named_servers: list[tuple[str, Any]]) -> list[Skill]:
+    """Local skills, then each connected server's; kept, with any problems, for the greeting.
+
+    Run on every agent build — session start, model switch, either reconnect —
+    so an added or edited skill shows up without a restart, and the greeting
+    lists exactly what the agent was given.
+    """
+    local, errors = discover_skills()
+    allowed = servers_with_skills()
+
+    async def listing(name: str, server: Any) -> tuple[list[ServerSkill], list[str]]:
+        try:
+            return await asyncio.wait_for(
+                discover_server_skills(name, server), timeout=_TOOL_LIST_TIMEOUT
+            )
+        except Exception as e:
+            # Connected either way; it just goes without skills this session.
+            logger.warning("Could not list skills for %s — %s", name, e)
+            return [], []
+
+    listings = await asyncio.gather(
+        *(listing(name, server) for name, server in named_servers if name in allowed)
+    )
+    for _found, problems in listings:
+        errors.extend(problems)
+    skills, duplicates = merge_skills(local, *(found for found, _ in listings))
+    for problem in duplicates:
+        logger.warning("Skill ignored — %s", problem)
+    errors.extend(duplicates)
+
+    cl.user_session.set("skills", skills)
+    cl.user_session.set("skill_errors", errors)
+    return skills
+
+
+def _skill_source(skill: Skill) -> str:
+    """Where a skill came from, as the UI shows it after the description."""
+    return f" _(from {skill.server_name})_" if isinstance(skill, ServerSkill) else ""
+
+
+def _skills_element_name(skills: list[Skill]) -> str:
+    """The skills pill's text, and so the element's name — see `_tool_element_name`."""
+    return f"Skills ({len(skills)})"
+
+
+def _skills_info() -> str:
+    """The greeting's skills line, plus a warning for each skill that was skipped.
+
+    Empty when no skills are configured, so a deployment that does not use
+    them sees no change.
+    """
+    skills: list[Skill] = cl.user_session.get("skills") or []
+    parts = []
+    if skills:
+        parts.append(
+            f"{_skills_element_name(skills)} — the assistant loads one when a task calls for it"
+        )
+    # A skill the user meant to add but mis-wrote would otherwise just be
+    # missing from the list, with nothing saying why.
+    for problem in cl.user_session.get("skill_errors") or []:
+        parts.append(f"⚠️ Skill ignored — {problem}")
+    return "\n\n".join(parts)
+
+
+def _skill_elements() -> list[Any]:
+    """The side panel listing each skill, opened by the skills pill."""
+    skills: list[Skill] = cl.user_session.get("skills") or []
+    if not skills:
+        return []
+    return [
+        cl.Text(
+            name=_skills_element_name(skills),
+            content="\n".join(f"- `{s.name}` — {s.description}{_skill_source(s)}" for s in skills),
+            display="side",
+        )
+    ]
+
+
+def _status_info() -> str:
+    """Everything the greeting reports between the model line and the prompt."""
+    mcp_info = cl.user_session.get("mcp_info", "")
+    skills_info = _skills_info()
+    return f"{mcp_info}\n\n{skills_info}" if skills_info else f"{mcp_info}"
+
+
+def _status_elements() -> list[Any]:
+    """Every side panel the greeting's pills open."""
+    return _tool_elements() + _skill_elements()
+
+
+#: Opens every body `load_skill` returns; carries the name as resolved, which a
+#: call made with a `skill://` URI does not.
+_LOADED_SKILL_RE = re.compile(r'\A<skill name="([^"]+)">')
+
+
+def _tool_step_name(tool_name: str, tool_args: Any) -> str:
+    """The step title for a tool call; a skill is named, not filed under its tool.
+
+    "load_skill" says that a skill was used, never which. The arguments are
+    the model's, so anything unexpected falls back to the tool's own name.
+    """
+    args = tool_args if isinstance(tool_args, dict) else {}
+    reference = args.get("name")
+    if tool_name not in (LOAD_SKILL_TOOL, READ_SKILL_FILE_TOOL) or not isinstance(reference, str):
+        return tool_name
+    name = skill_name(reference)
+    if not name:
+        return tool_name
+    if tool_name == LOAD_SKILL_TOOL:
+        return f"Skill: {name}"
+    path = args.get("path")
+    if not isinstance(path, str) or not path.strip():
+        return tool_name
+    return f"Skill file: {name} › {path.strip().removeprefix(skill_uri(name, ''))}"
+
+
+def _loaded_skill(tool_name: str | None, result_text: str) -> str | None:
+    """The skill a successful `load_skill` result carries; None for anything else."""
+    if tool_name != LOAD_SKILL_TOOL:
+        return None
+    match = _LOADED_SKILL_RE.match(result_text)
+    return match.group(1) if match else None
+
+
+def _skills_used_line(names: list[str]) -> str:
+    """The note under an answer naming the skills loaded while writing it."""
+    by_name = {s.name: s for s in cl.user_session.get("skills") or []}
+    used = []
+    for name in dict.fromkeys(names):  # each once, first use first
+        skill = by_name.get(name)
+        used.append(f"`{name}`" + (_skill_source(skill) if skill else ""))
+    label = "Skill used" if len(used) == 1 else "Skills used"
+    return f"_{label}:_ " + ", ".join(used)
 
 
 def _update_mcp_info(
@@ -732,9 +892,16 @@ _TRANSIENT_TOOLS: set[str] = {
 }
 _TRANSIENT_TRIM_LIMIT = 200
 
+# Results that are never trimmed, however old. A loaded skill is the
+# instructions the model is following for the rest of the task; cut to 500
+# characters it would carry on without them and never know to reload them.
+_PINNED_TOOLS: set[str] = {LOAD_SKILL_TOOL}
+
 
 def _trim_limit_for_tool(tool_name: str | None, is_recent: bool) -> int | None:
     """Return the char limit for a tool result, or None to keep it intact."""
+    if tool_name in _PINNED_TOOLS:
+        return None
     if tool_name in _TRANSIENT_TOOLS:
         return _TRANSIENT_TRIM_LIMIT
     if not is_recent:
@@ -961,7 +1128,9 @@ async def _reconnect_mcp() -> bool:
     # A reconnected server has a cold tool cache, and may not even expose the
     # same tools it did before, so this is a fresh listing rather than the map
     # the session already holds.
-    tools = await _collect_tools(healthy)
+    # Skills likewise: a server skill reads through the toolset it was listed
+    # from, and a reconnected server is a new toolset.
+    tools, skills = await asyncio.gather(_collect_tools(healthy), _gather_skills(healthy))
     cl.user_session.set("mcp_tools", tools)
     _update_mcp_info(connected_names, still_failed, tools)
 
@@ -970,7 +1139,13 @@ async def _reconnect_mcp() -> bool:
     model = cl.user_session.get("model")
     try:
         toolsets = [s for _, s in healthy]
-        agent = make_agent(provider, model, toolsets=toolsets)
+        agent = make_agent(
+            provider,
+            model,
+            toolsets=toolsets,
+            skills=skills,
+            server_instructions=server_instructions(healthy),
+        )
         cl.user_session.set("agent", agent)
         cl.user_session.set("mcp_contexts", healthy)
     except Exception as e:
@@ -1071,6 +1246,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
     response_msg = cl.Message(content="")
     response_sent = False
     tool_steps: dict[str, cl.Step] = {}  # tool_call_id → Step
+    skills_used: list[str] = []  # loaded this turn, shown under the answer
     result_messages = None
 
     history_chars = sum(len(str(m)) for m in msg_history)
@@ -1177,7 +1353,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                         )
 
                                     step = cl.Step(
-                                        name=tool_name, type="tool", parent_id=_run_step_id
+                                        name=_tool_step_name(tool_name, tool_args),
+                                        type="tool",
+                                        parent_id=_run_step_id,
                                     )
                                     step.input = (
                                         json.dumps(tool_args, indent=2)
@@ -1194,6 +1372,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                 elif isinstance(event, FunctionToolResultEvent):
                                     tool_result = _tool_result_fields(event)
                                     result_text = tool_result.text
+                                    loaded = _loaded_skill(tool_result.tool_name, result_text)
+                                    if loaded:
+                                        skills_used.append(loaded)
                                     result_binaries = tool_result.binaries
                                     result_content = tool_result.content
                                     call_id = tool_result.call_id
@@ -1346,6 +1527,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
 
         # Send the response message AFTER all steps so it appears below them
         response_msg.content = "".join(text_parts)
+        if skills_used:
+            # UI only: the history the model sees comes from the agent run.
+            response_msg.content += "\n\n" + _skills_used_line(skills_used)
 
         # Attach downloadable files from code blocks in the response
         download_elements = extract_downloads_from_response(response_msg.content, provenance)

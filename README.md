@@ -59,9 +59,19 @@ A production-ready chat application that connects to OrionBelt Analytics and Ori
 - **Tool call resilience** - Retries failed tool calls up to 3 times; preserves conversation context on errors
 - **Flexible transport** - Stdio (local subprocess) or Streamable HTTP (remote) per server
 - **MCP sampling (with tools)** - Servers can delegate LLM calls back to the chat client via `sampling/createMessage`. The client advertises the `sampling.tools` sub-capability so servers can include tool definitions; sampling requests are handled by the env-configured default model (`DEFAULT_PROVIDER` + the matching `*_DEFAULT_MODEL`)
+- **Server instructions** - The instructions a server sends when it connects reach the model, each under its server's name so they cannot be mistaken for another server's; switch one off with `instructions: false`
 - **MCP elicitation** - Servers can ask the user for input mid tool call. Form mode renders the server's schema as an in-chat form the user reviews before submitting, with Submit / Decline / Cancel; URL mode shows the full link with its domain highlighted and warnings for look-alike or unencrypted hosts, and opens it only when the user clicks. Handles both protocol 2025-11-25 (`elicitation/create`) and 2026-07-28 (the tool call returns an `InputRequiredResult` and is retried with the answer)
 - **Tool visibility** - Collapsible steps show tool calls with arguments and results
 - **Multi-turn context** - Full conversation history management with Pydantic AI
+
+### Agent Skills
+
+- **`SKILL.md` folders** - Drop [Agent Skills](https://agentskills.io) into a `skills/` directory: a folder per skill, each with a `SKILL.md` (YAML frontmatter plus markdown instructions) and any reference files it needs. A skill written for another agent works here too
+- **Skills from MCP servers** - A connected server that publishes skills as `skill://<name>/SKILL.md` resources — FastMCP's `SkillsDirectoryProvider`, as OrionBelt Analytics does — has them offered alongside the local ones, read over the same connection; switch a server's off with `skills: false`
+- **Progressive disclosure** - Only each skill's name and description go out with a request; the assistant loads a skill's full instructions with `load_skill` when a task matches, and a bundled file with `read_skill_file` only when the instructions point to it
+- **Kept in context** - A loaded skill is never trimmed out of the conversation history, so the assistant keeps following it for the rest of the task
+- **Instructions only** - Nothing in a skill directory is executed; bundled scripts can be read but not run
+- **Visible** - The greeting lists the skills found and where each comes from (click the pill), and names any that was skipped, and why. Loading a skill shows as a **Skill: name** step, and the answer it shaped ends with a *Skills used* line
 
 ### Interactive Charts
 
@@ -279,6 +289,7 @@ servers panel rather than quietly sent as an empty string.
 | Relationship to the env vars | **Added** to them — one new server is one entry |
 | Repoint a built-in | Reuse its name (`OrionBelt Analytics`, `OrionBelt Semantic Layer`) — the file entry replaces it |
 | Disable a built-in | Unset its environment variable; there is no `enabled:` field, and an entry still needs a working `endpoint` or `command` |
+| Per-server switches | `sampling:` (default `false`), `skills:` and `instructions:` (both default `true`) |
 
 Each entry needs exactly one of `endpoint` (a URL, or a directory plus
 `module`) or `command` (plus optional `args`/`env`). Credentials go where the
@@ -289,6 +300,14 @@ harder failure to spot. A malformed entry does not take the working servers
 down with it: the servers panel shows what was rejected and why, and the other
 entries still load.
 
+Three switches decide how far a server reaches into the conversation.
+`sampling: true` lets it call back into your LLM, so it is off unless you opt
+in. `skills:` and `instructions:` are on: a server's skills cost one catalog
+line each until one is used, and its instructions are text about its own tools
+— the same footing as the tool descriptions it already sends. Set either to
+`false` for a server whose instructions are long, or written for a different
+client.
+
 `env:` is additive: it is layered over the small set of variables an MCP
 subprocess inherits by default (`PATH`, `HOME`, …), so naming one variable does
 not take the rest away. That baseline is not the parent process's full
@@ -297,6 +316,54 @@ the rest of your keys.
 
 The first launch of a `uvx` or `npx` server downloads it, which can outrun the
 connection timeout; the server then connects normally on the next restart.
+
+**Agent Skills (optional):**
+
+A skill is a folder holding a `SKILL.md`, in the
+[Agent Skills](https://agentskills.io) format:
+
+```
+skills/
+  obml-modeling/
+    SKILL.md
+    references/
+      measures.md
+```
+
+```markdown
+---
+name: obml-modeling
+description: Build an OBML semantic model from a discovered schema. Use when the
+  user asks for a semantic model, measures or metrics for their database.
+---
+# Building an OBML model
+
+1. Call `get_obml_reference` before writing any YAML.
+2. … For common measure patterns, read references/measures.md.
+```
+
+`name` must be lowercase letters, digits and single hyphens (at most 64
+characters) and defaults to the folder's name; `description` is required, at
+most 1024 characters, and is what the assistant reads to decide when the skill
+applies — so say what it does *and* when to use it. Everything after the
+frontmatter is loaded only when the skill is, so it can be as long as the task
+needs; reference files are read one at a time, up to 256 KB each, and only
+UTF-8 text.
+
+| | |
+|---|---|
+| Searched for | `./skills`, then `<app root>/skills` — both are used |
+| Override the path | `SKILLS_DIR` — one or more directories, separated like `PATH` |
+| A directory that is itself a skill | Counts as one, so `SKILLS_DIR` can point straight at a skill folder |
+| From MCP servers | Every connected server publishing `skill://<name>/SKILL.md`, unless its entry says `skills: false` |
+| Same name twice | The first one found is used — local folders before servers, servers in configured order; the other is reported |
+| Picked up | On the next session start, model switch or reconnect — no restart needed |
+
+A `SKILL.md` that cannot be used — no frontmatter, no description, a malformed
+name — is listed in the greeting with the reason, and the other skills still
+load. A server's skills are read over its MCP connection: the model sees a
+server's `skill://` URIs and a local folder's paths through the same two
+tools, and a copy of a server's skill in a local folder replaces it.
 
 **System Prompt (optional):**
 
@@ -343,6 +410,7 @@ file; see [`.env.example`](./.env.example) for a copyable starting point.
 | Variable | Default | Purpose |
 |---|---|---|
 | `SYSTEM_PROMPT_FILE` | _(empty)_ | Prompt file to load; defaults to the `system_prompt.md` shipped in the package |
+| `SKILLS_DIR` | _(empty)_ | Directories of Agent Skills, separated like `PATH`. When empty, `skills/` in the working directory and in the app root are used |
 | `TOOL_CALL_TIMEOUT_SECONDS` | `300` | Budget for the whole tool-call phase of one agent turn, including any sampling round-trips |
 | `MCP_REQUEST_TIMEOUT_SECONDS` | `300` | Per-request MCP transport timeout. Must be at least as large as your slowest single tool call |
 
@@ -405,6 +473,14 @@ docker compose up --build
 ```bash
 docker build -t orionbelt-chat .
 docker run --rm -p 8080:8080 --env-file .env orionbelt-chat
+```
+
+**Adding skills:** the image's app root is `/app/runtime`, so mount a skills
+directory at `/app/runtime/skills` (read-only is enough):
+
+```bash
+docker run --rm -p 8080:8080 --env-file .env \
+  -v "$PWD/skills:/app/runtime/skills:ro" orionbelt-chat
 ```
 
 **Using the published image from Docker Hub:**
@@ -496,6 +572,8 @@ Create an OBML model for customer analytics with metrics for revenue, order coun
 - **Mermaid Renderer** - Client-side diagram rendering via Mermaid.js CDN
 - **File Downloads** - Auto-detect downloadable content (TTL, JSON, CSV, SQL) in tool results
 - **File Uploads** - Session registry for uploaded models/ontologies; `@upload:` handles are expanded into tool arguments via pydantic-ai's `process_tool_call` hook
+- **Agent Skills** - `SKILL.md` folders and servers' `skill://` resources exposed as a function toolset whose instructions carry the skill catalog; `load_skill` and `read_skill_file` read the rest on demand, confined to each skill
+- **Server instructions** - Each connected server's initialization instructions, collected after the handshake and sent as agent instructions under the server's name
 
 ## Development
 

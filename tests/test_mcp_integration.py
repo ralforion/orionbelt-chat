@@ -191,3 +191,168 @@ class TestConfiguredServer:
             mcp_config, "config_path", lambda: self._config(tmp_path, "    sampling: true\n")
         )
         assert "My Own Server" in servers_using_sampling()
+
+
+def _script_calls(*calls: tuple[str, dict]):
+    """A model that makes *calls* one per turn, then answers; records its instructions."""
+    seen: list[str | None] = []
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        seen.append(info.instructions)
+        made = sum(
+            isinstance(part, ToolCallPart)
+            for message in messages
+            if isinstance(message, ModelResponse)
+            for part in message.parts
+        )
+        if made < len(calls):
+            tool_name, args = calls[made]
+            return ModelResponse(parts=[ToolCallPart(tool_name=tool_name, args=args)])
+        return ModelResponse(parts=[TextPart("done")])
+
+    return FunctionModel(model_fn), seen
+
+
+async def _skill_results(toolset: MCPToolset, *calls: tuple[str, dict]) -> list[str]:
+    """Discover the fake server's skills, then run *calls* against them; the result texts."""
+    from orionbelt_chat.skills import discover_server_skills, skills_toolset
+
+    found, _ = await discover_server_skills("Fake", toolset)
+    model, _seen = _script_calls(*calls)
+    agent = Agent(model=model, toolsets=[toolset, skills_toolset(found)])
+    texts: list[str] = []
+    async with agent.iter("go") as agent_run:
+        async for node in agent_run:
+            if Agent.is_call_tools_node(node):
+                async with node.stream(agent_run.ctx) as stream:
+                    async for event in stream:
+                        if isinstance(event, FunctionToolResultEvent):
+                            texts.append(_tool_result_fields(event).text)
+    return texts
+
+
+class TestServerSkills:
+    """Skills a server publishes as `skill://` resources, read over a real session."""
+
+    async def test_discovers_the_published_skills_only(self):
+        from orionbelt_chat.skills import discover_server_skills
+
+        async with _toolset() as toolset:
+            found, errors = await discover_server_skills("Fake", toolset)
+        assert [s.name for s in found] == ["fake-skill", "folded-skill"]
+        assert all(s.server_name == "Fake" for s in found)
+        assert errors == []
+
+    async def test_a_folded_description_is_read_from_the_file(self):
+        # FastMCP before 4 lists `description: >-` as ">-"; the catalog needs the text.
+        from orionbelt_chat.skills import discover_server_skills
+
+        async with _toolset() as toolset:
+            found, _ = await discover_server_skills("Fake", toolset)
+        folded = next(s for s in found if s.name == "folded-skill")
+        assert folded.description == "Folded description over two lines."
+
+    async def test_load_skill_and_a_reference_over_mcp(self):
+        from orionbelt_chat.skills import LOAD_SKILL_TOOL, READ_SKILL_FILE_TOOL
+
+        async with _toolset() as toolset:
+            loaded, reference = await _skill_results(
+                toolset,
+                (LOAD_SKILL_TOOL, {"name": "fake-skill"}),
+                (READ_SKILL_FILE_TOOL, {"name": "fake-skill", "path": "references/guide.md"}),
+            )
+        assert loaded.startswith('<skill name="fake-skill">\n# Fake skill')
+        assert "description:" not in loaded
+        # Listed from the manifest, without SKILL.md itself.
+        assert loaded.endswith("- references/guide.md")
+        assert reference == "Guide: use row_count."
+
+    async def test_a_skill_uri_from_server_instructions_is_understood(self):
+        from orionbelt_chat.skills import LOAD_SKILL_TOOL, READ_SKILL_FILE_TOOL
+
+        async with _toolset() as toolset:
+            loaded, reference = await _skill_results(
+                toolset,
+                (LOAD_SKILL_TOOL, {"name": "skill://fake-skill/SKILL.md"}),
+                (
+                    READ_SKILL_FILE_TOOL,
+                    {"name": "fake-skill", "path": "skill://fake-skill/references/guide.md"},
+                ),
+            )
+        assert loaded.startswith('<skill name="fake-skill">')
+        assert reference == "Guide: use row_count."
+
+    async def test_a_missing_file_is_an_answer_not_a_failed_run(self):
+        from orionbelt_chat.skills import READ_SKILL_FILE_TOOL
+
+        async with _toolset() as toolset:
+            (text,) = await _skill_results(
+                toolset, (READ_SKILL_FILE_TOOL, {"name": "fake-skill", "path": "references/x.md"})
+            )
+        assert text.startswith("Error: could not read skill://fake-skill/references/x.md")
+
+    async def test_climbing_out_is_refused_before_the_server_is_asked(self):
+        from orionbelt_chat.skills import READ_SKILL_FILE_TOOL
+
+        async with _toolset() as toolset:
+            (text,) = await _skill_results(
+                toolset, (READ_SKILL_FILE_TOOL, {"name": "fake-skill", "path": "../other/SKILL.md"})
+            )
+        assert "outside the skill 'fake-skill'" in text
+
+
+class TestServerInstructions:
+    """What a server sends at initialization, passed on to the model by name."""
+
+    async def test_reaches_the_model_under_the_server_name(self, monkeypatch):
+        from orionbelt_chat import agent as agent_module
+        from orionbelt_chat import mcp_servers
+
+        monkeypatch.setattr(mcp_servers, "servers_with_instructions", lambda: frozenset({"Fake"}))
+        model, seen = _script_calls()
+        monkeypatch.setattr(agent_module, "resolve_model", lambda provider, name: model)
+
+        async with _toolset() as toolset:
+            forwarded = mcp_servers.server_instructions([("Fake", toolset)])
+            agent = agent_module.make_agent(
+                "openrouter", "any", toolsets=[toolset], server_instructions=forwarded
+            )
+            await agent.run("go")
+
+        assert forwarded == [("Fake", "Fake server instructions: call echo before row_count.")]
+        assert seen and "### Fake\n\nFake server instructions" in (seen[0] or "")
+
+    async def test_a_server_that_was_never_entered_has_none(self, monkeypatch):
+        from orionbelt_chat import mcp_servers
+
+        monkeypatch.setattr(mcp_servers, "servers_with_instructions", lambda: frozenset({"Fake"}))
+        assert mcp_servers.server_instructions([("Fake", _toolset())]) == []
+
+
+class TestServerOptOuts:
+    """`skills: false` and `instructions: false` in mcp_servers.yaml."""
+
+    def test_both_default_on_and_can_be_switched_off(self, tmp_path, monkeypatch):
+        from orionbelt_chat import mcp_config, mcp_servers
+
+        config = TestConfiguredServer._config(
+            tmp_path,
+            "  - name: Quiet Server\n"
+            f"    command: {sys.executable}\n"
+            f'    args: ["{SERVER}"]\n'
+            "    skills: false\n"
+            "    instructions: 'no'\n",
+        )
+        monkeypatch.setattr(mcp_config, "config_path", lambda: config)
+        assert "My Own Server" in mcp_servers.servers_with_skills()
+        assert "My Own Server" in mcp_servers.servers_with_instructions()
+        assert "Quiet Server" not in mcp_servers.servers_with_skills()
+        assert "Quiet Server" not in mcp_servers.servers_with_instructions()
+
+    async def test_switched_off_instructions_are_not_read(self, tmp_path, monkeypatch):
+        from orionbelt_chat import mcp_config, mcp_servers
+
+        config = TestConfiguredServer._config(tmp_path, "    instructions: false\n")
+        monkeypatch.setattr(mcp_config, "config_path", lambda: config)
+        async with _toolset() as toolset:
+            assert mcp_servers.server_instructions([("My Own Server", toolset)]) == []
