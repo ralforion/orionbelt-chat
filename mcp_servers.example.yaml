@@ -106,3 +106,12 @@ servers:
   # - name: My Agentic Server
   #   endpoint: https://agents.example.com/mcp
   #   sampling: true
+
+  # A server's skills (`skill://<name>/SKILL.md` resources) and the
+  # instructions it sends when it connects both reach the model by default.
+  # Switch either off for a server whose instructions are long, or written for
+  # a different client.
+  # - name: Chatty Server
+  #   endpoint: https://chatty.example.com/mcp
+  #   skills: false
+  #   instructions: false

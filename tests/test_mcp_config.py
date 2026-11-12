@@ -106,6 +106,22 @@ class TestParseServer:
         with pytest.raises(McpConfigError, match="must be true or false"):
             parse_server({"name": "S", "endpoint": "https://x/mcp", "sampling": "maybe"}, "cfg")
 
+    @pytest.mark.parametrize("key", ["skills", "instructions"])
+    def test_skills_and_instructions_default_on(self, key):
+        defn = parse_server({"name": "S", "endpoint": "https://x/mcp"}, "cfg")
+        assert getattr(defn, key) is True
+
+    @pytest.mark.parametrize("key", ["skills", "instructions"])
+    @pytest.mark.parametrize(("value", "expected"), [(False, False), ("off", False), ("yes", True)])
+    def test_skills_and_instructions_can_be_switched(self, key, value, expected):
+        defn = parse_server({"name": "S", "endpoint": "https://x/mcp", key: value}, "cfg")
+        assert getattr(defn, key) is expected
+
+    @pytest.mark.parametrize("key", ["skills", "instructions"])
+    def test_a_bad_value_names_its_field(self, key):
+        with pytest.raises(McpConfigError, match=f"'{key}' must be true or false"):
+            parse_server({"name": "S", "endpoint": "https://x/mcp", key: "maybe"}, "cfg")
+
     def test_env_is_stringified(self):
         defn = parse_server({"name": "E", "command": "x", "env": {"PORT": 8080}}, "cfg")
         assert defn.env == {"PORT": "8080"}

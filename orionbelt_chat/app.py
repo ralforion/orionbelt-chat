@@ -42,12 +42,29 @@ from orionbelt_chat.mcp_servers import (
     get_mcp_server_errors,
     get_mcp_servers_named,
     get_sampling_model_label,
+    server_instructions,
     servers_using_sampling,
+    servers_with_skills,
 )
 from orionbelt_chat.mermaid_renderer import extract_mermaid_from_tool_results
 from orionbelt_chat.provenance import APP_VERSION, mark_png, provenance_record
 from orionbelt_chat.providers import PROVIDER_LABELS, default_model_for, models_for
 from orionbelt_chat.settings import settings
+from orionbelt_chat.skills import (
+    DISABLED_SKILLS_COOKIE,
+    LOAD_SKILL_TOOL,
+    READ_SKILL_FILE_TOOL,
+    SKILL_OUTCOME,
+    ServerSkill,
+    Skill,
+    disabled_skills_from_cookie,
+    discover_server_skills,
+    discover_skills,
+    merge_skills,
+    parse_disabled_skills,
+    skill_name,
+    skill_uri,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +143,9 @@ class ToolResult(NamedTuple):
     text: str
     binaries: list[BinaryContent]
     content: str
+    #: What the tool attached for the app, not the model — the skill tools put
+    #: their outcome here (see `skills.SKILL_OUTCOME`).
+    metadata: Any = None
 
 
 def _tool_result_fields(event: FunctionToolResultEvent) -> ToolResult:
@@ -148,6 +168,7 @@ def _tool_result_fields(event: FunctionToolResultEvent) -> ToolResult:
         # Fall back to the raw content so a result that carries no text (an
         # image, say) still logs and displays as something.
         content=text or str(part.content),
+        metadata=getattr(part, "metadata", None),
     )
 
 
@@ -207,6 +228,8 @@ async def on_start():
     cl.user_session.set("provider", provider)
     cl.user_session.set("model", model)
     cl.user_session.set("pydantic_history", None)
+    # The skills this browser switched off last time, so the agent starts without them.
+    cl.user_session.set("disabled_skills", disabled_skills_from_cookie(_cookie_header()))
 
     # Create agent and start MCP servers
     init_success = await _init_agent(provider, model)
@@ -216,17 +239,16 @@ async def on_start():
     await cl.context.emitter.set_commands([UPLOAD_COMMAND])
 
     if init_success:
-        mcp_info = cl.user_session.get("mcp_info", "")
         status_msg = cl.Message(
             content=(
                 f"**OrionBelt® Analytics Assistant** ready.\n\n"
                 f"Provider: `{provider}` | Model: `{model}`\n\n"
-                f"{mcp_info}\n\n"
+                f"{_status_info()}\n\n"
                 f"Ask me anything about your data, or use **Upload** next to the message "
                 f"box to attach an OBSL semantic model or an RDF ontology."
             ),
-            # Each server's tool list, opened by the pill naming it above.
-            elements=_tool_elements(),
+            # Each server's tool list, and the skills, opened by the pill naming it above.
+            elements=_status_elements(),
         )
         await status_msg.send()
         cl.user_session.set("status_msg", status_msg)
@@ -463,13 +485,23 @@ async def _init_agent(provider: str, model: str) -> bool:
             logger.warning("MCP server failed: %s — %s", name, e)
             failed_names.append((name, e))
 
-    tools = await _collect_tools(active_contexts)
+    # Both listings ask every server, so they run side by side rather than
+    # adding their waits together before the greeting can appear.
+    tools, skills = await asyncio.gather(
+        _collect_tools(active_contexts), _gather_skills(active_contexts)
+    )
     cl.user_session.set("mcp_tools", tools)
     _update_mcp_info(connected_names, failed_names, tools)
 
     # Create agent with whatever servers connected
     try:
-        agent = make_agent(provider, model, toolsets=connected)
+        agent = make_agent(
+            provider,
+            model,
+            toolsets=connected,
+            skills=_enabled_skills(skills),
+            server_instructions=server_instructions(active_contexts),
+        )
         cl.user_session.set("agent", agent)
         cl.user_session.set("mcp_contexts", active_contexts)
         return True
@@ -587,15 +619,216 @@ async def _refresh_status_message() -> None:
         return
     provider = cl.user_session.get("provider")
     model = cl.user_session.get("model")
-    mcp_info = cl.user_session.get("mcp_info", "")
-    status_msg.elements = _tool_elements()
+    status_msg.elements = _status_elements()
     status_msg.content = (
         f"**OrionBelt® Analytics Assistant** ready.\n\n"
         f"Provider: `{provider}` | Model: `{model}`\n\n"
-        f"{mcp_info}\n\n"
+        f"{_status_info()}\n\n"
         f"Ask me anything about your data."
     )
     await status_msg.update()
+
+
+# ── Agent skills ───────────────────────────────────────────────────────────
+
+
+async def _gather_skills(named_servers: list[tuple[str, Any]]) -> list[Skill]:
+    """Local skills, then each connected server's; kept, with any problems, for the greeting.
+
+    Run on every agent build — session start, model switch, either reconnect —
+    so an added or edited skill shows up without a restart, and the greeting
+    lists exactly what the agent was given.
+    """
+    local, errors = discover_skills()
+    allowed = servers_with_skills()
+
+    async def listing(name: str, server: Any) -> tuple[list[ServerSkill], list[str]]:
+        try:
+            return await asyncio.wait_for(
+                discover_server_skills(name, server), timeout=_TOOL_LIST_TIMEOUT
+            )
+        except Exception as e:
+            # Connected either way; it just goes without skills this session.
+            logger.warning("Could not list skills for %s — %s", name, e)
+            return [], []
+
+    listings = await asyncio.gather(
+        *(listing(name, server) for name, server in named_servers if name in allowed)
+    )
+    for _found, problems in listings:
+        errors.extend(problems)
+    skills, duplicates = merge_skills(local, *(found for found, _ in listings))
+    for problem in duplicates:
+        logger.warning("Skill ignored — %s", problem)
+    errors.extend(duplicates)
+
+    cl.user_session.set("skills", skills)
+    cl.user_session.set("skill_errors", errors)
+    return skills
+
+
+def _skill_source(skill: Skill) -> str:
+    """Where a server's skill came from, as markdown after its name; nothing for a local one."""
+    return f" _(from {skill.server_name})_" if isinstance(skill, ServerSkill) else ""
+
+
+def _skill_origin(skill: Skill) -> str:
+    """The short label naming where a skill came from."""
+    return skill.server_name if isinstance(skill, ServerSkill) else "local"
+
+
+def _skills_info() -> str:
+    """A warning line for each skill that was skipped, and why.
+
+    The skills themselves are listed by the checklist under the greeting; a
+    skill the user meant to add but mis-wrote would otherwise just be missing
+    from it, with nothing saying why.
+    """
+    return "\n\n".join(
+        f"⚠️ Skill ignored — {problem}" for problem in cl.user_session.get("skill_errors") or []
+    )
+
+
+#: Names both the custom element (public/elements/SkillsPanel.jsx) and what it renders.
+SKILLS_PANEL = "SkillsPanel"
+
+#: The action the checklist calls with the skills it has switched off.
+SKILLS_ACTION = "skill_selection"
+
+
+def _skill_elements() -> list[Any]:
+    """The skills checklist shown under the greeting; nothing when there are no skills."""
+    skills: list[Skill] = cl.user_session.get("skills") or []
+    if not skills:
+        return []
+    disabled = cl.user_session.get("disabled_skills") or frozenset()
+    return [
+        cl.CustomElement(
+            name=SKILLS_PANEL,
+            display="inline",
+            props={
+                "skills": [
+                    {"name": s.name, "description": s.description, "source": _skill_origin(s)}
+                    for s in skills
+                ],
+                "disabled": sorted(s.name for s in skills if s.name in disabled),
+                "cookie": DISABLED_SKILLS_COOKIE,
+                "action": SKILLS_ACTION,
+            },
+        )
+    ]
+
+
+def _enabled_skills(skills: list[Skill]) -> list[Skill]:
+    """*skills* without the ones switched off in the checklist."""
+    disabled = cl.user_session.get("disabled_skills") or frozenset()
+    return [s for s in skills if s.name not in disabled]
+
+
+def _cookie_header() -> str | None:
+    """The ``Cookie`` header the chat's connection was opened with, if any."""
+    environ = getattr(cl.context.session, "environ", None)
+    value = environ.get("HTTP_COOKIE") if isinstance(environ, dict) else None
+    return value if isinstance(value, str) else None
+
+
+@cl.action_callback(SKILLS_ACTION)
+async def on_skill_selection(action: cl.Action) -> dict[str, bool]:
+    """Apply the checklist: rebuild the agent with only the skills left ticked.
+
+    The history is kept, unlike on a model switch: nothing in it depends on
+    which skills are on. A skill switched off after it was loaded stays in
+    the history the model has already read; it just cannot be loaded again.
+    """
+    disabled = parse_disabled_skills(action.payload.get("disabled"))
+    if disabled == cl.user_session.get("disabled_skills"):
+        return {"applied": True}
+    cl.user_session.set("disabled_skills", disabled)
+
+    # No agent yet (or its creation failed): the choice is stored, and the
+    # next build picks it up.
+    if cl.user_session.get("agent") is None:
+        return {"applied": False}
+    contexts: list[tuple[str, Any]] = cl.user_session.get("mcp_contexts") or []
+    try:
+        agent = make_agent(
+            cl.user_session.get("provider"),
+            cl.user_session.get("model"),
+            toolsets=[server for _, server in contexts],
+            skills=_enabled_skills(cl.user_session.get("skills") or []),
+            server_instructions=server_instructions(contexts),
+        )
+    except Exception as e:
+        logger.warning("Could not apply the skill selection — %s", e)
+        return {"applied": False}
+    cl.user_session.set("agent", agent)
+    logger.info("Skills switched off for this chat: %s", ", ".join(sorted(disabled)) or "none")
+    return {"applied": True}
+
+
+def _status_info() -> str:
+    """Everything the greeting reports between the model line and the prompt."""
+    mcp_info = cl.user_session.get("mcp_info", "")
+    skills_info = _skills_info()
+    return f"{mcp_info}\n\n{skills_info}" if skills_info else f"{mcp_info}"
+
+
+def _status_elements() -> list[Any]:
+    """Every side panel the greeting's pills open."""
+    return _tool_elements() + _skill_elements()
+
+
+def _tool_step_name(tool_name: str, tool_args: Any) -> str:
+    """The step title for a tool call; a skill is named, not filed under its tool.
+
+    "load_skill" says that a skill was used, never which. The arguments are
+    the model's, so anything unexpected falls back to the tool's own name.
+    """
+    args = tool_args if isinstance(tool_args, dict) else {}
+    reference = args.get("name")
+    if tool_name not in (LOAD_SKILL_TOOL, READ_SKILL_FILE_TOOL) or not isinstance(reference, str):
+        return tool_name
+    name = skill_name(reference)
+    if not name:
+        return tool_name
+    if tool_name == LOAD_SKILL_TOOL:
+        return f"Skill: {name}"
+    path = args.get("path")
+    if not isinstance(path, str) or not path.strip():
+        return tool_name
+    return f"Skill file: {name} › {path.strip().removeprefix(skill_uri(name, ''))}"
+
+
+def _skill_outcome(result: ToolResult) -> dict[str, Any] | None:
+    """The outcome a skill tool attached to its result; None for any other result."""
+    if result.tool_name not in _SKILL_TOOLS or not isinstance(result.metadata, dict):
+        return None
+    outcome = result.metadata.get(SKILL_OUTCOME)
+    return outcome if isinstance(outcome, dict) else None
+
+
+def _loaded_skill(result: ToolResult) -> str | None:
+    """The skill a successful `load_skill` loaded, as resolved; None for anything else.
+
+    Taken from the outcome, not the text: a call made with a `skill://` URI
+    still names the skill, and a failure never does.
+    """
+    outcome = _skill_outcome(result)
+    if result.tool_name != LOAD_SKILL_TOOL or not outcome or outcome.get("ok") is not True:
+        return None
+    name = outcome.get("name")
+    return name if isinstance(name, str) else None
+
+
+def _skills_used_line(names: list[str]) -> str:
+    """The note under an answer naming the skills loaded while writing it."""
+    by_name = {s.name: s for s in cl.user_session.get("skills") or []}
+    used = []
+    for name in dict.fromkeys(names):  # each once, first use first
+        skill = by_name.get(name)
+        used.append(f"`{name}`" + (_skill_source(skill) if skill else ""))
+    label = "Skill used" if len(used) == 1 else "Skills used"
+    return f"_{label}:_ " + ", ".join(used)
 
 
 def _update_mcp_info(
@@ -732,9 +965,16 @@ _TRANSIENT_TOOLS: set[str] = {
 }
 _TRANSIENT_TRIM_LIMIT = 200
 
+# Results that are never trimmed, however old. A loaded skill is the
+# instructions the model is following for the rest of the task; cut to 500
+# characters it would carry on without them and never know to reload them.
+_PINNED_TOOLS: set[str] = {LOAD_SKILL_TOOL}
+
 
 def _trim_limit_for_tool(tool_name: str | None, is_recent: bool) -> int | None:
     """Return the char limit for a tool result, or None to keep it intact."""
+    if tool_name in _PINNED_TOOLS:
+        return None
     if tool_name in _TRANSIENT_TOOLS:
         return _TRANSIENT_TRIM_LIMIT
     if not is_recent:
@@ -819,6 +1059,35 @@ _MCP_ERROR_PHRASES = (
     "Broken pipe",
     "stream has been closed",
 )
+
+#: The skill tools: function tools of this app, whose results are skill text.
+_SKILL_TOOLS = frozenset({LOAD_SKILL_TOOL, READ_SKILL_FILE_TOOL})
+
+
+def _signals_session_loss(result: ToolResult) -> bool:
+    """Whether a tool result reads like a dropped MCP session.
+
+    A skill's text is its author's, returned verbatim: a shell example with
+    `cat <<EOF`, or a troubleshooting note that opens "Error: Connection
+    refused", is not a closed stream — and treating it as one abandoned the
+    answer to reconnect. So a skill result counts only when the tool's own
+    outcome says the read failed, which is where a server skill whose session
+    died says so. The outcome travels as metadata, apart from the text.
+    """
+    if result.tool_name in _SKILL_TOOLS:
+        outcome = _skill_outcome(result)
+        if not outcome or outcome.get("ok") is not False:
+            return False
+    return any(phrase in result.content for phrase in _MCP_ERROR_PHRASES)
+
+
+def _in_configured_order(
+    servers: list[tuple[str, Any]], configured: list[str]
+) -> list[tuple[str, Any]]:
+    """*servers* in the order the configuration lists them; unknown names last, as given."""
+    rank = {name: i for i, name in enumerate(configured)}
+    return sorted(servers, key=lambda item: rank.get(item[0], len(rank)))
+
 
 _MCP_ERROR_TYPES = (
     ConnectionError,
@@ -957,11 +1226,17 @@ async def _reconnect_mcp() -> bool:
             logger.warning("MCP server reconnect failed: %s — %s", name, e)
             still_failed.append((name, e))
 
+    # Back into configured order: `healthy` lists the servers that stayed up
+    # first, and the order settles which of two servers' same-named skills wins
+    # (and how the greeting lists them) — a reconnect must not change either.
+    healthy = _in_configured_order(healthy, [name for name, _ in named_servers])
     connected_names = [n for n, _ in healthy]
     # A reconnected server has a cold tool cache, and may not even expose the
     # same tools it did before, so this is a fresh listing rather than the map
     # the session already holds.
-    tools = await _collect_tools(healthy)
+    # Skills likewise: a server skill reads through the toolset it was listed
+    # from, and a reconnected server is a new toolset.
+    tools, skills = await asyncio.gather(_collect_tools(healthy), _gather_skills(healthy))
     cl.user_session.set("mcp_tools", tools)
     _update_mcp_info(connected_names, still_failed, tools)
 
@@ -970,7 +1245,13 @@ async def _reconnect_mcp() -> bool:
     model = cl.user_session.get("model")
     try:
         toolsets = [s for _, s in healthy]
-        agent = make_agent(provider, model, toolsets=toolsets)
+        agent = make_agent(
+            provider,
+            model,
+            toolsets=toolsets,
+            skills=_enabled_skills(skills),
+            server_instructions=server_instructions(healthy),
+        )
         cl.user_session.set("agent", agent)
         cl.user_session.set("mcp_contexts", healthy)
     except Exception as e:
@@ -1071,6 +1352,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
     response_msg = cl.Message(content="")
     response_sent = False
     tool_steps: dict[str, cl.Step] = {}  # tool_call_id → Step
+    skills_used: list[str] = []  # loaded this turn, shown under the answer
     result_messages = None
 
     history_chars = sum(len(str(m)) for m in msg_history)
@@ -1177,7 +1459,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                         )
 
                                     step = cl.Step(
-                                        name=tool_name, type="tool", parent_id=_run_step_id
+                                        name=_tool_step_name(tool_name, tool_args),
+                                        type="tool",
+                                        parent_id=_run_step_id,
                                     )
                                     step.input = (
                                         json.dumps(tool_args, indent=2)
@@ -1194,6 +1478,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                 elif isinstance(event, FunctionToolResultEvent):
                                     tool_result = _tool_result_fields(event)
                                     result_text = tool_result.text
+                                    loaded = _loaded_skill(tool_result)
+                                    if loaded:
+                                        skills_used.append(loaded)
                                     result_binaries = tool_result.binaries
                                     result_content = tool_result.content
                                     call_id = tool_result.call_id
@@ -1205,9 +1492,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                         result_content[:200],
                                     )
 
-                                    if any(
-                                        phrase in result_content for phrase in _MCP_ERROR_PHRASES
-                                    ):
+                                    if _signals_session_loss(tool_result):
                                         logger.warning(
                                             "MCP session error detected in tool result — will reconnect: %s",
                                             result_content[:200],
@@ -1346,6 +1631,9 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
 
         # Send the response message AFTER all steps so it appears below them
         response_msg.content = "".join(text_parts)
+        if skills_used:
+            # UI only: the history the model sees comes from the agent run.
+            response_msg.content += "\n\n" + _skills_used_line(skills_used)
 
         # Attach downloadable files from code blocks in the response
         download_elements = extract_downloads_from_response(response_msg.content, provenance)

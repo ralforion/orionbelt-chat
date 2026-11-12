@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     # If the file is missing, an embedded fallback prompt is used.
     system_prompt_file: str = ""
 
+    # ── Agent skills ────────────────────────────────────────
+    # Directories holding Agent Skills: a folder per skill, each with a
+    # SKILL.md (see orionbelt_chat/skills.py). Several can be given, separated
+    # like PATH (`:`, or `;` on Windows). When empty, `skills/` in the working
+    # directory and in the Chainlit app root are both used, if they exist.
+    skills_dir: str = ""
+
     # ── Timeouts ────────────────────────────────────────────
     # Budget for the entire tool-call phase of a single agent turn (covers
     # all tool calls the model issues in that turn, plus any MCP sampling
