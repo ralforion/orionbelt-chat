@@ -14,7 +14,7 @@ Releases before 1.7.0 are described on the
   the tagged version's section here instead of GitHub's generated list of
   pull requests, which buried the features among the dependency bumps. A
   version bump without a section fails CI, so a tag cannot go out without
-  its notes.
+  its notes. (#104)
 
 ## [1.7.0] - 2026-11-12
 
