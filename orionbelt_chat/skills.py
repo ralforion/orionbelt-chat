@@ -50,6 +50,7 @@ import json
 import logging
 import os
 import re
+import urllib.parse
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -74,6 +75,16 @@ DEFAULT_DIRNAME = "skills"
 SKILL_URI_PREFIX = "skill://"
 #: The JSON file listing FastMCP serves beside each skill.
 MANIFEST_PATH = "_manifest"
+
+#: Holds, per browser, the names of the skills the user has switched off: a
+#: URL-encoded JSON list, written by the skills checklist and read when a chat
+#: starts. A cookie rather than server state, so each user of a shared
+#: deployment keeps their own choice and nobody's applies to anybody else.
+DISABLED_SKILLS_COOKIE = "orionbelt_disabled_skills"
+
+#: Browsers cap a cookie near 4 KB, which a list of names can reach well before
+#: this; the cap is for a value that did not come from the checklist.
+MAX_DISABLED_SKILLS = 200
 
 #: Tool names, shared with the history trimmer that has to recognise them.
 LOAD_SKILL_TOOL = "load_skill"
@@ -224,6 +235,35 @@ AnySkill = TypeVar("AnySkill", bound=Skill)
 def skill_uri(name: str, path: str = SKILL_FILENAME) -> str:
     """The resource URI of one of a server skill's files."""
     return f"{SKILL_URI_PREFIX}{name}/{path}"
+
+
+def parse_disabled_skills(raw: Any) -> frozenset[str]:
+    """The skill names in *raw*, a list from the browser; anything else is dropped.
+
+    The value arrives from the client — a cookie or an action payload — so it
+    is filtered to what could be a skill name rather than trusted.
+    """
+    if not isinstance(raw, list):
+        return frozenset()
+    names = [item for item in raw if isinstance(item, str) and _valid_name(item)]
+    return frozenset(names[:MAX_DISABLED_SKILLS])
+
+
+def disabled_skills_from_cookie(cookie_header: str | None) -> frozenset[str]:
+    """The disabled skills recorded in a request's ``Cookie`` header; none if unreadable.
+
+    Parsed by hand: `http.cookies` gives up on the first cookie it dislikes,
+    and other apps on the same host set whatever cookies they please.
+    """
+    for part in (cookie_header or "").split(";"):
+        key, _, value = part.strip().partition("=")
+        if key != DISABLED_SKILLS_COOKIE:
+            continue
+        try:
+            return parse_disabled_skills(json.loads(urllib.parse.unquote(value)))
+        except ValueError:
+            return frozenset()
+    return frozenset()
 
 
 def skill_name(reference: str) -> str:

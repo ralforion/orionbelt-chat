@@ -52,13 +52,16 @@ from orionbelt_chat.provenance import APP_VERSION, mark_png, provenance_record
 from orionbelt_chat.providers import PROVIDER_LABELS, default_model_for, models_for
 from orionbelt_chat.settings import settings
 from orionbelt_chat.skills import (
+    DISABLED_SKILLS_COOKIE,
     LOAD_SKILL_TOOL,
     READ_SKILL_FILE_TOOL,
     ServerSkill,
     Skill,
+    disabled_skills_from_cookie,
     discover_server_skills,
     discover_skills,
     merge_skills,
+    parse_disabled_skills,
     skill_name,
     skill_uri,
 )
@@ -221,6 +224,8 @@ async def on_start():
     cl.user_session.set("provider", provider)
     cl.user_session.set("model", model)
     cl.user_session.set("pydantic_history", None)
+    # The skills this browser switched off last time, so the agent starts without them.
+    cl.user_session.set("disabled_skills", disabled_skills_from_cookie(_cookie_header()))
 
     # Create agent and start MCP servers
     init_success = await _init_agent(provider, model)
@@ -490,7 +495,7 @@ async def _init_agent(provider: str, model: str) -> bool:
             provider,
             model,
             toolsets=connected,
-            skills=skills,
+            skills=_enabled_skills(skills),
             server_instructions=server_instructions(active_contexts),
         )
         cl.user_session.set("agent", agent)
@@ -659,46 +664,102 @@ async def _gather_skills(named_servers: list[tuple[str, Any]]) -> list[Skill]:
 
 
 def _skill_source(skill: Skill) -> str:
-    """Where a skill came from, as the UI shows it after the description."""
+    """Where a server's skill came from, as markdown after its name; nothing for a local one."""
     return f" _(from {skill.server_name})_" if isinstance(skill, ServerSkill) else ""
 
 
-def _skills_element_name(skills: list[Skill]) -> str:
-    """The skills pill's text, and so the element's name — see `_tool_element_name`."""
-    return f"Skills ({len(skills)})"
+def _skill_origin(skill: Skill) -> str:
+    """The short label naming where a skill came from."""
+    return skill.server_name if isinstance(skill, ServerSkill) else "local"
 
 
 def _skills_info() -> str:
-    """The greeting's skills line, plus a warning for each skill that was skipped.
+    """A warning line for each skill that was skipped, and why.
 
-    Empty when no skills are configured, so a deployment that does not use
-    them sees no change.
+    The skills themselves are listed by the checklist under the greeting; a
+    skill the user meant to add but mis-wrote would otherwise just be missing
+    from it, with nothing saying why.
     """
-    skills: list[Skill] = cl.user_session.get("skills") or []
-    parts = []
-    if skills:
-        parts.append(
-            f"{_skills_element_name(skills)} — the assistant loads one when a task calls for it"
-        )
-    # A skill the user meant to add but mis-wrote would otherwise just be
-    # missing from the list, with nothing saying why.
-    for problem in cl.user_session.get("skill_errors") or []:
-        parts.append(f"⚠️ Skill ignored — {problem}")
-    return "\n\n".join(parts)
+    return "\n\n".join(
+        f"⚠️ Skill ignored — {problem}" for problem in cl.user_session.get("skill_errors") or []
+    )
+
+
+#: Names both the custom element (public/elements/SkillsPanel.jsx) and what it renders.
+SKILLS_PANEL = "SkillsPanel"
+
+#: The action the checklist calls with the skills it has switched off.
+SKILLS_ACTION = "skill_selection"
 
 
 def _skill_elements() -> list[Any]:
-    """The side panel listing each skill, opened by the skills pill."""
+    """The skills checklist shown under the greeting; nothing when there are no skills."""
     skills: list[Skill] = cl.user_session.get("skills") or []
     if not skills:
         return []
+    disabled = cl.user_session.get("disabled_skills") or frozenset()
     return [
-        cl.Text(
-            name=_skills_element_name(skills),
-            content="\n".join(f"- `{s.name}` — {s.description}{_skill_source(s)}" for s in skills),
-            display="side",
+        cl.CustomElement(
+            name=SKILLS_PANEL,
+            display="inline",
+            props={
+                "skills": [
+                    {"name": s.name, "description": s.description, "source": _skill_origin(s)}
+                    for s in skills
+                ],
+                "disabled": sorted(s.name for s in skills if s.name in disabled),
+                "cookie": DISABLED_SKILLS_COOKIE,
+                "action": SKILLS_ACTION,
+            },
         )
     ]
+
+
+def _enabled_skills(skills: list[Skill]) -> list[Skill]:
+    """*skills* without the ones switched off in the checklist."""
+    disabled = cl.user_session.get("disabled_skills") or frozenset()
+    return [s for s in skills if s.name not in disabled]
+
+
+def _cookie_header() -> str | None:
+    """The ``Cookie`` header the chat's connection was opened with, if any."""
+    environ = getattr(cl.context.session, "environ", None)
+    value = environ.get("HTTP_COOKIE") if isinstance(environ, dict) else None
+    return value if isinstance(value, str) else None
+
+
+@cl.action_callback(SKILLS_ACTION)
+async def on_skill_selection(action: cl.Action) -> dict[str, bool]:
+    """Apply the checklist: rebuild the agent with only the skills left ticked.
+
+    The history is kept, unlike on a model switch: nothing in it depends on
+    which skills are on. A skill switched off after it was loaded stays in
+    the history the model has already read; it just cannot be loaded again.
+    """
+    disabled = parse_disabled_skills(action.payload.get("disabled"))
+    if disabled == cl.user_session.get("disabled_skills"):
+        return {"applied": True}
+    cl.user_session.set("disabled_skills", disabled)
+
+    # No agent yet (or its creation failed): the choice is stored, and the
+    # next build picks it up.
+    if cl.user_session.get("agent") is None:
+        return {"applied": False}
+    contexts: list[tuple[str, Any]] = cl.user_session.get("mcp_contexts") or []
+    try:
+        agent = make_agent(
+            cl.user_session.get("provider"),
+            cl.user_session.get("model"),
+            toolsets=[server for _, server in contexts],
+            skills=_enabled_skills(cl.user_session.get("skills") or []),
+            server_instructions=server_instructions(contexts),
+        )
+    except Exception as e:
+        logger.warning("Could not apply the skill selection — %s", e)
+        return {"applied": False}
+    cl.user_session.set("agent", agent)
+    logger.info("Skills switched off for this chat: %s", ", ".join(sorted(disabled)) or "none")
+    return {"applied": True}
 
 
 def _status_info() -> str:
@@ -1143,7 +1204,7 @@ async def _reconnect_mcp() -> bool:
             provider,
             model,
             toolsets=toolsets,
-            skills=skills,
+            skills=_enabled_skills(skills),
             server_instructions=server_instructions(healthy),
         )
         cl.user_session.set("agent", agent)

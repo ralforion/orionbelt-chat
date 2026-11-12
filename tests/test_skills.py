@@ -39,9 +39,11 @@ from orionbelt_chat.skills import (
     Skill,
     SkillError,
     catalog,
+    disabled_skills_from_cookie,
     discover_server_skills,
     discover_skills,
     merge_skills,
+    parse_disabled_skills,
     parse_skill,
     read_bundled_file,
     render_skill,
@@ -606,7 +608,9 @@ class TestGreeting:
         store: dict = {}
         with (
             patch.object(app.cl, "user_session") as user_session,
-            patch.object(app.cl, "Text", side_effect=lambda **kwargs: SimpleNamespace(**kwargs)),
+            patch.object(
+                app.cl, "CustomElement", side_effect=lambda **kwargs: SimpleNamespace(**kwargs)
+            ),
         ):
             user_session.set.side_effect = store.__setitem__
             user_session.get.side_effect = lambda k, d=None: store.get(k, d)
@@ -618,27 +622,43 @@ class TestGreeting:
         assert app._skill_elements() == []
         assert app._status_info() == "Connected MCP servers:\n- `X`"
 
-    def test_skills_get_a_pill_that_opens_their_descriptions(self, session, tmp_path):
+    def test_skills_get_a_checklist_under_the_greeting(self, session, tmp_path):
         session["skills"] = [
             skill_at(tmp_path, "one", "First."),
-            skill_at(tmp_path, "two", "Second."),
+            server_skill("two", FakeServer(), "Second."),
         ]
+        session["disabled_skills"] = frozenset({"two", "not-listed"})
         (element,) = app._skill_elements()
-        assert element.name == "Skills (2)"
-        assert element.display == "side"
-        assert element.content == "- `one` — First.\n- `two` — Second."
-        # Chainlit links the pill by finding the element's name in the text.
-        assert element.name in app._skills_info()
+        assert element.name == "SkillsPanel" == app.SKILLS_PANEL
+        assert element.display == "inline"
+        assert element.props == {
+            "skills": [
+                {"name": "one", "description": "First.", "source": "local"},
+                {"name": "two", "description": "Second.", "source": "Fake"},
+            ],
+            # Only the listed ones: the panel compares this with the cookie.
+            "disabled": ["two"],
+            "cookie": skills.DISABLED_SKILLS_COOKIE,
+            "action": app.SKILLS_ACTION,
+        }
+
+    def test_the_checklist_ships_with_the_package(self):
+        element = Path(app.__file__).parent / "public" / "elements" / f"{app.SKILLS_PANEL}.jsx"
+        source = element.read_text(encoding="utf-8")
+        assert "export default function SkillsPanel()" in source
+        # The props the server sends are the ones the element reads.
+        for prop in ("skills", "disabled", "cookie", "action"):
+            assert f"props.{prop}" in source
 
     def test_skipped_skills_are_named_with_the_reason(self, session):
         session["skill_errors"] = ["/x/SKILL.md: 'description' is required"]
         assert app._skills_info() == "⚠️ Skill ignored — /x/SKILL.md: 'description' is required"
 
-    def test_status_info_follows_the_servers(self, session, tmp_path):
+    def test_status_info_puts_problems_after_the_servers(self, session):
         session["mcp_info"] = "Connected MCP servers:\n- `X`"
-        session["skills"] = [skill_at(tmp_path)]
+        session["skill_errors"] = ["broken"]
         info = app._status_info()
-        assert info.index("Connected MCP servers") < info.index("Skills (1)")
+        assert info.index("Connected MCP servers") < info.index("⚠️ Skill ignored — broken")
 
     def test_discovery_is_kept_in_the_session(self, session, env):
         make_skill(env.cwd / "skills", "good")
@@ -648,10 +668,112 @@ class TestGreeting:
         assert session["skills"] == found
         assert len(session["skill_errors"]) == 1
 
-    def test_a_server_skill_names_its_server(self, session):
-        session["skills"] = [server_skill("remote", FakeServer())]
-        (element,) = app._skill_elements()
-        assert element.content.endswith("_(from Fake)_")
+
+class TestDisabledSkillsCookie:
+    @staticmethod
+    def header(value: str, others: str = "theme=dark; bad cookie; =x") -> str:
+        return f"{others}; {skills.DISABLED_SKILLS_COOKIE}={value}; session=abc"
+
+    def test_reads_the_names(self):
+        value = "%5B%22one%22%2C%22two%22%5D"  # ["one","two"], as the panel encodes it
+        assert disabled_skills_from_cookie(self.header(value)) == {"one", "two"}
+
+    @pytest.mark.parametrize("header", [None, "", "theme=dark"])
+    def test_no_cookie_means_nothing_disabled(self, header):
+        assert disabled_skills_from_cookie(header) == frozenset()
+
+    @pytest.mark.parametrize("value", ["not-json", "%7B%7D", "%22one%22", "%5B"])
+    def test_an_unreadable_value_means_nothing_disabled(self, value):
+        assert disabled_skills_from_cookie(self.header(value)) == frozenset()
+
+    def test_only_plausible_names_survive(self):
+        assert parse_disabled_skills(["ok-one", 7, "Not Valid", "x" * 65, None]) == {"ok-one"}
+
+    def test_the_list_is_capped(self, monkeypatch):
+        monkeypatch.setattr(skills, "MAX_DISABLED_SKILLS", 2)
+        assert len(parse_disabled_skills(["a", "b", "c"])) == 2
+
+
+class TestSkillSelection:
+    """The checklist's action: switch skills off for the running chat."""
+
+    @pytest.fixture
+    def session(self, tmp_path):
+        store: dict = {
+            "provider": "openrouter",
+            "model": "m",
+            "agent": object(),
+            "mcp_contexts": [],
+            "pydantic_history": ["kept"],
+            "skills": [skill_at(tmp_path, "one"), skill_at(tmp_path, "two")],
+            "disabled_skills": frozenset(),
+        }
+        built: list[dict] = []
+
+        def fake_make_agent(provider, model, **kwargs):
+            built.append(kwargs)
+            return SimpleNamespace(kwargs=kwargs)
+
+        with (
+            patch.object(app.cl, "user_session") as user_session,
+            patch.object(app, "make_agent", side_effect=fake_make_agent),
+        ):
+            user_session.set.side_effect = store.__setitem__
+            user_session.get.side_effect = lambda k, d=None: store.get(k, d)
+            yield store, built
+
+    @staticmethod
+    def select(disabled) -> dict:
+        action = SimpleNamespace(payload={"disabled": disabled})
+        return asyncio.run(app.on_skill_selection(action))
+
+    def test_rebuilds_the_agent_without_the_unticked_skill(self, session):
+        store, built = session
+        assert self.select(["two", "absent-one"]) == {"applied": True}
+        assert store["disabled_skills"] == {"two", "absent-one"}
+        assert names(built[0]["skills"]) == ["one"]
+        assert store["agent"].kwargs is built[0]
+        assert store["pydantic_history"] == ["kept"]
+
+    def test_the_same_choice_again_rebuilds_nothing(self, session):
+        _store, built = session
+        self.select([])
+        assert built == []
+
+    def test_a_malformed_payload_switches_nothing_off(self, session):
+        store, built = session
+        store["disabled_skills"] = frozenset({"one"})
+        self.select("one,two")
+        assert store["disabled_skills"] == frozenset()
+        assert names(built[0]["skills"]) == ["one", "two"]
+
+    def test_without_an_agent_the_choice_waits_for_the_next_build(self, session):
+        store, built = session
+        store["agent"] = None
+        assert self.select(["one"]) == {"applied": False}
+        assert store["disabled_skills"] == {"one"}
+        assert built == []
+
+    def test_every_agent_build_leaves_disabled_skills_out(self, session):
+        store, _built = session
+        store["disabled_skills"] = frozenset({"one"})
+        assert names(app._enabled_skills(store["skills"])) == ["two"]
+
+
+class TestCookieAtChatStart:
+    def test_the_connection_cookie_is_read(self):
+        value = "%5B%22one%22%5D"
+        session = SimpleNamespace(
+            environ={"HTTP_COOKIE": f"{skills.DISABLED_SKILLS_COOKIE}={value}"}
+        )
+        with patch.object(app.cl, "context", SimpleNamespace(session=session)):
+            assert disabled_skills_from_cookie(app._cookie_header()) == {"one"}
+
+    @pytest.mark.parametrize("environ", [None, {}, {"HTTP_COOKIE": 7}])
+    def test_no_usable_header_is_none(self, environ):
+        session = SimpleNamespace(environ=environ)
+        with patch.object(app.cl, "context", SimpleNamespace(session=session)):
+            assert app._cookie_header() is None
 
 
 # ── Skills from MCP servers ───────────────────────────────────────────────
