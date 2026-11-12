@@ -313,6 +313,12 @@ class TestParse:
             parse_skill(skill_dir)
 
 
+def tool_result(tool: str, text: str, *, ok: bool | None = None, name: str | None = None):
+    """An `app.ToolResult`, with a skill outcome attached when *ok* is given."""
+    metadata = None if ok is None else {skills.SKILL_OUTCOME: {"ok": ok, "name": name}}
+    return app.ToolResult("call-1", tool, text, [], text, metadata)
+
+
 def skill_at(path: Path, name: str = "demo", description: str = DESCRIPTION) -> LocalSkill:
     return LocalSkill(name=name, description=description, path=path.resolve())
 
@@ -1045,19 +1051,21 @@ class TestSkillUsageInTheUI:
     def test_step_titles(self, tool, args, title):
         assert app._tool_step_name(tool, args) == title
 
-    def test_a_loaded_skill_is_recognised_by_its_result(self):
-        assert app._loaded_skill(LOAD_SKILL_TOOL, '<skill name="x">\nbody\n</skill>') == "x"
+    def test_a_loaded_skill_is_recognised_by_its_outcome(self):
+        assert app._loaded_skill(tool_result(LOAD_SKILL_TOOL, "body", ok=True, name="x")) == "x"
 
     @pytest.mark.parametrize(
-        ("tool", "text"),
+        "result",
         [
-            (LOAD_SKILL_TOOL, "Error: there is no skill named 'x'"),
-            (READ_SKILL_FILE_TOOL, '<skill name="x">'),
-            ("echo", '<skill name="x">'),
+            tool_result(LOAD_SKILL_TOOL, "Error: there is no skill named 'x'", ok=False),
+            tool_result(READ_SKILL_FILE_TOOL, "a file", ok=True, name="x"),
+            # Whatever the text looks like, without an outcome it is not a skill load.
+            tool_result(LOAD_SKILL_TOOL, '<skill name="x">'),
+            tool_result("echo", '<skill name="x">', ok=True, name="x"),
         ],
     )
-    def test_anything_else_is_not_a_loaded_skill(self, tool, text):
-        assert app._loaded_skill(tool, text) is None
+    def test_anything_else_is_not_a_loaded_skill(self, result):
+        assert app._loaded_skill(result) is None
 
     def test_used_line_names_each_skill_once_with_its_server(self, tmp_path):
         store = {"skills": [skill_at(tmp_path, "local-one"), server_skill("remote", FakeServer())]}
@@ -1096,28 +1104,56 @@ class TestServerInstructionsBlock:
 
 
 class TestSessionLossCheck:
-    """A skill's own text must not read as a dropped MCP connection."""
+    """A skill's own text must not read as a dropped MCP connection.
+
+    Only the outcome the skill tools attach as metadata says whether a read
+    failed; the text, returned verbatim, can look like anything.
+    """
 
     def test_a_skill_with_a_heredoc_is_not_a_lost_session(self):
         body = '<skill name="shell">\nRun:\n\n    cat <<EOF > out.txt\n    hi\n    EOF\n</skill>'
-        assert not app._signals_session_loss(LOAD_SKILL_TOOL, body)
+        assert not app._signals_session_loss(tool_result(LOAD_SKILL_TOOL, body, ok=True, name="s"))
 
-    def test_a_reference_file_mentioning_a_broken_pipe_is_not_one_either(self):
-        assert not app._signals_session_loss(READ_SKILL_FILE_TOOL, "Broken pipe: retry the job.")
+    def test_a_reference_that_opens_like_an_error_is_not_one_either(self):
+        text = "Error: Connection refused\n\nThe database is down; start it and retry."
+        result = tool_result(READ_SKILL_FILE_TOOL, text, ok=True, name="troubleshooting")
+        assert not app._signals_session_loss(result)
 
     def test_a_server_skill_that_lost_its_session_still_counts(self):
-        error = f"{skills.SKILL_ERROR_PREFIX}could not read skill://x/SKILL.md: Session terminated"
-        assert app._signals_session_loss(LOAD_SKILL_TOOL, error)
+        error = "Error: could not read skill://x/SKILL.md: Session terminated"
+        assert app._signals_session_loss(tool_result(LOAD_SKILL_TOOL, error, ok=False, name="x"))
+
+    def test_a_skill_result_without_an_outcome_is_never_one(self):
+        # Only the skill tools produce these names, and they always attach an
+        # outcome; anything else is not evidence of a dropped connection.
+        assert not app._signals_session_loss(
+            tool_result(READ_SKILL_FILE_TOOL, "Session terminated")
+        )
 
     def test_mcp_tool_results_are_checked_as_before(self):
-        assert app._signals_session_loss("execute_sql_query", "upstream: unexpected EOF")
-        assert not app._signals_session_loss("execute_sql_query", "42 rows")
+        assert app._signals_session_loss(
+            tool_result("execute_sql_query", "upstream: unexpected EOF")
+        )
+        assert not app._signals_session_loss(tool_result("execute_sql_query", "42 rows"))
 
-    def test_the_tools_report_errors_with_the_prefix_the_check_looks_for(self, tmp_path):
-        toolset = skills_toolset([parse_skill(make_skill(tmp_path, "demo"))])
-        model, _ = script((LOAD_SKILL_TOOL, {"name": "nope"}))
+    @pytest.mark.parametrize(
+        ("call", "ok", "name"),
+        [
+            ((LOAD_SKILL_TOOL, {"name": "demo"}), True, "demo"),
+            ((LOAD_SKILL_TOOL, {"name": "skill://demo/SKILL.md"}), True, "demo"),
+            ((READ_SKILL_FILE_TOOL, {"name": "demo", "path": "notes.md"}), True, "demo"),
+            ((LOAD_SKILL_TOOL, {"name": "nope"}), False, None),
+            ((READ_SKILL_FILE_TOOL, {"name": "demo", "path": "missing.md"}), False, "demo"),
+        ],
+    )
+    def test_the_tools_attach_their_outcome(self, tmp_path, call, ok, name):
+        skill_dir = make_skill(tmp_path, "demo")
+        (skill_dir / "notes.md").write_text("Error: Connection refused", encoding="utf-8")
+        model, _ = script(call)
+        toolset = skills_toolset([parse_skill(skill_dir)])
         (event,) = asyncio.run(run_collecting(Agent(model=model, toolsets=[toolset])))
-        assert app._tool_result_fields(event).text.startswith(skills.SKILL_ERROR_PREFIX)
+        result = app._tool_result_fields(event)
+        assert result.metadata == {skills.SKILL_OUTCOME: {"ok": ok, "name": name}}
 
 
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="no symlinks")
@@ -1264,15 +1300,11 @@ class TestOnMessageWithASkill:
 
         return FunctionModel(stream_function=stream_fn)
 
-    def test_a_skill_with_a_heredoc_is_answered_not_reconnected(self, tmp_path):
+    def run_turn(self, skill: LocalSkill, *calls: tuple[str, dict]):
+        """One user turn through `on_message`; the reconnect mock and the session after it."""
         type(self).sent, type(self).steps = [], []
-        heredoc = "Write the file with:\n\n    cat <<EOF > report.sql\n    SELECT 1;\n    EOF\n"
-        skill = parse_skill(make_skill(tmp_path, "shell-recipes", body=heredoc))
         store: dict = {
-            "agent": Agent(
-                model=self.streamed((LOAD_SKILL_TOOL, {"name": "shell-recipes"})),
-                toolsets=[skills_toolset([skill])],
-            ),
+            "agent": Agent(model=self.streamed(*calls), toolsets=[skills_toolset([skill])]),
             "skills": [skill],
             "provider": "openrouter",
             "model": "m",
@@ -1283,18 +1315,45 @@ class TestOnMessageWithASkill:
             patch.object(app.cl, "Message", self.FakeMessage),
             patch.object(app.cl, "Step", self.FakeStep),
             patch.object(app, "local_steps", SimpleNamespace(get=lambda: [])),
-            patch.object(app, "_collect_uploads", AsyncMock(return_value="use the shell recipe")),
+            patch.object(app, "_collect_uploads", AsyncMock(return_value="go")),
             patch.object(app, "_full_reconnect_mcp", full_reconnect),
             patch.object(app, "_reconnect_mcp", AsyncMock(return_value=True)),
         ):
             user_session.set.side_effect = store.__setitem__
             user_session.get.side_effect = lambda k, d=None: store.get(k, d)
-            asyncio.run(app.on_message(SimpleNamespace(content="use the shell recipe")))
+            asyncio.run(app.on_message(SimpleNamespace(content="go")))
+        return full_reconnect, store
+
+    def answer(self) -> str:
+        (answer,) = [m for m in self.sent if m.content.startswith("done")]
+        return answer.content
+
+    def test_a_skill_with_a_heredoc_is_answered_not_reconnected(self, tmp_path):
+        heredoc = "Write the file with:\n\n    cat <<EOF > report.sql\n    SELECT 1;\n    EOF\n"
+        skill = parse_skill(make_skill(tmp_path, "shell-recipes", body=heredoc))
+        full_reconnect, store = self.run_turn(skill, (LOAD_SKILL_TOOL, {"name": "shell-recipes"}))
 
         full_reconnect.assert_not_awaited()
         assert [s.name for s in self.steps if s.name.startswith("Skill")] == [
             "Skill: shell-recipes"
         ]
-        (answer,) = [m for m in self.sent if m.content.startswith("done")]
-        assert answer.content.endswith("_Skill used:_ `shell-recipes`")
+        assert self.answer().endswith("_Skill used:_ `shell-recipes`")
+        assert store["pydantic_history"], "the turn's history must be kept"
+
+    def test_a_reference_that_opens_like_an_error_is_answered_not_reconnected(self, tmp_path):
+        # A troubleshooting guide may begin exactly like a failure message;
+        # read_skill_file returns it verbatim, so its text cannot tell them apart.
+        skill_dir = make_skill(tmp_path, "troubleshooting")
+        (skill_dir / "references").mkdir()
+        (skill_dir / "references" / "errors.md").write_text(
+            "Error: Connection refused\n\nThe database is down; start it and retry.\n",
+            encoding="utf-8",
+        )
+        full_reconnect, store = self.run_turn(
+            parse_skill(skill_dir),
+            (READ_SKILL_FILE_TOOL, {"name": "troubleshooting", "path": "references/errors.md"}),
+        )
+
+        full_reconnect.assert_not_awaited()
+        assert self.answer() == "done"
         assert store["pydantic_history"], "the turn's history must be kept"

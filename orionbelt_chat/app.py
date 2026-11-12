@@ -4,7 +4,6 @@ import asyncio
 import copy
 import json
 import logging
-import re
 from typing import Any, NamedTuple
 
 import chainlit as cl
@@ -55,7 +54,7 @@ from orionbelt_chat.skills import (
     DISABLED_SKILLS_COOKIE,
     LOAD_SKILL_TOOL,
     READ_SKILL_FILE_TOOL,
-    SKILL_ERROR_PREFIX,
+    SKILL_OUTCOME,
     ServerSkill,
     Skill,
     disabled_skills_from_cookie,
@@ -144,6 +143,9 @@ class ToolResult(NamedTuple):
     text: str
     binaries: list[BinaryContent]
     content: str
+    #: What the tool attached for the app, not the model — the skill tools put
+    #: their outcome here (see `skills.SKILL_OUTCOME`).
+    metadata: Any = None
 
 
 def _tool_result_fields(event: FunctionToolResultEvent) -> ToolResult:
@@ -166,6 +168,7 @@ def _tool_result_fields(event: FunctionToolResultEvent) -> ToolResult:
         # Fall back to the raw content so a result that carries no text (an
         # image, say) still logs and displays as something.
         content=text or str(part.content),
+        metadata=getattr(part, "metadata", None),
     )
 
 
@@ -775,11 +778,6 @@ def _status_elements() -> list[Any]:
     return _tool_elements() + _skill_elements()
 
 
-#: Opens every body `load_skill` returns; carries the name as resolved, which a
-#: call made with a `skill://` URI does not.
-_LOADED_SKILL_RE = re.compile(r'\A<skill name="([^"]+)">')
-
-
 def _tool_step_name(tool_name: str, tool_args: Any) -> str:
     """The step title for a tool call; a skill is named, not filed under its tool.
 
@@ -801,12 +799,25 @@ def _tool_step_name(tool_name: str, tool_args: Any) -> str:
     return f"Skill file: {name} › {path.strip().removeprefix(skill_uri(name, ''))}"
 
 
-def _loaded_skill(tool_name: str | None, result_text: str) -> str | None:
-    """The skill a successful `load_skill` result carries; None for anything else."""
-    if tool_name != LOAD_SKILL_TOOL:
+def _skill_outcome(result: ToolResult) -> dict[str, Any] | None:
+    """The outcome a skill tool attached to its result; None for any other result."""
+    if result.tool_name not in _SKILL_TOOLS or not isinstance(result.metadata, dict):
         return None
-    match = _LOADED_SKILL_RE.match(result_text)
-    return match.group(1) if match else None
+    outcome = result.metadata.get(SKILL_OUTCOME)
+    return outcome if isinstance(outcome, dict) else None
+
+
+def _loaded_skill(result: ToolResult) -> str | None:
+    """The skill a successful `load_skill` loaded, as resolved; None for anything else.
+
+    Taken from the outcome, not the text: a call made with a `skill://` URI
+    still names the skill, and a failure never does.
+    """
+    outcome = _skill_outcome(result)
+    if result.tool_name != LOAD_SKILL_TOOL or not outcome or outcome.get("ok") is not True:
+        return None
+    name = outcome.get("name")
+    return name if isinstance(name, str) else None
 
 
 def _skills_used_line(names: list[str]) -> str:
@@ -1053,17 +1064,21 @@ _MCP_ERROR_PHRASES = (
 _SKILL_TOOLS = frozenset({LOAD_SKILL_TOOL, READ_SKILL_FILE_TOOL})
 
 
-def _signals_session_loss(tool_name: str | None, content: str) -> bool:
+def _signals_session_loss(result: ToolResult) -> bool:
     """Whether a tool result reads like a dropped MCP session.
 
-    A skill's text is its author's: a shell example with `cat <<EOF` is not a
-    closed stream, and treating it as one abandoned the answer to reconnect.
-    So a skill result counts only when the tool reports a failure — which is
-    where a server skill whose session died says so.
+    A skill's text is its author's, returned verbatim: a shell example with
+    `cat <<EOF`, or a troubleshooting note that opens "Error: Connection
+    refused", is not a closed stream — and treating it as one abandoned the
+    answer to reconnect. So a skill result counts only when the tool's own
+    outcome says the read failed, which is where a server skill whose session
+    died says so. The outcome travels as metadata, apart from the text.
     """
-    if tool_name in _SKILL_TOOLS and not content.startswith(SKILL_ERROR_PREFIX):
-        return False
-    return any(phrase in content for phrase in _MCP_ERROR_PHRASES)
+    if result.tool_name in _SKILL_TOOLS:
+        outcome = _skill_outcome(result)
+        if not outcome or outcome.get("ok") is not False:
+            return False
+    return any(phrase in result.content for phrase in _MCP_ERROR_PHRASES)
 
 
 def _in_configured_order(
@@ -1463,7 +1478,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                 elif isinstance(event, FunctionToolResultEvent):
                                     tool_result = _tool_result_fields(event)
                                     result_text = tool_result.text
-                                    loaded = _loaded_skill(tool_result.tool_name, result_text)
+                                    loaded = _loaded_skill(tool_result)
                                     if loaded:
                                         skills_used.append(loaded)
                                     result_binaries = tool_result.binaries
@@ -1477,7 +1492,7 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                                         result_content[:200],
                                     )
 
-                                    if _signals_session_loss(tool_result.tool_name, result_content):
+                                    if _signals_session_loss(tool_result):
                                         logger.warning(
                                             "MCP session error detected in tool result — will reconnect: %s",
                                             result_content[:200],

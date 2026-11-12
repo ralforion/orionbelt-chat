@@ -59,6 +59,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, TypeVar
 
 import yaml
+from pydantic_ai import ToolReturn
 from pydantic_ai.toolsets import FunctionToolset
 
 from .mcp_config import app_root
@@ -86,10 +87,11 @@ DISABLED_SKILLS_COOKIE = "orionbelt_disabled_skills"
 #: this; the cap is for a value that did not come from the checklist.
 MAX_DISABLED_SKILLS = 200
 
-#: Opens every error the skill tools return. The app tells a failed skill read
-#: from a successful one by it: only a failure can mean a lost MCP session,
-#: while a skill's own text may say "EOF" or "Broken pipe" for its own reasons.
-SKILL_ERROR_PREFIX = "Error: "
+#: Key of the metadata the skill tools attach to every result: whether the
+#: read succeeded, and the skill it was. Metadata reaches the app but not the
+#: model, so it is the one place a failure can be told apart from a file's text
+#: — which is returned verbatim and may itself begin "Error: Connection refused".
+SKILL_OUTCOME = "orionbelt_skill"
 
 #: Tool names, shared with the history trimmer that has to recognise them.
 LOAD_SKILL_TOOL = "load_skill"
@@ -661,6 +663,14 @@ def read_bundled_file(skill: LocalSkill, relative: str) -> str:
     return _read_text(target)
 
 
+def _outcome(text: str, skill: Skill | None, *, ok: bool) -> ToolReturn:
+    """A skill tool's result: *text* for the model, its outcome for the app."""
+    return ToolReturn(
+        return_value=text,
+        metadata={SKILL_OUTCOME: {"ok": ok, "name": skill.name if skill else None}},
+    )
+
+
 def skills_toolset(skills: Sequence[Skill]) -> FunctionToolset[Any] | None:
     """The tools and catalog that expose *skills* to the agent; None if there are none.
 
@@ -669,6 +679,10 @@ def skills_toolset(skills: Sequence[Skill]) -> FunctionToolset[Any] | None:
     run's retry budget. OSError is caught too: an exception escaping a tool
     ends the whole turn in `on_message`, and a skill folder someone made
     unreadable is not worth that.
+
+    Every result carries `SKILL_OUTCOME` metadata — ``{"ok": bool, "name":
+    str | None}`` — so the app can tell success from failure without reading
+    the text.
     """
     if not skills:
         return None
@@ -681,29 +695,33 @@ def skills_toolset(skills: Sequence[Skill]) -> FunctionToolset[Any] | None:
             raise SkillError(f"there is no skill named {name!r}. Available: {available}")
         return skill
 
-    async def load_skill(name: str) -> str:
+    async def load_skill(name: str) -> ToolReturn:
         """Load a skill's full instructions. Call this before starting a task one of the available skills covers.
 
         Args:
             name: The skill's name, exactly as listed in available_skills.
         """
+        skill: Skill | None = None
         try:
-            return await lookup(name).instructions()
+            skill = lookup(name)
+            return _outcome(await skill.instructions(), skill, ok=True)
         except (SkillError, OSError) as exc:
-            return f"{SKILL_ERROR_PREFIX}{exc}"
+            return _outcome(f"Error: {exc}", skill, ok=False)
 
-    async def read_skill_file(name: str, path: str) -> str:
+    async def read_skill_file(name: str, path: str) -> ToolReturn:
         """Read a file bundled with a skill, such as a reference document its instructions point to.
 
         Args:
             name: The skill's name, exactly as listed in available_skills.
             path: The file's path inside the skill's directory, e.g. references/guide.md.
         """
+        skill: Skill | None = None
         try:
             skill = lookup(name)
             # `skill://<name>/references/a.md` → `references/a.md`
-            return await skill.read_file(path.strip().removeprefix(skill_uri(skill.name, "")))
+            relative = path.strip().removeprefix(skill_uri(skill.name, ""))
+            return _outcome(await skill.read_file(relative), skill, ok=True)
         except (SkillError, OSError) as exc:
-            return f"{SKILL_ERROR_PREFIX}{exc}"
+            return _outcome(f"Error: {exc}", skill, ok=False)
 
     return FunctionToolset([load_skill, read_skill_file], instructions=catalog(skills))
