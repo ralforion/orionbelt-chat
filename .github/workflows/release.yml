@@ -48,6 +48,15 @@ jobs:
           [ "$badge"     = "$tag" ] || { echo "::error file=README.md::version badge is '$badge', expected '$tag'"; rc=1; }
           exit $rc
 
+      # The notes are this version's section of CHANGELOG.md, written for
+      # readers, rather than GitHub's generated list of every pull request. A
+      # missing or empty section fails the release here; CI already fails a
+      # version bump that lacks one (tests/test_release_notes.py), so this only
+      # trips on a tag pushed past CI. Plain python3: the script is stdlib-only
+      # and needs nothing resolved.
+      - name: Release notes from CHANGELOG.md
+        run: python3 scripts/release_notes.py "${GITHUB_REF_NAME#v}" > release-notes.md
+
       # Compliance artifacts for the release. The container image carries its
       # own copy of the attribution file (see the Dockerfile), but anyone
       # running from source gets it here instead of having to build the image.
@@ -130,14 +139,15 @@ jobs:
           path: |
             THIRD_PARTY_NOTICES.md
             sbom.cdx.json
+            release-notes.md
           if-no-files-found: error
           retention-days: 1
 
   # The only job that can write to the repository, and the only one that needs
   # to. It runs no repository code and checks out nothing: the two files it
-  # uploads were produced by `build` under a read-only token, and `gh` reaches
-  # the repository through GH_REPO rather than a clone. --generate-notes is
-  # server-side, so no history is needed here either.
+  # uploads and the notes it publishes were produced by `build` under a
+  # read-only token, and `gh` reaches the repository through GH_REPO rather
+  # than a clone.
   publish:
     needs: build
     runs-on: ubuntu-latest
@@ -154,6 +164,8 @@ jobs:
 
       - name: Create GitHub Release
         run: |
+          # A re-run refreshes the assets but leaves the notes alone, so an edit
+          # made on the Releases page is not overwritten by a retry.
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME already exists — refreshing its assets."
             gh release upload "$GITHUB_REF_NAME" \
@@ -162,7 +174,7 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
-            --generate-notes \
+            --notes-file release-notes.md \
             --verify-tag \
             --latest \
             THIRD_PARTY_NOTICES.md sbom.cdx.json

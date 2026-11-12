@@ -11,9 +11,21 @@ Releases are cut from `main` and driven entirely by pushing a version tag.
    - `README.md` → the version badge (`badge/version-X.Y.Z-brightgreen`)
    - `uv.lock` → run `uv lock` after bumping `pyproject.toml`; it pins the
      project's own version, and CI's `uv sync --frozen` fails if it's stale.
+     Use a current uv — CI installs the latest — since an older one rewrites
+     the lockfile's format along with the version.
 
-   Then regenerate the committed attribution, which carries the version in its
-   heading and is checked by CI against the locked environment.
+   Then **move `## [Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD`**
+   and leave a fresh, empty `## [Unreleased]` above it. That section *is* the
+   release notes: `release.yml` publishes it as the GitHub Release body, so
+   write it for readers, in the style of the other OrionBelt repositories —
+   `### Added` / `Changed` / `Fixed` / `Dependencies` / `Internal`, each entry
+   opening with a bold sentence and ending with its PR numbers, and an
+   `### Upgrading from X.Y` section first when a default changed. CI fails a
+   version bump that has no section (`tests/test_release_notes.py`). Add the
+   version's link at the foot of the file and repoint `[Unreleased]`.
+
+   Then regenerate the committed attribution. CI checks it against the locked
+   environment, so it normally comes out unchanged; regenerating confirms it.
 
    **Regenerate it on Linux, resolved for 3.11.** Two things about the
    environment matter, and neither of them is the machine you happen to be on:
@@ -60,8 +72,9 @@ That's the whole manual part. Pushing the tag triggers three workflows:
 - **`docker-publish.yml`** builds and pushes the image to Docker Hub
   (`:X.Y.Z`, `:X.Y`, `:X`, `:latest`) and syncs the Docker Hub description.
 - **`release.yml`** verifies that `pyproject.toml`, `header.js` and the README
-  badge agree with the tag, then creates the GitHub Release with auto-generated
-  notes and marks it Latest. `uv.lock` is the fourth place, but it is already
+  badge agree with the tag, then creates the GitHub Release with the version's
+  `CHANGELOG.md` section as its notes (`scripts/release_notes.py`) and marks it
+  Latest. `uv.lock` is the fourth place, but it is already
   guarded by CI's `uv sync --frozen` and is not re-checked here.
 - **`pypi-publish.yml`** builds the sdist and wheel, checks the wheel really
   contains the packaged assets, and uploads to PyPI.
@@ -112,8 +125,11 @@ needs a new patch version, not a retry.
 - **A git tag is not a GitHub Release.** Before `release.yml` existed, tagging
   built the image but left the Releases page untouched — that's the gap this
   workflow closes. Tag pushes now create the Release automatically.
-- `release.yml` is idempotent: if the Release already exists it exits cleanly,
-  so re-running a tag's workflow is safe.
+- `release.yml` is idempotent: if the Release already exists it refreshes the
+  assets and leaves the notes alone, so re-running a tag's workflow is safe and
+  does not undo an edit made on the Releases page. To republish the notes from
+  `CHANGELOG.md` after fixing them there:
+  `gh release edit vX.Y.Z --notes-file <(python3 scripts/release_notes.py X.Y.Z)`.
 - To re-cut a mistaken tag, delete it locally and on the remote
   (`git push origin :vX.Y.Z`), delete the GitHub Release if one was created,
   then repeat from step 3.
