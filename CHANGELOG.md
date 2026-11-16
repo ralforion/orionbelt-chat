@@ -9,9 +9,19 @@ Releases before 1.7.0 are described on the
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-11-16
+
+### Security
+- **The Docker image no longer ships dependencies with known
+  denial-of-service advisories.** `dnspython` 2.9.2 fixes excessive memory
+  and CPU use (GHSA-vvf4-9x63-8xvv, high), and `opentelemetry-api` 1.45.2
+  fixes quadratic-time `traceparent` parsing (GHSA-mf5v-w3w3-f6cg, medium).
+  The 1.7.0 image locked 2.9.0 and 1.45.1, so it stays affected until it is
+  replaced; a PyPI install that resolves its dependencies afresh picks up
+  the fixed versions either way. (#105)
+
 ### Dependencies
-- `pydantic-ai` 2.68.0, `genai-prices` 0.2.3, and security updates to
-  `dnspython` 2.9.2 and `opentelemetry-api` 1.45.2. (#105, #106)
+- `pydantic-ai` 2.68.0 and `genai-prices` 0.2.3. (#106)
 
 ### Internal
 - **Release notes come from `CHANGELOG.md`.** The release workflow publishes
@@ -92,5 +102,6 @@ Releases before 1.7.0 are described on the
   4.8.0, `docker/setup-qemu-action` 4.3.0, and other Actions updates. (#70,
   #74, #76, #81, #84, #90, #96, #97, #98, #100, #101)
 
-[Unreleased]: https://github.com/ralforion/orionbelt-chat/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/ralforion/orionbelt-chat/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/ralforion/orionbelt-chat/releases/tag/v1.7.1
 [1.7.0]: https://github.com/ralforion/orionbelt-chat/releases/tag/v1.7.0
