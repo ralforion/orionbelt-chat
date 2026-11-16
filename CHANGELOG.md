@@ -9,12 +9,18 @@ Releases before 1.7.0 are described on the
 
 ## [Unreleased]
 
+### Dependencies
+- `pydantic-ai` 2.68.0, `genai-prices` 0.2.3, and security updates to
+  `dnspython` 2.9.2 and `opentelemetry-api` 1.45.2. (#105, #106)
+
 ### Internal
 - **Release notes come from `CHANGELOG.md`.** The release workflow publishes
   the tagged version's section here instead of GitHub's generated list of
   pull requests, which buried the features among the dependency bumps. A
   version bump without a section fails CI, so a tag cannot go out without
   its notes. (#104)
+- Dev tooling: `pytest-asyncio` 1.5.0, `ruff` 0.17.5, `types-pyyaml`
+  6.0.12.20261111. (#106, #107)
 
 ## [1.7.0] - 2026-11-12
 
