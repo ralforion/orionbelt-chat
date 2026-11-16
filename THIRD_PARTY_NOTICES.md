@@ -97,7 +97,7 @@ uv run --no-sync python scripts/third_party_notices.py
 | fastmcp-slim | 3.4.10 | Apache-2.0 | yes |
 | filetype | 1.2.0 | MIT License | yes |
 | frozenlist | 1.8.0 | Apache-2.0 | yes |
-| genai-prices | 0.1.13 | MIT | yes |
+| genai-prices | 0.2.3 | MIT | yes |
 | google-auth | 2.57.0 | Apache Software License | yes |
 | google-genai | 2.31.0 | Apache-2.0 | yes |
 | googleapis-common-protos | 1.75.2 | Apache Software License | yes |
@@ -198,11 +198,11 @@ uv run --no-sync python scripts/third_party_notices.py
 | pyasn1-modules | 0.4.2 | BSD License | yes |
 | pycparser | 3.0 | BSD-3-Clause | yes |
 | pydantic | 2.13.5 | MIT | yes |
-| pydantic-ai | 2.66.0 | MIT | yes |
-| pydantic-ai-slim | 2.66.0 | MIT | yes |
+| pydantic-ai | 2.68.0 | MIT | yes |
+| pydantic-ai-slim | 2.68.0 | MIT | yes |
 | pydantic-core | 2.46.5 | MIT | yes |
-| pydantic-evals | 2.66.0 | MIT | yes |
-| pydantic-graph | 2.66.0 | MIT | yes |
+| pydantic-evals | 2.68.0 | MIT | yes |
+| pydantic-graph | 2.68.0 | MIT | yes |
 | pydantic-settings | 2.16.2 | MIT | yes |
 | pygments | 2.21.0 | BSD-2-Clause | yes |
 | pyjwt | 2.15.0 | MIT | yes |
@@ -2724,7 +2724,7 @@ APPENDIX: How to apply the Apache License to your work.
    limitations under the License.
 ```
 
-### genai-prices 0.1.13
+### genai-prices 0.2.3
 
 *LICENSE*
 
@@ -5496,7 +5496,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-ai 2.66.0
+### pydantic-ai 2.68.0
 
 *LICENSE*
 
@@ -5524,7 +5524,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-ai-slim 2.66.0
+### pydantic-ai-slim 2.68.0
 
 *LICENSE*
 
@@ -5580,7 +5580,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-evals 2.66.0
+### pydantic-evals 2.68.0
 
 *LICENSE*
 
@@ -5608,7 +5608,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### pydantic-graph 2.66.0
+### pydantic-graph 2.68.0
 
 *LICENSE*
 
