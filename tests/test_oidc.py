@@ -635,3 +635,38 @@ class TestRemovalDuringRenewal:
         renewed = idp.issued_refresh_tokens[-1]
         assert idp.revoked == [renewed]
         assert idp.refresh_tokens == {}  # nothing left that could renew the sign-in
+
+
+class TestExpiryAfterWaitingForTheIdp:
+    """A token that expires while the IdP is being waited for is not handed out."""
+
+    async def test_a_token_endpoint_timeout(self, idp, clock):
+        def slow_token_endpoint(request):
+            if request.url.path.endswith("/token") and b"refresh_token" in request.content:
+                clock.advance(10)  # the request times out after ten seconds
+                raise httpx.ReadTimeout("timed out", request=request)
+            return idp.handle(request)
+
+        client = OidcClient(
+            _config(), transport=httpx.MockTransport(slow_token_endpoint), clock=clock
+        )
+        store = TokenStore(client, max_age_seconds=86_400, clock=clock)
+        handle = await _stored(store, client, idp)
+        clock.advance(295)  # five seconds left on the access token
+        with pytest.raises(IdpUnavailableError):
+            await store.access_token(handle)
+
+    async def test_a_signing_key_timeout(self, idp, clock):
+        def slow_keys(request):
+            if request.url.path.endswith("/certs") and idp.jwks_requests() >= 1:
+                clock.advance(10)
+                raise httpx.ReadTimeout("timed out", request=request)
+            return idp.handle(request)
+
+        client = OidcClient(_config(), transport=httpx.MockTransport(slow_keys), clock=clock)
+        store = TokenStore(client, max_age_seconds=86_400, clock=clock)
+        handle = await _stored(store, client, idp)
+        idp.rotate_signing_key()  # the renewed ID token needs the keys fetched again
+        clock.advance(295)
+        with pytest.raises(IdpUnavailableError):
+            await store.access_token(handle)

@@ -808,7 +808,7 @@ class TokenStore:
                     logger.error("OIDC: the identity provider refused to renew a sign-in: %s", e)
                 raise SignInEndedError(str(e)) from e
             except IdpUnavailableError:
-                self._hold(sign_in, now)
+                self._hold(sign_in)
                 return
             # RFC 6749 §6: the IdP may keep the refresh token; then the old one stands.
             if renewed.refresh_token is None:
@@ -818,9 +818,9 @@ class TokenStore:
                     refresh_expires_at=source.refresh_expires_at,
                 )
             sign_in.pending = renewed
-        await self._adopt(handle, sign_in, sign_in.pending, now)
+        await self._adopt(handle, sign_in, sign_in.pending)
 
-    async def _adopt(self, handle: str, sign_in: SignIn, renewed: TokenSet, now: float) -> None:
+    async def _adopt(self, handle: str, sign_in: SignIn, renewed: TokenSet) -> None:
         """Check `renewed`, the pending tokens, and make them the sign-in's, or end the sign-in."""
         try:
             id_claims: dict[str, Any] | None = None
@@ -835,7 +835,7 @@ class TokenStore:
             await self._refuse(handle, sign_in)
             raise SignInEndedError(f"the renewed ID token was rejected: {e}") from e
         except IdpUnavailableError:
-            self._hold(sign_in, now)
+            self._hold(sign_in)
             return
         if id_claims is not None and id_claims["sub"] != sign_in.subject:
             await self._refuse(handle, sign_in)
@@ -856,9 +856,13 @@ class TokenStore:
             sign_in.id_claims = id_claims
         sign_in.roles = roles
 
-    def _hold(self, sign_in: SignIn, now: float) -> None:
-        """The IdP is out of reach: carry on with the current token while it lasts."""
-        if sign_in.tokens.expires_at > now:
+    def _hold(self, sign_in: SignIn) -> None:
+        """The IdP is out of reach: carry on with the current token while it lasts.
+
+        The clock is read here, not before the request that failed: waiting
+        for an IdP that does not answer can outlast the token.
+        """
+        if sign_in.tokens.expires_at > self._clock():
             logger.warning("OIDC: could not renew a sign-in; using its token until it expires")
             return
         raise IdpUnavailableError("the sign-in's token expired and the IdP cannot be reached")
