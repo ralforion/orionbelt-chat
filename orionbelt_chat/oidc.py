@@ -17,7 +17,7 @@ import logging
 import re
 import secrets
 import time
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import AsyncGenerator, Callable, Generator, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Protocol
@@ -884,3 +884,33 @@ class TokenStore:
                 not renewable and sign_in.tokens.expires_at <= now
             ):
                 self._end(handle, sign_in)
+
+
+# ── Passing a sign-in on ──────────────────────────────────────────────────
+
+
+class SignInBearerAuth(httpx.Auth):
+    """Sends a sign-in's current access token as the bearer token of each request.
+
+    For an MCP server that acts as the signed-in user. The token is asked for
+    on every request, not once at connect: a chat session outlives an access
+    token, and the store renews it as it ages. Once the sign-in has ended the
+    request fails with `SignInEndedError` instead of going out without one.
+    """
+
+    def __init__(self, store: TokenStore, handle: str | None) -> None:
+        self._store = store
+        self._handle = handle
+
+    def sync_auth_flow(
+        self, request: httpx.Request
+    ) -> Generator[httpx.Request, httpx.Response, None]:
+        # Renewal is async; the MCP transports only ever use an async client.
+        raise RuntimeError("SignInBearerAuth needs an async HTTP client")
+
+    async def async_auth_flow(
+        self, request: httpx.Request
+    ) -> AsyncGenerator[httpx.Request, httpx.Response]:
+        token = await self._store.access_token(self._handle)
+        request.headers["Authorization"] = f"Bearer {token}"
+        yield request

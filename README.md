@@ -408,6 +408,8 @@ file; see [`.env.example`](./.env.example) for a copyable starting point.
 |---|---|---|
 | `ANALYTICS_SERVER_DIR` | _(empty)_ | OrionBelt Analytics: a local directory (stdio) or an HTTP(S) URL. Empty disables it |
 | `SEMANTIC_LAYER_SERVER_DIR` | _(empty)_ | OrionBelt Semantic Layer, same forms |
+| `ANALYTICS_SERVER_AUTH` | _(empty)_ | `user` to send each request to OrionBelt Analytics with the signed-in user's access token, which its `MCP_AUTH=jwt` checks. It still queries with its own database credentials. Needs sign-in and an HTTP(S) URL; see [Acting as the signed-in user](#acting-as-the-signed-in-user) |
+| `SEMANTIC_LAYER_SERVER_AUTH` | _(empty)_ | The same for OrionBelt Semantic Layer |
 | `MCP_SERVERS_FILE` | _(empty)_ | YAML file declaring any other servers. When empty, `mcp_servers.yaml` is searched for in the working directory, then the app root |
 | `MCP_ALLOW_SAMPLING` | `true` | Whether servers may make LLM calls back through this client, answered with the default model. Set `false` as a cost/privacy kill switch |
 | `MCP_ALLOW_ELICITATION` | `true` | Whether servers may ask the user for input mid tool call (form or URL mode). Set `false` and servers are told the client cannot be asked |
@@ -602,6 +604,55 @@ every sign-in ends with its first access token. Entra puts app roles in the ID
 token's `roles` claim, which is read by default. An Okta client is registered
 for HTTP Basic unless set otherwise, so set
 `OIDC_CLIENT_AUTH=client_secret_basic` there.
+
+### Acting as the signed-in user
+
+With sign-in on, an MCP server can receive the signed-in user's access token
+instead of a shared key, so it works as that user. The OrionBelt Semantic Layer
+MCP server does this in its user mode (`MCP_AUTH_MODE=oidc_user`): it exchanges
+the token for one for OrionBelt, which applies the user's own scopes and, for a
+data source that logs in as the user, their warehouse grants.
+
+OrionBelt Analytics goes less far for now. With `MCP_AUTH=jwt` it checks the
+token, so only signed-in users reach it and each user's sessions stay apart.
+It still queries its databases with its own configured credentials and keeps
+one workspace per database connection: it has no user mode of its own yet.
+
+1. **Point the chat at the server over HTTP and mark it:**
+
+   ```bash
+   SEMANTIC_LAYER_SERVER_DIR=https://obsl-mcp.example.com/mcp
+   SEMANTIC_LAYER_SERVER_AUTH=user
+   ```
+
+   Any other server takes `auth: user` in `mcp_servers.yaml`.
+2. **Put the server in the token's audience.** Keycloak issues the chat's
+   access token for the chat's own client, so on that client's dedicated
+   scope add an *Audience* mapper whose *Included Custom Audience* is the
+   audience the server checks: the Semantic Layer MCP server's `MCP_AUDIENCE`
+   (its `MCP_RESOURCE_URL` unless set), or Analytics' `MCP_AUTH_AUDIENCE`.
+   Add one mapper per server.
+3. **Set the server up for the same realm**, as its own documentation
+   describes: [OrionBelt Semantic Layer MCP](https://github.com/ralforion/orionbelt-semantic-layer-mcp#authentication-to-the-api),
+   [OrionBelt Analytics](https://github.com/ralforion/orionbelt-analytics/blob/main/docs/configuration.md#authentication).
+
+How it behaves:
+
+- **Only the servers marked `auth: user` get the token.** Every other server
+  keeps its own headers and never sees it. The chat refuses `auth: user` for a
+  server it launches itself (stdio has no request to carry a token), next to
+  an `Authorization` header, or with sign-in off.
+- **Every request carries a current token.** The token is asked for per
+  request, not once at connect, so a long chat keeps working as it is renewed.
+  A sign-in that ends in the middle of an answer stops the tool call, and the
+  chat asks the user to sign in again.
+- **One token serves all of them.** Its audiences have to name every `auth:
+  user` server, and should name nothing else. Each of those servers could
+  present it to the others. A token per server is not supported yet. Entra ID
+  needs that, since it issues a token for one API at a time.
+- **A server that refuses the token** (most often an audience it does not
+  accept) fails to connect with a 401, shown in the server list at the start
+  of the chat.
 
 ## Usage Examples
 

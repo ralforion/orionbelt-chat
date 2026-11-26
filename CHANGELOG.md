@@ -37,6 +37,16 @@ Releases before 1.7.0 are described on the
   Chainlit's built-in Azure provider puts the refresh token in that cookie,
   and its Keycloak provider keeps it on an object every login shares; neither
   is used.
+- **MCP servers can act as the signed-in user.** With sign-in on, a server
+  marked `auth: user` in `mcp_servers.yaml`, or a built-in one with
+  `SEMANTIC_LAYER_SERVER_AUTH=user` / `ANALYTICS_SERVER_AUTH=user`, gets the
+  user's access token as the bearer token of every request. The OrionBelt
+  Semantic Layer MCP server in `MCP_AUTH_MODE=oidc_user` then works as that
+  user end to end, down to the warehouse. The token is fetched per request,
+  so it keeps being renewed in a long chat, and no server without
+  `auth: user` ever sees it. A sign-in that ends in the middle of an answer
+  stops the tool call with "sign in again" instead of a reconnect loop. See
+  "Acting as the signed-in user" in the README.
 
 ### Dependencies
 - `pyjwt[crypto]` is now a direct dependency (it already came with Chainlit;

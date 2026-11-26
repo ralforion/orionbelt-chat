@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     # Set the *_dir variable to a path or URL accordingly.
     analytics_server_dir: str = ""
     semantic_layer_server_dir: str = ""
+    # `user` to send each request to that server with the signed-in user's
+    # access token. The Semantic Layer MCP server in `MCP_AUTH_MODE=oidc_user`
+    # then acts as that user, down to the warehouse; Analytics with
+    # `MCP_AUTH=jwt` checks the token but still queries with its own database
+    # credentials. Needs sign-in (OIDC_ISSUER) and an HTTP(S) URL above. Empty
+    # sends no user token.
+    analytics_server_auth: str = ""
+    semantic_layer_server_auth: str = ""
 
     # Path to a YAML file declaring additional MCP servers (see
     # mcp_servers.example.yaml). When empty, `mcp_servers.yaml` is looked

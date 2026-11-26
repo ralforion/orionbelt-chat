@@ -3,11 +3,12 @@
 import logging
 from typing import Any
 
+import httpx
 from mcp.client.stdio import get_default_environment
 from pydantic_ai.mcp import MCPToolset, StdioTransport, StreamableHttpTransport
 
 from .file_uploads import process_tool_call
-from .mcp_config import ServerDef, load_server_defs
+from .mcp_config import USER_AUTH, ServerDef, load_server_defs
 from .mcp_elicitation import Prompt, make_elicitation_handler
 from .mcp_sampling import enable_sampling_tools
 from .providers import default_model_for, resolve_model
@@ -64,8 +65,15 @@ def _subprocess_env(defn: ServerDef) -> dict[str, str] | None:
     return {**get_default_environment(), **defn.env}
 
 
-def _transport(defn: ServerDef) -> StreamableHttpTransport | StdioTransport:
-    """Pick the transport a server definition describes."""
+def _transport(
+    defn: ServerDef, user_auth: httpx.Auth | None = None
+) -> StreamableHttpTransport | StdioTransport:
+    """Pick the transport a server definition describes.
+
+    `user_auth` is attached only to a server configured with `auth: user`:
+    the user's token goes to the servers that were chosen to act as the user,
+    and to no other.
+    """
     if defn.command:
         return StdioTransport(
             command=defn.command,
@@ -73,7 +81,11 @@ def _transport(defn: ServerDef) -> StreamableHttpTransport | StdioTransport:
             env=_subprocess_env(defn),
         )
     if defn.is_url:
-        return StreamableHttpTransport(url=defn.endpoint, headers=defn.headers or None)
+        return StreamableHttpTransport(
+            url=defn.endpoint,
+            headers=defn.headers or None,
+            auth=user_auth if defn.auth == USER_AUTH else None,
+        )
     # A directory endpoint: run the named module inside that project, which is
     # how the two OrionBelt servers have always been launched.
     return StdioTransport(
@@ -84,7 +96,10 @@ def _transport(defn: ServerDef) -> StreamableHttpTransport | StdioTransport:
 
 
 def _make_server(
-    defn: ServerDef, sampling_model, elicitation_prompt: Prompt | None = None
+    defn: ServerDef,
+    sampling_model,
+    elicitation_prompt: Prompt | None = None,
+    user_auth: httpx.Auth | None = None,
 ) -> MCPToolset[Any]:
     # Sampling is enabled purely by passing a model: `_resolve_sampling_model`
     # already returns None when MCP_ALLOW_SAMPLING is false, which is what the
@@ -96,7 +111,7 @@ def _make_server(
     # declares `sampling: true`.
     if not defn.sampling:
         sampling_model = None
-    transport = _transport(defn)
+    transport = _transport(defn, user_auth)
     # Installing a handler is what advertises the elicitation capability, so
     # with it off a server is told up front not to ask, rather than asking and
     # being refused.
@@ -180,12 +195,18 @@ def get_mcp_server_errors() -> list[str]:
 
 def get_mcp_servers_named(
     elicitation_prompt: Prompt | None = None,
+    user_auth: httpx.Auth | None = None,
 ) -> list[tuple[str, MCPToolset[Any]]]:
     """Return (display_name, server) pairs for configured MCP servers.
 
     `elicitation_prompt` is how a server's questions reach the user; without
     one no server is offered elicitation. It is passed in rather than imported
     so this module stays free of the UI.
+
+    `user_auth` carries the signed-in user's access token, for the servers
+    configured with `auth: user` and only for those. Such a server is left out
+    when there is no user: configuration already refuses `auth: user` without
+    sign-in, so this is the last guard, not the expected path.
 
     A server only receives a sampling model if it declares `sampling: true`.
     MCP_ALLOW_SAMPLING remains the global kill switch — this is the per-server
@@ -194,10 +215,22 @@ def get_mcp_servers_named(
     """
     sampling_model = _resolve_sampling_model()
     defs, _ = load_server_defs()
-    return [
-        (
-            defn.name,
-            _make_server(defn, sampling_model if defn.sampling else None, elicitation_prompt),
+    named = []
+    for defn in defs:
+        if defn.auth == USER_AUTH and user_auth is None:
+            logger.error(
+                "MCP server '%s' left out: it acts as the user, and none is signed in", defn.name
+            )
+            continue
+        named.append(
+            (
+                defn.name,
+                _make_server(
+                    defn,
+                    sampling_model if defn.sampling else None,
+                    elicitation_prompt,
+                    user_auth,
+                ),
+            )
         )
-        for defn in defs
-    ]
+    return named

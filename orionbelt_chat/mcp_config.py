@@ -29,6 +29,11 @@ The file looks like::
         skills: true          # offer its `skill://` skills? (default true)
         instructions: true    # pass its instructions to the model? (default true)
 
+      # A remote server that acts as the signed-in user (needs OIDC sign-in).
+      - name: OrionBelt Semantic Layer
+        endpoint: https://obsl-mcp.example.com/mcp
+        auth: user            # send each request with the user's access token
+
 ``${VAR}`` in an ``endpoint``, ``headers``, ``command``, ``args`` or ``env``
 value is replaced by that environment variable (or the matching line in
 ``.env``), so an API key can be named here without being stored here.
@@ -66,6 +71,11 @@ class McpConfigError(Exception):
     """Raised for a malformed server configuration."""
 
 
+#: `auth: user`: the server gets the signed-in user's access token as the
+#: bearer token of every request (see sign_in.py), so it acts as that user.
+USER_AUTH = "user"
+
+
 # Callers ask for servers, sampling flags and errors separately, so the config
 # is read several times per session. The file is small enough that re-reading it
 # keeps edits live without a restart; only the logging needs to be quietened.
@@ -95,6 +105,8 @@ class ServerDef:
     skills: bool = True
     #: Pass the instructions this server sends at initialization on to the model.
     instructions: bool = True
+    #: `USER_AUTH` to send the signed-in user's access token, or empty.
+    auth: str = ""
 
     @property
     def is_url(self) -> bool:
@@ -102,21 +114,76 @@ class ServerDef:
 
 
 # The two servers this app was built for. Kept as data rather than as branches
-# so they travel the same code path as anything a user adds.
-BUILTIN_DEFS: tuple[tuple[str, str, str, bool], ...] = (
-    ("OrionBelt Analytics", "analytics_server_dir", "orionbelt_analytics", True),
-    ("OrionBelt Semantic Layer", "semantic_layer_server_dir", "orionbelt_semantic_layer", False),
+# so they travel the same code path as anything a user adds: name, the
+# settings holding the endpoint and the auth mode, module, sampling.
+BUILTIN_DEFS: tuple[tuple[str, str, str, str, bool], ...] = (
+    (
+        "OrionBelt Analytics",
+        "analytics_server_dir",
+        "analytics_server_auth",
+        "orionbelt_analytics",
+        True,
+    ),
+    (
+        "OrionBelt Semantic Layer",
+        "semantic_layer_server_dir",
+        "semantic_layer_server_auth",
+        "orionbelt_semantic_layer",
+        False,
+    ),
 )
 
 
-def _builtin_defs() -> list[ServerDef]:
-    """Server definitions from the two long-standing environment variables."""
-    defs = []
-    for name, attr, module, sampling in BUILTIN_DEFS:
-        endpoint = getattr(settings, attr, "") or ""
-        if endpoint:
-            defs.append(ServerDef(name=name, endpoint=endpoint, module=module, sampling=sampling))
-    return defs
+def _builtin_defs() -> tuple[list[ServerDef], list[str]]:
+    """Server definitions from the long-standing environment variables, and their errors."""
+    defs: list[ServerDef] = []
+    errors: list[str] = []
+    for name, endpoint_attr, auth_attr, module, sampling in BUILTIN_DEFS:
+        endpoint = getattr(settings, endpoint_attr, "") or ""
+        if not endpoint:
+            continue
+        where = auth_attr.upper()
+        try:
+            auth = _parse_auth(getattr(settings, auth_attr, "") or None, where, name)
+            defn = ServerDef(
+                name=name, endpoint=endpoint, module=module, sampling=sampling, auth=auth
+            )
+            _check_auth(defn, where)
+        except McpConfigError as exc:
+            _log_once(logging.ERROR, f"MCP server '{name}' not started — {exc}")
+            errors.append(str(exc))
+            continue
+        defs.append(defn)
+    return defs, errors
+
+
+def _parse_auth(raw: Any, where: str, name: str) -> str:
+    if raw is None or raw == "":
+        return ""
+    if isinstance(raw, str) and raw.strip().lower() == USER_AUTH:
+        return USER_AUTH
+    raise McpConfigError(f"{where} ({name}): 'auth' can only be '{USER_AUTH}', got {raw!r}")
+
+
+def _check_auth(defn: ServerDef, where: str) -> None:
+    """Refuse an `auth: user` server that could not carry, or would clash with, the user's token."""
+    if defn.auth != USER_AUTH:
+        return
+    if not defn.is_url:
+        raise McpConfigError(
+            f"{where} ({defn.name}): 'auth: {USER_AUTH}' needs an HTTP endpoint; "
+            "a subprocess server has no request to carry the user's token"
+        )
+    if any(key.lower() == "authorization" for key in defn.headers):
+        raise McpConfigError(
+            f"{where} ({defn.name}): 'auth: {USER_AUTH}' sends the user's token as the "
+            "Authorization header; remove the 'Authorization' header"
+        )
+    if not settings.oidc_issuer.strip():
+        # Without sign-in there is no user, and no token to send.
+        raise McpConfigError(
+            f"{where} ({defn.name}): 'auth: {USER_AUTH}' needs sign-in to be on (OIDC_ISSUER)"
+        )
 
 
 def app_root() -> Path:
@@ -293,6 +360,7 @@ def parse_server(entry: Any, where: str) -> ServerDef:
         instructions=_parse_bool(
             entry.get("instructions"), where, name, "instructions", default=True
         ),
+        auth=_parse_auth(entry.get("auth"), where, name),
     )
 
     if command and module:
@@ -316,6 +384,7 @@ def parse_server(entry: Any, where: str) -> ServerDef:
         )
     if defn.is_url and module:
         raise McpConfigError(f"{where} ({name}): 'module' does not apply to an HTTP endpoint")
+    _check_auth(defn, where)
     return defn
 
 
@@ -433,8 +502,7 @@ def load_server_defs() -> tuple[list[ServerDef], list[str]]:
     the built-in servers from connecting, but it must not pass unnoticed either
     — the caller surfaces these in the UI.
     """
-    defs = _builtin_defs()
-    errors: list[str] = []
+    defs, errors = _builtin_defs()
 
     path = config_path()
     if path is None:
@@ -444,7 +512,7 @@ def load_server_defs() -> tuple[list[ServerDef], list[str]]:
         extra, entry_errors = _load_from_file_tolerant(path)
     except McpConfigError as exc:
         _log_once(logging.ERROR, f"MCP server config ignored — {exc}")
-        return defs, [str(exc)]
+        return defs, [*errors, str(exc)]
 
     for problem in entry_errors:
         _log_once(logging.ERROR, f"MCP server config entry ignored — {problem}")

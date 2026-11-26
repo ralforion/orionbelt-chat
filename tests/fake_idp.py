@@ -134,6 +134,7 @@ class FakeIdp:
             "sub": user.sub,
             "iat": now,
             "exp": now + self.access_lifetime,
+            "jti": secrets.token_hex(8),  # as Keycloak's: no two tokens are alike
             "typ": "Bearer",
             "realm_access": {"roles": list(user.roles)},
         }
