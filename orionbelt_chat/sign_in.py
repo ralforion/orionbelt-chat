@@ -9,9 +9,15 @@ Azure one puts it in the session cookie. Here the tokens stay in this process
 
 The session cookie outlives the sign-in by design: Chainlit issues it for
 `user_session_timeout` (15 days), while the IdP may end a sign-in within
-minutes. `check_signed_in()` closes that gap. Every new chat and every message
-asks the store for a current access token, which renews it when needed, so a
-user the IdP has disabled or signed out stops at the next message.
+minutes, and a cookie copied before a sign-out stays valid to Chainlit. Two
+checks close that gap, both asking the store for a current access token, which
+renews it when due:
+
+- Chainlit's own authentication (`chainlit.auth.authenticate_user`) is
+  wrapped, so every protected HTTP route and every websocket connection is
+  refused once the sign-in behind the cookie has ended.
+- `check_signed_in()` runs at every new chat and every message, for a
+  websocket that stays open while the sign-in ends.
 """
 
 from __future__ import annotations
@@ -21,13 +27,15 @@ import logging
 from typing import Any
 
 import chainlit as cl
+import chainlit.auth as chainlit_auth
 import chainlit.oauth_providers as chainlit_oauth
 import httpx
 from chainlit.auth import get_token_from_cookies
 from chainlit.auth.jwt import decode_jwt
 from chainlit.config import config as chainlit_config
+from chainlit.context import context
 from chainlit.oauth_providers import OAuthProvider
-from fastapi import HTTPException, Request, Response
+from fastapi import Depends, HTTPException, Request, Response
 
 from .oidc import (
     IdpUnavailableError,
@@ -38,7 +46,6 @@ from .oidc import (
     TokenStore,
     is_admitted,
     load_config,
-    roles_from,
     user_identifier,
 )
 from .settings import settings
@@ -102,9 +109,8 @@ class OidcProvider(OAuthProvider):
         if tokens.id_token is None:
             raise OidcError("The identity provider returned no ID token")
         id_claims = await self._client.verify_id_token(tokens.id_token)
-        access_claims = await self._client.access_token_claims(tokens.access_token)
-        roles = roles_from((id_claims, access_claims), self._config.role_claims)
-        handle = self._store.add(tokens, subject=id_claims["sub"], roles=roles)
+        roles = await self._client.roles(id_claims, tokens.access_token)
+        handle = self._store.add(tokens, id_claims=id_claims, roles=roles)
         now = asyncio.get_running_loop().time()
         for token, (since, *_rest) in list(self._pending.items()):
             if now - since > _PENDING_TTL_SECONDS:
@@ -163,6 +169,7 @@ def register(*, transport: httpx.AsyncBaseTransport | None = None) -> bool:
     # the decorator below, which refuses to register without a provider.
     chainlit_oauth.providers.insert(0, state.provider)
     _state = state
+    _check_chainlit_authentication()
     cl.oauth_callback(_admit)
     cl.on_logout(_on_logout)
     cl.on_app_startup(_on_startup)
@@ -207,17 +214,74 @@ async def _admit(
     return default_user
 
 
-async def _on_logout(request: Request, response: Response) -> dict[str, bool]:
-    """End the sign-in behind the cookie being cleared, and revoke its tokens."""
+def _handle_from_token(token: str | None) -> str | None:
+    """The sign-in handle in a Chainlit session token, if it is valid and holds one.
+
+    Read from the token rather than from the user Chainlit hands on: with a
+    data layer that user comes from the database, and the token is the
+    credential actually presented.
+    """
+    if not token:
+        return None
+    try:
+        user = decode_jwt(token)
+    except Exception:  # expired, forged or malformed: no sign-in behind it
+        return None
+    metadata = user.metadata if isinstance(user.metadata, dict) else {}
+    handle = metadata.get(SESSION_KEY)
+    return handle if isinstance(handle, str) else None
+
+
+async def _confirm(token: str | None) -> None:
+    """Return when the sign-in behind `token` is live, renewing it if due.
+
+    Raises `SignInEndedError` when it has ended (signed out, refused by the
+    IdP, a role taken away, or not known here) and another `OidcError` when
+    the IdP is needed and cannot be reached.
+    """
     state = _state
-    token = get_token_from_cookies(dict(request.cookies))
-    if state is not None and token:
+    if state is not None:
+        await state.store.access_token(_handle_from_token(token))
+
+
+def _check_chainlit_authentication() -> None:
+    """Make Chainlit's own authentication refuse a cookie whose sign-in has ended.
+
+    Every protected HTTP route depends on `get_current_user`, and the
+    websocket's connect calls it; both reach `authenticate_user` through the
+    `chainlit.auth` module, so wrapping it there covers all of them.
+    """
+    verify_cookie = chainlit_auth.authenticate_user
+
+    # The same signature as Chainlit's, default included, so the wrapper is
+    # also a valid FastAPI dependency should a route ever depend on it directly.
+    async def authenticate_user(token: str = Depends(chainlit_auth.reuseable_oauth)) -> Any:
+        user = await verify_cookie(token)
         try:
-            user = decode_jwt(token)
-        except Exception:  # an expired or forged cookie names no sign-in to end
-            user = None
-        if user is not None:
-            await state.store.remove(user.metadata.get(SESSION_KEY))
+            await _confirm(token)
+        except SignInEndedError as e:
+            logger.info("Refused a session whose sign-in has ended: %s", e)
+            raise HTTPException(status_code=401, detail="Your sign-in has ended") from e
+        except OidcError as e:
+            logger.warning("Could not confirm a sign-in: %s", e)
+            raise HTTPException(
+                status_code=503, detail="The sign-in service cannot be reached"
+            ) from e
+        return user
+
+    chainlit_auth.authenticate_user = authenticate_user
+
+
+async def _on_logout(request: Request, response: Response) -> dict[str, bool]:
+    """End the sign-in behind the cookie being cleared, and revoke its tokens.
+
+    The cookie is only cleared in this browser; a copy kept elsewhere is
+    refused from now on, because the sign-in it names no longer exists.
+    """
+    state = _state
+    if state is not None:
+        token = get_token_from_cookies(dict(request.cookies))
+        await state.store.remove(_handle_from_token(token))
     return {"success": True}
 
 
@@ -254,24 +318,18 @@ async def _discover(client: OidcClient) -> None:
         delay = min(delay * 2, _DISCOVERY_RETRY_MAX)
 
 
-def _session_handle() -> str | None:
-    user = cl.user_session.get("user")
-    metadata = getattr(user, "metadata", None)
-    handle = metadata.get(SESSION_KEY) if isinstance(metadata, dict) else None
-    return handle if isinstance(handle, str) else None
-
-
 async def check_signed_in() -> str | None:
     """None when this chat session may go on; otherwise what to tell the user.
 
-    Fails closed: when the IdP cannot be reached to renew an expired token,
-    the session waits rather than going on unconfirmed.
+    The websocket was checked when it connected; this catches a sign-in that
+    ends while it stays open. Fails closed: when the IdP cannot be reached to
+    renew an expired token, the session waits rather than going on unconfirmed.
     """
-    state = _state
-    if state is None:
+    if _state is None:
         return None
+    token = getattr(context.session, "token", None)
     try:
-        await state.store.access_token(_session_handle())
+        await _confirm(token if isinstance(token, str) else None)
     except SignInEndedError as e:
         logger.info("Sign-in ended: %s", e)
         return SIGN_IN_ENDED

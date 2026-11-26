@@ -17,11 +17,17 @@ Releases before 1.7.0 are described on the
   read from `realm_access.roles` without any mapper. Off by default: without
   `OIDC_ISSUER` nothing changes. See "Sign-in (SSO)" in the README.
 - **The identity provider stays in charge of a sign-in.** Chainlit's session
-  cookie lasts 15 days. The chat now checks the sign-in at every new chat and
-  every message, renews the access token as it expires, and stops the session
-  once the IdP refuses. A user disabled or signed out at the IdP no longer
-  keeps chatting until the cookie runs out. Signing out revokes the tokens at
-  the IdP.
+  cookie lasts 15 days. The chat checks the sign-in on every request Chainlit
+  authenticates (HTTP routes and websocket connections), at every new chat and
+  at every message. It renews the access token as it expires and stops the
+  session once the IdP refuses, or once the user no longer holds an allowed
+  role. A user disabled, signed out or stripped of their role at the IdP no
+  longer keeps access until the cookie runs out. Signing out revokes the
+  tokens at the IdP and ends the sign-in on the server, so a copy of the
+  cookie kept from before is refused.
+- `OIDC_CLIENT_AUTH`: `client_secret_post` (default) or `client_secret_basic`,
+  for identity providers that register a client for HTTP Basic only (Okta's
+  default).
 - **Tokens stay on the server.** The browser's session cookie, signed but not
   encrypted, carries only a random handle to the sign-in, never a token.
   Chainlit's built-in Azure provider puts the refresh token in that cookie,

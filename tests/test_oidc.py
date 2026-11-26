@@ -17,6 +17,7 @@ from orionbelt_chat.oidc import (
     OidcConfig,
     OidcConfigError,
     SignInEndedError,
+    TokenEndpointError,
     TokenRejectedError,
     TokenSet,
     TokenStore,
@@ -54,6 +55,7 @@ def _settings(**overrides):
         "oidc_allowed_roles": "",
         "oidc_role_claims": DEFAULT_ROLE_CLAIMS,
         "oidc_user_claims": DEFAULT_USER_CLAIMS,
+        "oidc_client_auth": "client_secret_post",
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -113,6 +115,7 @@ class TestLoadConfig:
             ({"oidc_provider_name": "keycloak"}, "Chainlit's own providers"),
             ({"oidc_user_claims": " , "}, "OIDC_USER_CLAIMS"),
             ({"oidc_allowed_roles": "admin", "oidc_role_claims": ""}, "OIDC_ROLE_CLAIMS"),
+            ({"oidc_client_auth": "private_key_jwt"}, "OIDC_CLIENT_AUTH"),
         ],
     )
     def test_settings_that_cannot_work_are_refused(self, overrides, message):
@@ -333,9 +336,10 @@ def store(client, clock) -> TokenStore:
     return TokenStore(client, max_age_seconds=86_400, clock=clock)
 
 
-async def _stored(store: TokenStore, client: OidcClient, idp: FakeIdp) -> str:
-    tokens = await _sign_in(client, idp)
-    return store.add(tokens, subject=ALICE.sub, roles=frozenset({"analyst"}))
+async def _stored(store: TokenStore, client: OidcClient, idp: FakeIdp, user: User = ALICE) -> str:
+    tokens = await _sign_in(client, idp, user)
+    id_claims = await client.verify_id_token(tokens.id_token)
+    return store.add(tokens, id_claims=id_claims, roles=frozenset(user.roles))
 
 
 class TestTokenStore:
@@ -401,7 +405,7 @@ class TestTokenStore:
         self, client, store, clock
     ):
         tokens = TokenSet(access_token="a", expires_at=clock.now + 300)
-        handle = store.add(tokens, subject="s", roles=frozenset())
+        handle = store.add(tokens, id_claims={"sub": "s"}, roles=frozenset())
         clock.advance(270)
         assert await store.access_token(handle) == "a"
         clock.advance(60)
@@ -444,7 +448,9 @@ class TestTokenStore:
         idp.refresh_lifetime = 0  # an offline token: only the age limit ends it
         old = await _stored(store, client, idp)
         dead = store.add(
-            TokenSet(access_token="a", expires_at=clock.now + 10), subject="s", roles=frozenset()
+            TokenSet(access_token="a", expires_at=clock.now + 10),
+            id_claims={"sub": "s"},
+            roles=frozenset(),
         )
         clock.advance(3600)
         assert store.get(dead) is not None
@@ -455,3 +461,105 @@ class TestTokenStore:
         await _stored(store, client, idp)
         assert store.get(old) is None
         assert len(store) == 1
+
+
+class TestClientAuthentication:
+    """RFC 6749 §2.3.1: a client registered for one method must use that one."""
+
+    async def test_a_basic_only_provider_refuses_posted_credentials(self, clock):
+        idp = FakeIdp(client_auth="client_secret_basic")
+        client = OidcClient(_config(), transport=idp.transport(), clock=clock)
+        with pytest.raises(TokenEndpointError, match="invalid_client"):
+            await _sign_in(client, idp)
+
+    async def test_basic_signs_in_renews_and_revokes(self, clock):
+        idp = FakeIdp(client_auth="client_secret_basic")
+        config = _config(oidc_client_auth="client_secret_basic")
+        client = OidcClient(config, transport=idp.transport(), clock=clock)
+        tokens = await _sign_in(client, idp)
+        renewed = await client.refresh(tokens.refresh_token)
+        await client.revoke(renewed.refresh_token)
+        assert idp.revoked == [renewed.refresh_token]
+        for request in idp.requests:
+            if request.method == "POST":
+                assert request.headers["authorization"].startswith("Basic ")
+                assert b"client_secret" not in request.content
+
+    async def test_basic_credentials_are_form_encoded_first(self, clock):
+        idp = FakeIdp(client_auth="client_secret_basic", client_secret="p@ss:w rd+")
+        config = _config(oidc_client_auth="client_secret_basic", oidc_client_secret="p@ss:w rd+")
+        client = OidcClient(config, transport=idp.transport(), clock=clock)
+        assert (await _sign_in(client, idp)).access_token
+
+
+class TestRolesOnRenewal:
+    @pytest.fixture()
+    def gated(self, idp, clock):
+        client = OidcClient(
+            _config(oidc_allowed_roles="analyst"), transport=idp.transport(), clock=clock
+        )
+        return client, TokenStore(client, max_age_seconds=86_400, clock=clock)
+
+    async def test_losing_the_allowed_role_ends_the_sign_in(self, idp, clock, gated):
+        client, store = gated
+        carol = User(sub="u-carol", username="carol", roles=["analyst"])
+        handle = await _stored(store, client, idp, carol)
+        carol.roles.remove("analyst")  # an admin takes the role away at the IdP
+        clock.advance(290)
+        with pytest.raises(SignInEndedError, match="allowed role"):
+            await store.access_token(handle)
+        assert store.get(handle) is None
+        # The refresh token the renewal produced is revoked, not left live.
+        assert idp.revoked == [idp.issued_refresh_tokens[-1]]
+        assert idp.refresh_tokens == {}
+
+    async def test_roles_are_taken_again_at_each_renewal(self, idp, client, store, clock):
+        dave = User(sub="u-dave", username="dave", roles=["analyst"])
+        handle = await _stored(store, client, idp, dave)
+        dave.roles.append("admin")
+        clock.advance(290)
+        await store.access_token(handle)
+        assert store.get(handle).roles == {"analyst", "admin"}
+
+    async def test_without_a_new_id_token_its_roles_stand(self, idp, clock):
+        idp.refresh_returns_id_token = False
+        config = _config(oidc_allowed_roles="staff", oidc_role_claims="groups,realm_access.roles")
+        client = OidcClient(config, transport=idp.transport(), clock=clock)
+        store = TokenStore(client, max_age_seconds=86_400, clock=clock)
+        tokens = await _sign_in(client, idp)
+        # A group the ID token carried and the access token does not.
+        handle = store.add(
+            tokens, id_claims={"sub": ALICE.sub, "groups": ["staff"]}, roles=frozenset({"staff"})
+        )
+        clock.advance(290)
+        await store.access_token(handle)
+        assert "staff" in store.get(handle).roles
+
+
+class TestRemovalDuringRenewal:
+    async def test_logout_during_a_renewal_revokes_what_the_renewal_got(self, idp, clock):
+        started, release = asyncio.Event(), asyncio.Event()
+
+        async def slow_refresh(request):
+            if b"grant_type=refresh_token" in request.content:
+                started.set()
+                await release.wait()
+            return idp.handle(request)
+
+        client = OidcClient(_config(), transport=httpx.MockTransport(slow_refresh), clock=clock)
+        store = TokenStore(client, max_age_seconds=86_400, clock=clock)
+        handle = await _stored(store, client, idp)
+        clock.advance(290)
+
+        request = asyncio.create_task(store.access_token(handle))
+        await started.wait()
+        logout = asyncio.create_task(store.remove(handle))
+        await asyncio.sleep(0)
+        release.set()
+
+        with pytest.raises(SignInEndedError, match="signed out"):
+            await request
+        await logout
+        renewed = idp.issued_refresh_tokens[-1]
+        assert idp.revoked == [renewed]
+        assert idp.refresh_tokens == {}  # nothing left that could renew the sign-in

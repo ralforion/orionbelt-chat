@@ -103,6 +103,10 @@ class Settings(BaseSettings):
     # picked up without a restart.
     oidc_client_secret: str = ""
     oidc_client_secret_file: str = ""
+    # How the secret is presented: `client_secret_post` (in the request body)
+    # or `client_secret_basic` (HTTP Basic), as the client is registered at
+    # the IdP. Okta registers clients for Basic by default.
+    oidc_client_auth: str = "client_secret_post"
     # Add `offline_access` for a sign-in that outlives the IdP's own session
     # (and on Entra ID, where it is the only way to get a refresh token).
     oidc_scopes: str = "openid profile email"

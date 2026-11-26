@@ -12,6 +12,7 @@ by whoever holds it.
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import re
 import secrets
@@ -20,6 +21,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import quote_plus
 
 import httpx
 import jwt
@@ -33,6 +35,13 @@ DEFAULT_PROVIDER_NAME = "SSO"
 # app roles in `roles`.
 DEFAULT_ROLE_CLAIMS = "roles,groups,realm_access.roles"
 DEFAULT_USER_CLAIMS = "preferred_username,email,sub"
+
+# How this client proves itself at the token and revocation endpoints. An IdP
+# may register a client for exactly one of them: Okta defaults to Basic,
+# Auth0 to post. Keycloak and Entra ID accept both.
+CLIENT_SECRET_POST = "client_secret_post"
+CLIENT_SECRET_BASIC = "client_secret_basic"
+_CLIENT_AUTH_METHODS = (CLIENT_SECRET_POST, CLIENT_SECRET_BASIC)
 
 # Signature algorithms an ID token may use. Asymmetric only: an HS* token is
 # signed with the client secret, which proves nothing about who issued it, and
@@ -126,6 +135,7 @@ class _OidcSettings(Protocol):
     oidc_allowed_roles: str
     oidc_role_claims: str
     oidc_user_claims: str
+    oidc_client_auth: str
 
 
 def _split(value: str) -> tuple[str, ...]:
@@ -143,6 +153,7 @@ class OidcConfig:
     role_claims: tuple[str, ...] = _split(DEFAULT_ROLE_CLAIMS)
     allowed_roles: frozenset[str] = frozenset()
     user_claims: tuple[str, ...] = _split(DEFAULT_USER_CLAIMS)
+    client_auth: str = CLIENT_SECRET_POST
     # Exactly one of the two. Not shown in repr, so logging the config does
     # not log the secret.
     client_secret: str = field(default="", repr=False)
@@ -218,6 +229,13 @@ def load_config(settings: _OidcSettings) -> OidcConfig | None:
             "pick another (it is also the button label, e.g. 'SSO' or 'Keycloak')"
         )
 
+    client_auth = settings.oidc_client_auth.strip().lower()
+    if client_auth not in _CLIENT_AUTH_METHODS:
+        raise OidcConfigError(
+            f"OIDC_CLIENT_AUTH must be one of {', '.join(_CLIENT_AUTH_METHODS)} "
+            f"(got {settings.oidc_client_auth!r})"
+        )
+
     role_claims = _split(settings.oidc_role_claims)
     user_claims = _split(settings.oidc_user_claims)
     if not user_claims:
@@ -231,6 +249,7 @@ def load_config(settings: _OidcSettings) -> OidcConfig | None:
         role_claims=role_claims,
         allowed_roles=frozenset(_split(settings.oidc_allowed_roles)),
         user_claims=user_claims,
+        client_auth=client_auth,
         client_secret=secret,
         client_secret_file=secret_file,
     )
@@ -561,19 +580,33 @@ class OidcClient:
             logger.debug("OIDC: access token not used for roles: %s", e)
             return {}
 
+    async def roles(self, id_claims: Mapping[str, Any], access_token: str) -> frozenset[str]:
+        """The roles and groups a sign-in holds, from its ID token and access token."""
+        access_claims = await self.access_token_claims(access_token)
+        return roles_from((id_claims, access_claims), self.config.role_claims)
+
     # ── Token endpoint ──
+
+    def _authenticated(self, form: dict[str, str]) -> tuple[dict[str, str], dict[str, str]]:
+        """`form` and headers carrying the client's credentials, the configured way."""
+        secret = self.config.secret()
+        if self.config.client_auth == CLIENT_SECRET_BASIC:
+            # RFC 6749 §2.3.1: each half is form-urlencoded before the two are
+            # joined, so a ':' in the secret cannot split it.
+            pair = f"{quote_plus(self.config.client_id)}:{quote_plus(secret)}"
+            basic = base64.b64encode(pair.encode("utf-8")).decode("ascii")
+            return form, {"Authorization": f"Basic {basic}"}
+        return {**form, "client_id": self.config.client_id, "client_secret": secret}, {}
 
     async def _token_request(self, form: dict[str, str]) -> TokenSet:
         discovery = await self.discovery()
-        form = {
-            **form,
-            "client_id": self.config.client_id,
-            "client_secret": self.config.secret(),
-        }
+        form, headers = self._authenticated(form)
         try:
             async with self._http() as http:
                 response = await http.post(
-                    discovery.token_endpoint, data=form, headers={"Accept": "application/json"}
+                    discovery.token_endpoint,
+                    data=form,
+                    headers={"Accept": "application/json", **headers},
                 )
         except httpx.HTTPError as e:
             raise IdpUnavailableError(f"the token endpoint unreachable ({type(e).__name__})") from e
@@ -603,15 +636,14 @@ class OidcClient:
         discovery = await self.discovery()
         if discovery.revocation_endpoint is None:
             return
-        form = {
-            "token": refresh_token,
-            "token_type_hint": "refresh_token",
-            "client_id": self.config.client_id,
-            "client_secret": self.config.secret(),
-        }
+        form, headers = self._authenticated(
+            {"token": refresh_token, "token_type_hint": "refresh_token"}
+        )
         try:
             async with self._http() as http:
-                response = await http.post(discovery.revocation_endpoint, data=form)
+                response = await http.post(
+                    discovery.revocation_endpoint, data=form, headers=headers
+                )
         except httpx.HTTPError as e:
             logger.info("OIDC: revoking a refresh token failed (%s)", type(e).__name__)
             return
@@ -635,10 +667,20 @@ class SignIn:
     """One user's sign-in, as this process holds it."""
 
     tokens: TokenSet
-    subject: str
+    # The latest verified ID token's claims. A renewal that brings no new ID
+    # token keeps these, and the roles they hold.
+    id_claims: dict[str, Any] = field(repr=False)
     roles: frozenset[str]
     created_at: float
+    # Renewal and removal both hold this, so a sign-out cannot slip in
+    # between a refresh token being spent and its replacement being stored.
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    # Set once the sign-in is over, for a caller that waited on the lock.
+    ended: bool = False
+
+    @property
+    def subject(self) -> str:
+        return str(self.id_claims["sub"])
 
 
 class TokenStore:
@@ -663,12 +705,12 @@ class TokenStore:
     def __len__(self) -> int:
         return len(self._sign_ins)
 
-    def add(self, tokens: TokenSet, *, subject: str, roles: frozenset[str]) -> str:
+    def add(self, tokens: TokenSet, *, id_claims: Mapping[str, Any], roles: frozenset[str]) -> str:
         """Keep a new sign-in and return its handle."""
         self._prune()
         handle = secrets.token_urlsafe(32)
         self._sign_ins[handle] = SignIn(
-            tokens=tokens, subject=subject, roles=roles, created_at=self._clock()
+            tokens=tokens, id_claims=dict(id_claims), roles=roles, created_at=self._clock()
         )
         return handle
 
@@ -676,13 +718,33 @@ class TokenStore:
         return self._sign_ins.get(handle) if handle else None
 
     async def remove(self, handle: str | None, *, revoke: bool = True) -> None:
-        """Forget a sign-in, revoking its refresh token at the IdP first."""
+        """End a sign-in and revoke its refresh token at the IdP.
+
+        Gone from the store at once, so no new request can use it. The
+        revocation waits for a renewal in flight, so the refresh token revoked
+        is the one that renewal leaves behind, not the one it already spent.
+        """
         sign_in = self._sign_ins.pop(handle, None) if handle else None
-        if revoke and sign_in is not None and sign_in.tokens.refresh_token:
-            try:
-                await self._client.revoke(sign_in.tokens.refresh_token)
-            except OidcError as e:
-                logger.info("OIDC: could not revoke a sign-in's refresh token: %s", e)
+        if sign_in is None:
+            return
+        async with sign_in.lock:
+            sign_in.ended = True
+            if revoke:
+                await self._revoke(sign_in.tokens)
+
+    async def _revoke(self, tokens: TokenSet) -> None:
+        if tokens.refresh_token is None:
+            return
+        try:
+            await self._client.revoke(tokens.refresh_token)
+        except OidcError as e:
+            logger.info("OIDC: could not revoke a sign-in's refresh token: %s", e)
+
+    def _end(self, handle: str, sign_in: SignIn) -> None:
+        """Forget a sign-in from inside its lock."""
+        sign_in.ended = True
+        if self._sign_ins.get(handle) is sign_in:
+            del self._sign_ins[handle]
 
     async def access_token(self, handle: str | None) -> str:
         """A current access token for the sign-in, renewed first if it is about to expire.
@@ -698,10 +760,11 @@ class TokenStore:
         if self._fresh(sign_in.tokens):
             return sign_in.tokens.access_token
         async with sign_in.lock:
-            # Another task may have renewed it while this one waited.
-            if self._fresh(sign_in.tokens):
-                return sign_in.tokens.access_token
-            await self._renew(handle, sign_in)
+            # Another task may have renewed it, or ended it, while this one waited.
+            if not sign_in.ended and not self._fresh(sign_in.tokens):
+                await self._renew(handle, sign_in)
+            if sign_in.ended or self._sign_ins.get(handle) is not sign_in:
+                raise SignInEndedError("the user signed out")
             return sign_in.tokens.access_token
 
     def _fresh(self, tokens: TokenSet) -> bool:
@@ -715,12 +778,12 @@ class TokenStore:
         ):
             if tokens.expires_at > now:
                 return  # nothing to renew with yet, but still valid for a little while
-            self._sign_ins.pop(handle, None)
+            self._end(handle, sign_in)
             raise SignInEndedError("the access token expired and there is no refresh token")
         try:
             renewed = await self._client.refresh(tokens.refresh_token)
         except TokenEndpointError as e:
-            self._sign_ins.pop(handle, None)
+            self._end(handle, sign_in)
             if e.error != "invalid_grant":
                 # Not the user's sign-in running out but this client failing:
                 # a wrong secret, a disabled client. Every renewal will fail.
@@ -731,16 +794,6 @@ class TokenStore:
                 logger.warning("OIDC: could not renew a sign-in; using its token until it expires")
                 return
             raise
-        if renewed.id_token:
-            # OIDC Core §12.2: a renewed ID token must be for the same user.
-            try:
-                claims = await self._client.verify_id_token(renewed.id_token)
-            except TokenRejectedError as e:
-                self._sign_ins.pop(handle, None)
-                raise SignInEndedError(f"the renewed ID token was rejected: {e}") from e
-            if claims["sub"] != sign_in.subject:
-                self._sign_ins.pop(handle, None)
-                raise SignInEndedError("the renewed ID token is for a different user")
         # RFC 6749 §6: the IdP may keep the refresh token; then the old one stands.
         if renewed.refresh_token is None:
             renewed = replace(
@@ -748,7 +801,32 @@ class TokenStore:
                 refresh_token=tokens.refresh_token,
                 refresh_expires_at=tokens.refresh_expires_at,
             )
+        id_claims = sign_in.id_claims
+        if renewed.id_token:
+            # OIDC Core §12.2: a renewed ID token must be for the same user.
+            try:
+                id_claims = await self._client.verify_id_token(renewed.id_token)
+            except TokenRejectedError as e:
+                await self._refuse(handle, sign_in, renewed)
+                raise SignInEndedError(f"the renewed ID token was rejected: {e}") from e
+            if id_claims["sub"] != sign_in.subject:
+                await self._refuse(handle, sign_in, renewed)
+                raise SignInEndedError("the renewed ID token is for a different user")
+        # Roles are taken again on every renewal, so one removed at the IdP
+        # ends the sign-in within an access token's lifetime.
+        roles = await self._client.roles(id_claims, renewed.access_token)
+        if not is_admitted(roles, self._client.config.allowed_roles):
+            await self._refuse(handle, sign_in, renewed)
+            logger.info("OIDC: %s no longer holds an allowed role", sign_in.subject)
+            raise SignInEndedError("the user no longer holds an allowed role")
         sign_in.tokens = renewed
+        sign_in.id_claims = id_claims
+        sign_in.roles = roles
+
+    async def _refuse(self, handle: str, sign_in: SignIn, renewed: TokenSet) -> None:
+        """End a sign-in whose renewal came back unacceptable, revoking what it brought."""
+        self._end(handle, sign_in)
+        await self._revoke(renewed)
 
     def _prune(self) -> None:
         now = self._clock()
@@ -760,4 +838,4 @@ class TokenStore:
             if now - sign_in.created_at > self._max_age or (
                 not renewable and tokens.expires_at <= now
             ):
-                del self._sign_ins[handle]
+                self._end(handle, sign_in)

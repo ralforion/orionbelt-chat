@@ -52,6 +52,7 @@ def oidc_settings(monkeypatch):
         "oidc_allowed_roles": "",
         "oidc_role_claims": DEFAULT_ROLE_CLAIMS,
         "oidc_user_claims": DEFAULT_USER_CLAIMS,
+        "oidc_client_auth": "client_secret_post",
     }
     for name, value in values.items():
         monkeypatch.setattr(settings, name, value)
@@ -59,6 +60,10 @@ def oidc_settings(monkeypatch):
     for hook in ("oauth_callback", "on_logout", "on_app_startup", "on_app_shutdown"):
         monkeypatch.setattr(chainlit_config.code, hook, None)
     monkeypatch.setattr(sign_in, "_state", None)
+    # register() wraps Chainlit's authentication; put the original back after.
+    import chainlit.auth as chainlit_auth
+
+    monkeypatch.setattr(chainlit_auth, "authenticate_user", chainlit_auth.authenticate_user)
     return monkeypatch
 
 
@@ -191,42 +196,119 @@ class TestLogin:
         assert idp.revoked == [refresh]
 
 
-class TestCheckSignedIn:
-    async def _user_from_login(self, chat, idp):
-        import chainlit as cl
+def _expire(handle: str) -> None:
+    """Make the sign-in's access token due for renewal now."""
+    record = sign_in._state.store.get(handle)
+    record.tokens = replace(record.tokens, expires_at=0)
+
+
+class TestCookieAfterSignInEnds:
+    """A cookie copied before the sign-in ended is refused wherever Chainlit checks one."""
+
+    async def test_a_cookie_replayed_after_logout_is_refused(self, chat, idp):
+        await _log_in(chat, idp, ALICE)
+        saved = dict(chat.cookies)
+        assert (await chat.get("/user")).status_code == 200
+
+        await chat.post("/logout")
+        chat.cookies.clear()
+        for name, value in saved.items():
+            chat.cookies.set(name, value)
+
+        response = await chat.get("/user")
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Your sign-in has ended"
+
+    async def test_the_websocket_check_refuses_it_too(self, chat, idp):
+        import chainlit.auth as chainlit_auth
+        from fastapi import HTTPException
 
         await _log_in(chat, idp, ALICE)
-        user = _session_user(chat)
-        return cl.User(identifier=user["identifier"], metadata=user["metadata"])
+        token = get_token_from_cookies(dict(chat.cookies))
+        assert await chainlit_auth.get_current_user(token=token)
+        await chat.post("/logout")
+        with pytest.raises(HTTPException) as refused:
+            await chainlit_auth.get_current_user(token=token)
+        assert refused.value.status_code == 401
+
+    async def test_a_role_taken_away_at_the_idp_is_refused_at_renewal(
+        self, chat, idp, oidc_settings
+    ):
+        config = replace(sign_in._state.config, allowed_roles=frozenset({"analyst"}))
+        oidc_settings.setattr(sign_in._state, "config", config)
+        oidc_settings.setattr(sign_in._state.client, "config", config)
+        erin = User(sub="u-erin", username="erin", roles=["analyst"])
+        await _log_in(chat, idp, erin)
+        assert (await chat.get("/user")).status_code == 200
+
+        erin.roles.clear()
+        _expire(_session_user(chat)["metadata"][sign_in.SESSION_KEY])
+        assert (await chat.get("/user")).status_code == 401
+
+    async def test_an_unreachable_idp_answers_503_for_an_expired_session(self, chat, idp):
+        await _log_in(chat, idp, ALICE)
+        _expire(_session_user(chat)["metadata"][sign_in.SESSION_KEY])
+        idp.token_status = 503
+        assert (await chat.get("/user")).status_code == 503
+
+    def test_chainlit_still_authenticates_where_the_wrapper_sits(self):
+        """Pins the Chainlit internals the check relies on.
+
+        Every protected route depends on `get_current_user`, and the websocket
+        connect calls the same function. Should a Chainlit upgrade route
+        either somewhere else, this fails instead of the check going quiet.
+        """
+        import inspect
+
+        import chainlit.auth as chainlit_auth
+        import chainlit.server as chainlit_server
+        import chainlit.socket as chainlit_socket
+
+        assert chainlit_socket.get_current_user is chainlit_auth.get_current_user
+        assert chainlit_server.get_current_user is chainlit_auth.get_current_user
+        assert "authenticate_user(token)" in inspect.getsource(chainlit_auth.get_current_user)
+
+
+class TestCheckSignedIn:
+    async def _session_from_login(self, chat, idp, user=ALICE):
+        import chainlit as cl
+
+        await _log_in(chat, idp, user)
+        token = get_token_from_cookies(dict(chat.cookies))
+        claims = _session_user(chat)
+        init_http_context(
+            user=cl.User(identifier=claims["identifier"], metadata=claims["metadata"]),
+            auth_token=token,
+        )
+        return claims["metadata"][sign_in.SESSION_KEY]
 
     async def test_nothing_to_check_when_sign_in_is_off(self, oidc_settings):
         init_http_context(user=None)
         assert await sign_in.check_signed_in() is None
 
     async def test_a_live_sign_in_goes_on(self, chat, idp):
-        init_http_context(user=await self._user_from_login(chat, idp))
+        await self._session_from_login(chat, idp)
         assert await sign_in.check_signed_in() is None
 
     async def test_a_sign_in_the_idp_ended_stops_the_session(self, chat, idp):
-        user = await self._user_from_login(chat, idp)
-        init_http_context(user=user)
-        handle = user.metadata[sign_in.SESSION_KEY]
-        record = sign_in._state.store.get(handle)
-        record.tokens = replace(record.tokens, expires_at=0)
+        _expire(await self._session_from_login(chat, idp))
         idp.refresh_error = "invalid_grant"  # the user was disabled or signed out at the IdP
         assert await sign_in.check_signed_in() == sign_in.SIGN_IN_ENDED
 
-    async def test_a_session_from_before_a_restart_must_sign_in_again(self, chat):
+    async def test_a_session_from_before_a_restart_must_sign_in_again(self, chat, idp):
+        handle = await self._session_from_login(chat, idp)
+        await sign_in._state.store.remove(handle, revoke=False)
+        assert await sign_in.check_signed_in() == sign_in.SIGN_IN_ENDED
+
+    async def test_a_session_without_a_token_is_not_trusted(self, chat):
         import chainlit as cl
 
-        init_http_context(user=cl.User(identifier="alice", metadata={"oidc_session": "gone"}))
+        user = cl.User(identifier="alice", metadata={sign_in.SESSION_KEY: "anything"})
+        init_http_context(user=user)
         assert await sign_in.check_signed_in() == sign_in.SIGN_IN_ENDED
 
     async def test_an_unreachable_idp_holds_an_expired_session(self, chat, idp):
-        user = await self._user_from_login(chat, idp)
-        init_http_context(user=user)
-        record = sign_in._state.store.get(user.metadata[sign_in.SESSION_KEY])
-        record.tokens = replace(record.tokens, expires_at=0)
+        _expire(await self._session_from_login(chat, idp))
         idp.token_status = 503
         assert await sign_in.check_signed_in() == sign_in.IDP_UNAVAILABLE
 

@@ -9,12 +9,13 @@ tokens with a key generated per instance, so every check the client makes
 
 from __future__ import annotations
 
+import base64
 import json
 import secrets
 import time
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote_plus
 
 import httpx
 import jwt
@@ -61,6 +62,11 @@ class FakeIdp:
     refresh_id_token_sub: str | None = None
     # When false, a refresh response carries no new refresh token.
     refresh_returns_refresh_token: bool = True
+    # When false, a refresh response carries no new ID token.
+    refresh_returns_id_token: bool = True
+    # How the client must authenticate, and only that way: Okta, for one,
+    # registers a client for exactly one method.
+    client_auth: str = "client_secret_post"
 
     def __post_init__(self) -> None:
         self.key = new_key()
@@ -71,6 +77,7 @@ class FakeIdp:
         ]
         self.codes: dict[str, tuple[User, str]] = {}
         self.refresh_tokens: dict[str, User] = {}
+        self.issued_refresh_tokens: list[str] = []
         self.revoked: list[str] = []
         self.requests: list[httpx.Request] = []
 
@@ -148,9 +155,13 @@ class FakeIdp:
             keys = [public_jwk(self.key, self.kid), *self.extra_jwks]
             return httpx.Response(200, json={"keys": keys})
         if path == base + "/protocol/openid-connect/token":
-            return self._token(_form(request))
+            return self._token(request, _form(request))
         if path == base + "/protocol/openid-connect/revoke":
-            self.revoked.append(_form(request)["token"])
+            form = _form(request)
+            if not self._client_authenticated(request, form):
+                return httpx.Response(401, json={"error": "invalid_client"})
+            self.revoked.append(form["token"])
+            self.refresh_tokens.pop(form["token"], None)
             return httpx.Response(200)
         return httpx.Response(404)
 
@@ -181,15 +192,31 @@ class FakeIdp:
         }
         refresh = secrets.token_urlsafe(24)
         self.refresh_tokens[refresh] = user
+        self.issued_refresh_tokens.append(refresh)
         body["refresh_token"] = refresh
         return body
 
-    def _token(self, form: dict[str, str]) -> httpx.Response:
+    def _client_authenticated(self, request: httpx.Request, form: dict[str, str]) -> bool:
+        if self.client_auth == "client_secret_basic":
+            header = request.headers.get("authorization", "")
+            if not header.startswith("Basic ") or "client_secret" in form:
+                return False
+            # RFC 6749 §2.3.1: each half is form-urlencoded before encoding.
+            user, _, password = base64.b64decode(header[6:]).decode().partition(":")
+            return (unquote_plus(user), unquote_plus(password)) == (
+                self.client_id,
+                self.client_secret,
+            )
+        return (
+            "authorization" not in request.headers
+            and form.get("client_id") == self.client_id
+            and form.get("client_secret") == self.client_secret
+        )
+
+    def _token(self, request: httpx.Request, form: dict[str, str]) -> httpx.Response:
         if self.token_status is not None:
             return httpx.Response(self.token_status)
-        if form.get("client_id") != self.client_id or form.get("client_secret") != (
-            self.client_secret
-        ):
+        if not self._client_authenticated(request, form):
             return httpx.Response(401, json={"error": "invalid_client"})
         grant = form.get("grant_type")
         if grant == "authorization_code":
@@ -212,6 +239,8 @@ class FakeIdp:
             if not self.refresh_returns_refresh_token:
                 self.refresh_tokens.pop(body.pop("refresh_token"))
                 body.pop("refresh_expires_in")
+            if not self.refresh_returns_id_token:
+                body.pop("id_token")
             return httpx.Response(200, json=body)
         return httpx.Response(400, json={"error": "unsupported_grant_type"})
 

@@ -430,6 +430,7 @@ file; see [`.env.example`](./.env.example) for a copyable starting point.
 | `OIDC_CLIENT_ID` | _(empty)_ | This app's client at the IdP |
 | `OIDC_CLIENT_SECRET` | _(empty)_ | Its secret. Set this or the file below, not both |
 | `OIDC_CLIENT_SECRET_FILE` | _(empty)_ | A file holding the secret, read on each use, so a rotated secret is picked up without a restart |
+| `OIDC_CLIENT_AUTH` | `client_secret_post` | How the secret is presented to the IdP: `client_secret_post` (request body) or `client_secret_basic` (HTTP Basic), as the client is registered. Okta registers clients for Basic by default |
 | `OIDC_SCOPES` | `openid profile email` | Scopes asked for at sign-in. Must include `openid`; add `offline_access` for a refresh token that outlives the IdP's session (required on Entra ID) |
 | `OIDC_PROVIDER_NAME` | `SSO` | The login button reads "Continue with" this name, and it is part of the redirect URI: `<CHAINLIT_URL>/auth/oauth/<name>/callback` |
 | `OIDC_ALLOWED_ROLES` | _(empty)_ | Comma-separated roles or groups; a user needs one of them. Empty admits everyone the IdP signs in |
@@ -555,19 +556,24 @@ does, the login button answers 503.
 ### How a sign-in behaves
 
 - **It lasts as long as the identity provider says.** Chainlit's session
-  cookie is valid for 15 days, but the chat checks the sign-in at every new chat
-  and every message. It renews the user's access token as it expires and stops
-  the session once the IdP refuses: a user disabled or signed out in Keycloak is
-  stopped at their first message after the current access token is due for
-  renewal (Keycloak's default lifetime is 5 minutes). Keycloak's *SSO Session
-  Idle* and *SSO Session Max* set how long a sign-in lasts; add `offline_access`
-  to `OIDC_SCOPES` for sign-ins that outlive them.
+  cookie is valid for 15 days, but the chat checks the sign-in on every request
+  Chainlit authenticates (each HTTP route and each websocket connection), at
+  every new chat and at every message. It renews the user's access token as it
+  expires and stops the session once the IdP refuses: a user disabled or signed
+  out in Keycloak is stopped at their first request after the current access
+  token is due for renewal (Keycloak's default lifetime is 5 minutes).
+  Keycloak's *SSO Session Idle* and *SSO Session Max* set how long a sign-in
+  lasts; add `offline_access` to `OIDC_SCOPES` for sign-ins that outlive them.
+- **Roles are checked again at every renewal.** With `OIDC_ALLOWED_ROLES` set,
+  a user whose last allowed role is taken away at the IdP is stopped at the
+  next renewal, as if they had been signed out.
 - **Tokens never reach the browser.** The session cookie is signed but not
   encrypted, so it carries only a random handle to the sign-in, which the chat
   holds in memory.
-- **Signing out revokes the tokens** at the IdP. If the chat is the only client
-  in the user's Keycloak session, that ends the session too, and the next
-  sign-in asks for the password again.
+- **Signing out ends the sign-in on the server** and revokes its tokens at the
+  IdP. A copy of the session cookie kept from before is refused from then on.
+  If the chat is the only client in the user's Keycloak session, that ends the
+  session too, and the next sign-in asks for the password again.
 - **A restart signs everyone out.** Sign-ins live in the chat's memory, so after
   a restart or redeploy users sign in again. Several replicas behind a load
   balancer need sticky sessions, as Chainlit's websocket does anyway.
@@ -585,7 +591,9 @@ Set `OIDC_ISSUER` to the issuer the provider's tokens carry:
 `https://<tenant>.auth0.com/` for Auth0 (with the trailing slash). On Entra
 ID, add `offline_access` to `OIDC_SCOPES`, or no refresh token is issued and
 every sign-in ends with its first access token. Entra puts app roles in the ID
-token's `roles` claim, which is read by default.
+token's `roles` claim, which is read by default. An Okta client is registered
+for HTTP Basic unless set otherwise, so set
+`OIDC_CLIENT_AUTH=client_secret_basic` there.
 
 ## Usage Examples
 
