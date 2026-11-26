@@ -91,6 +91,37 @@ class Settings(BaseSettings):
     # large as the slowest individual tool call you expect.
     mcp_request_timeout_seconds: int = 300
 
+    # ── Sign-in (OpenID Connect) ────────────────────────────
+    # Off unless OIDC_ISSUER is set. Then every user signs in with the identity
+    # provider (Keycloak, Entra ID, Okta, ...) before the chat opens; the
+    # client is this app's own confidential client there. Needs
+    # CHAINLIT_AUTH_SECRET too, and CHAINLIT_URL behind a proxy. See the
+    # README's "Sign-in (SSO)" section.
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    # One of the two. The file is read on each use, so a rotated secret is
+    # picked up without a restart.
+    oidc_client_secret: str = ""
+    oidc_client_secret_file: str = ""
+    # How the secret is presented: `client_secret_post` (in the request body)
+    # or `client_secret_basic` (HTTP Basic), as the client is registered at
+    # the IdP. Okta registers clients for Basic by default.
+    oidc_client_auth: str = "client_secret_post"
+    # Add `offline_access` for a sign-in that outlives the IdP's own session
+    # (and on Entra ID, where it is the only way to get a refresh token).
+    oidc_scopes: str = "openid profile email"
+    # The login button reads "Continue with <name>"; the name is also part of
+    # the redirect URI registered at the IdP: <CHAINLIT_URL>/auth/oauth/<name>/callback
+    oidc_provider_name: str = "SSO"
+    # Comma-separated roles or groups, any one of which admits a user. Empty
+    # admits everyone the identity provider signs in for this client.
+    oidc_allowed_roles: str = ""
+    # Claims holding a user's roles and groups, read from the ID token and
+    # from the access token when it is a JWT. A dot reaches into an object.
+    oidc_role_claims: str = "roles,groups,realm_access.roles"
+    # Claims naming the user, first present wins (an unverified email is skipped).
+    oidc_user_claims: str = "preferred_username,email,sub"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

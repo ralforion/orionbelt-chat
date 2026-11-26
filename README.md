@@ -120,6 +120,12 @@ A production-ready chat application that connects to OrionBelt Analytics and Ori
 - **Message recall** - Press **Arrow Up/Down** in the input to navigate message history
 - **Responsive design** - Works on desktop and mobile browsers
 
+### Single Sign-On
+
+- **OpenID Connect sign-in** - Users sign in with Keycloak, Entra ID, Okta or any other OIDC provider before the chat opens; see [Sign-in (SSO)](#sign-in-sso)
+- **Role-based admission** - Only users holding one of the roles or groups you name get in
+- **The IdP stays in charge** - A user disabled or signed out at the identity provider is stopped at their next message, not when the 15-day session cookie runs out
+
 ## Quick Start
 
 ### Prerequisites
@@ -416,6 +422,21 @@ file; see [`.env.example`](./.env.example) for a copyable starting point.
 | `TOOL_CALL_TIMEOUT_SECONDS` | `300` | Budget for the whole tool-call phase of one agent turn, including any sampling round-trips |
 | `MCP_REQUEST_TIMEOUT_SECONDS` | `300` | Per-request MCP transport timeout. Must be at least as large as your slowest single tool call |
 
+**Sign-in** (off unless `OIDC_ISSUER` is set; see [Sign-in (SSO)](#sign-in-sso)):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `OIDC_ISSUER` | _(empty)_ | The identity provider, exactly as its tokens name it (a trailing slash counts). Setting it turns sign-in on |
+| `OIDC_CLIENT_ID` | _(empty)_ | This app's client at the IdP |
+| `OIDC_CLIENT_SECRET` | _(empty)_ | Its secret. Set this or the file below, not both |
+| `OIDC_CLIENT_SECRET_FILE` | _(empty)_ | A file holding the secret, read on each use, so a rotated secret is picked up without a restart |
+| `OIDC_CLIENT_AUTH` | `client_secret_post` | How the secret is presented to the IdP: `client_secret_post` (request body) or `client_secret_basic` (HTTP Basic), as the client is registered. Okta registers clients for Basic by default |
+| `OIDC_SCOPES` | `openid profile email` | Scopes asked for at sign-in. Must include `openid`; add `offline_access` for a refresh token that outlives the IdP's session (required on Entra ID) |
+| `OIDC_PROVIDER_NAME` | `SSO` | The login button reads "Continue with" this name, and it is part of the redirect URI: `<CHAINLIT_URL>/auth/oauth/<name>/callback` |
+| `OIDC_ALLOWED_ROLES` | _(empty)_ | Comma-separated roles or groups; a user needs one of them. Empty admits everyone the IdP signs in |
+| `OIDC_ROLE_CLAIMS` | `roles,groups,realm_access.roles` | Claims holding roles and groups, read from the ID token and from the access token when it is a JWT the IdP signed. A dot reaches into an object |
+| `OIDC_USER_CLAIMS` | `preferred_username,email,sub` | Claims naming the user, first present wins. An email the IdP marks unverified is skipped |
+
 **App root** (not a `Settings` field — read by Chainlit and the launcher):
 
 | Variable | Default | Purpose |
@@ -494,6 +515,93 @@ docker run --rm -p 8080:8080 --env-file .env ralforion/orionbelt-chat:latest
 Open **http://localhost:8080** in your browser. Configuration is read from the
 environment (see `.env.example`); pass it via `--env-file .env` or individual
 `-e KEY=value` flags.
+
+## Sign-in (SSO)
+
+Off by default: the chat opens for anyone who can reach it. Set `OIDC_ISSUER`
+and every user signs in with your identity provider first. It works with any
+OpenID Connect provider that publishes a discovery document; it is tested
+against Keycloak.
+
+### Keycloak
+
+1. **Create a client** in the realm: *Client authentication* on (a confidential
+   client) and *Standard flow* on. Its *Valid redirect URI* is the chat's URL
+   followed by `/auth/oauth/SSO/callback`, e.g.
+   `https://chat.example.com/auth/oauth/SSO/callback` (`SSO` is
+   `OIDC_PROVIDER_NAME`).
+2. **Copy the client secret** from the client's *Credentials* tab.
+3. **Configure the chat:**
+
+   ```bash
+   CHAINLIT_AUTH_SECRET=...                 # signs session cookies; make one with: uv run chainlit create-secret
+   CHAINLIT_URL=https://chat.example.com    # behind a proxy: the URL users see, used for the redirect URI
+   OIDC_ISSUER=https://keycloak.example.com/realms/analytics
+   OIDC_CLIENT_ID=orionbelt-chat
+   OIDC_CLIENT_SECRET_FILE=/run/secrets/orionbelt-chat-client-secret
+   OIDC_ALLOWED_ROLES=analyst,admin         # realm roles; leave empty to admit every user of the realm
+   ```
+
+Realm roles need no mapper: Keycloak puts them in the access token's
+`realm_access.roles`, which is read by default. For groups, add a *Group
+Membership* mapper to the client with the token claim name `groups`. With *Full
+group path* on, the values look like `/analysts`, and `OIDC_ALLOWED_ROLES`
+names them that way.
+
+The chat refuses to start when the sign-in settings cannot work (no client
+secret, no `openid` scope, no `CHAINLIT_AUTH_SECRET`). If the identity provider
+is not up yet, the chat starts anyway and keeps trying to reach it. Until it
+does, the login button answers 503.
+
+### How a sign-in behaves
+
+- **It lasts as long as the identity provider says.** Chainlit's session
+  cookie is valid for 15 days, but the chat checks the sign-in on every request
+  Chainlit authenticates (each HTTP route and each websocket connection), at
+  every new chat and at every message. It renews the user's access token as it
+  expires and stops the session once the IdP refuses: a user disabled or signed
+  out in Keycloak is stopped at their first request after the current access
+  token is due for renewal (Keycloak's default lifetime is 5 minutes).
+  Keycloak's *SSO Session Idle* and *SSO Session Max* set how long a sign-in
+  lasts; add `offline_access` to `OIDC_SCOPES` for sign-ins that outlive them.
+- **Roles are checked again at every renewal**, from the tokens that renewal
+  brings: the access token, and a new ID token if the IdP sends one. Roles
+  from the ID token issued at sign-in do not carry over. With
+  `OIDC_ALLOWED_ROLES` set, a user whose last allowed role is taken away at the
+  IdP is stopped at the next renewal, as if they had been signed out. So is a
+  user whose allowed role appears only in the ID token, if the IdP sends no new
+  ID token on renewal. Keycloak's realm roles are in the access token, so this
+  does not affect them.
+- **Tokens never reach the browser.** The session cookie is signed but not
+  encrypted, so it carries only a random handle to the sign-in, which the chat
+  holds in memory.
+- **Signing out ends the sign-in on the server** and revokes its tokens at the
+  IdP. A copy of the session cookie kept from before is refused from then on.
+  If the chat is the only client in the user's Keycloak session, that ends the
+  session too, and the next sign-in asks for the password again.
+- **A restart signs everyone out.** Sign-ins live in the chat's memory, so after
+  a restart or redeploy users sign in again. Several replicas behind a load
+  balancer need sticky sessions, as Chainlit's websocket does anyway.
+- **A user without an allowed role** sees "Sign in failed". The reason is in the
+  chat's log, and their tokens are revoked.
+- **When the IdP cannot be reached**, a session whose token is still valid goes
+  on. Once the token has expired the chat waits for the IdP rather than letting
+  the session continue unchecked. If a renewal gets new tokens but cannot fetch
+  the IdP's signing keys to check them, the new tokens are held unused until
+  they can be checked. The sign-in survives the outage, and signing out revokes
+  the held tokens too.
+
+### Other providers
+
+Set `OIDC_ISSUER` to the issuer the provider's tokens carry:
+`https://login.microsoftonline.com/<tenant-id>/v2.0` for Entra ID,
+`https://<domain>/oauth2/<server-id>` for an Okta authorization server, or
+`https://<tenant>.auth0.com/` for Auth0 (with the trailing slash). On Entra
+ID, add `offline_access` to `OIDC_SCOPES`, or no refresh token is issued and
+every sign-in ends with its first access token. Entra puts app roles in the ID
+token's `roles` claim, which is read by default. An Okta client is registered
+for HTTP Basic unless set otherwise, so set
+`OIDC_CLIENT_AUTH=client_secret_basic` there.
 
 ## Usage Examples
 

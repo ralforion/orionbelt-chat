@@ -2356,6 +2356,7 @@ dependencies = [
     { name = "pydantic-ai" },
     { name = "pydantic-ai-slim", extra = ["anthropic", "openai"] },
     { name = "pydantic-settings" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "python-dotenv" },
     { name = "pyyaml" },
 ]
@@ -2378,6 +2379,7 @@ requires-dist = [
     { name = "pydantic-ai", specifier = ">=2.10.0" },
     { name = "pydantic-ai-slim", extras = ["openai", "anthropic"], specifier = ">=2.10.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },

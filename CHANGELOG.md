@@ -9,6 +9,39 @@ Releases before 1.7.0 are described on the
 
 ## [Unreleased]
 
+### Added
+- **Sign-in with OpenID Connect (SSO).** Set `OIDC_ISSUER`, `OIDC_CLIENT_ID`
+  and a client secret, and users sign in with Keycloak, Entra ID, Okta or any
+  other OIDC provider before the chat opens. `OIDC_ALLOWED_ROLES` limits it to
+  users holding one of the named roles or groups. Keycloak realm roles are
+  read from `realm_access.roles` without any mapper. Off by default: without
+  `OIDC_ISSUER` nothing changes. See "Sign-in (SSO)" in the README.
+- **The identity provider stays in charge of a sign-in.** Chainlit's session
+  cookie lasts 15 days. The chat checks the sign-in on every request Chainlit
+  authenticates (HTTP routes and websocket connections), at every new chat and
+  at every message. It renews the access token as it expires and stops the
+  session once the IdP refuses, or once the user no longer holds an allowed
+  role. Roles are read from the tokens each renewal brings, never carried
+  over from the sign-in's ID token. A user disabled, signed out or stripped
+  of their role at the IdP no longer keeps access until the cookie runs out.
+  New tokens that cannot be checked because the IdP's signing keys are out of
+  reach are held unused until they can be, so a key outage does not end the
+  sign-in. Signing out revokes the
+  tokens at the IdP and ends the sign-in on the server, so a copy of the
+  cookie kept from before is refused.
+- `OIDC_CLIENT_AUTH`: `client_secret_post` (default) or `client_secret_basic`,
+  for identity providers that register a client for HTTP Basic only (Okta's
+  default).
+- **Tokens stay on the server.** The browser's session cookie, signed but not
+  encrypted, carries only a random handle to the sign-in, never a token.
+  Chainlit's built-in Azure provider puts the refresh token in that cookie,
+  and its Keycloak provider keeps it on an object every login shares; neither
+  is used.
+
+### Dependencies
+- `pyjwt[crypto]` is now a direct dependency (it already came with Chainlit;
+  the `crypto` extra checks RS256/ES256 signatures). No new packages ship.
+
 ## [1.7.1] - 2026-11-16
 
 ### Security
