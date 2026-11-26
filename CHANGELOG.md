@@ -9,6 +9,29 @@ Releases before 1.7.0 are described on the
 
 ## [Unreleased]
 
+### Added
+- **Sign-in with OpenID Connect (SSO).** Set `OIDC_ISSUER`, `OIDC_CLIENT_ID`
+  and a client secret, and users sign in with Keycloak, Entra ID, Okta or any
+  other OIDC provider before the chat opens. `OIDC_ALLOWED_ROLES` limits it to
+  users holding one of the named roles or groups. Keycloak realm roles are
+  read from `realm_access.roles` without any mapper. Off by default: without
+  `OIDC_ISSUER` nothing changes. See "Sign-in (SSO)" in the README.
+- **The identity provider stays in charge of a sign-in.** Chainlit's session
+  cookie lasts 15 days. The chat now checks the sign-in at every new chat and
+  every message, renews the access token as it expires, and stops the session
+  once the IdP refuses. A user disabled or signed out at the IdP no longer
+  keeps chatting until the cookie runs out. Signing out revokes the tokens at
+  the IdP.
+- **Tokens stay on the server.** The browser's session cookie, signed but not
+  encrypted, carries only a random handle to the sign-in, never a token.
+  Chainlit's built-in Azure provider puts the refresh token in that cookie,
+  and its Keycloak provider keeps it on an object every login shares; neither
+  is used.
+
+### Dependencies
+- `pyjwt[crypto]` is now a direct dependency (it already came with Chainlit;
+  the `crypto` extra checks RS256/ES256 signatures). No new packages ship.
+
 ## [1.7.1] - 2026-11-16
 
 ### Security

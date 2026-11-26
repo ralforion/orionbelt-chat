@@ -23,6 +23,7 @@ from pydantic_ai.messages import (
     TextPartDelta,
 )
 
+from orionbelt_chat import sign_in
 from orionbelt_chat.agent import make_agent
 from orionbelt_chat.chart_renderer import UI_URI_PATTERN, render_chart_if_present
 from orionbelt_chat.file_downloads import (
@@ -69,6 +70,10 @@ from orionbelt_chat.skills import (
 logger = logging.getLogger(__name__)
 
 logger.info("OrionBelt Chat v%s starting up", APP_VERSION)
+
+# Sign-in with OpenID Connect, when OIDC_ISSUER is set. At import, because
+# Chainlit reads its providers and callbacks once this module has loaded.
+sign_in.register()
 
 # Maximum characters to display in a Chainlit tool-call step output.
 # Large MCP tool responses (e.g. SQL query results with many rows) can
@@ -212,6 +217,12 @@ async def on_start():
     Called once per user session.
     Sets up the agent and starts MCP server connections.
     """
+    # A session cookie can outlive the sign-in it came from; nothing starts
+    # until the identity provider still vouches for the user.
+    if problem := await sign_in.check_signed_in():
+        await cl.Message(content=problem, author="System").send()
+        return
+
     # Show settings panel
     await cl.ChatSettings(build_chat_settings()).send()
 
@@ -1318,6 +1329,10 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
     rendezvous-channel backpressure that can stall the agent after many
     tool calls.
     """
+    if problem := await sign_in.check_signed_in():
+        await cl.Message(content=problem, author="System").send()
+        return
+
     agent = cl.user_session.get("agent")
     if agent is None:
         await cl.Message(
