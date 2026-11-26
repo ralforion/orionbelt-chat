@@ -67,6 +67,8 @@ class FakeIdp:
     # How the client must authenticate, and only that way: Okta, for one,
     # registers a client for exactly one method.
     client_auth: str = "client_secret_post"
+    # When set, the JWKS endpoint answers with this HTTP status: a key outage.
+    jwks_status: int | None = None
 
     def __post_init__(self) -> None:
         self.key = new_key()
@@ -140,6 +142,11 @@ class FakeIdp:
         forms = [_form(r) for r in self.requests if r.url.path.endswith("/token")]
         return [f for f in forms if f.get("grant_type") == grant_type]
 
+    def rotate_signing_key(self) -> None:
+        """Sign from now on with a key the client has not seen, as after a key rollover."""
+        self.key = new_key()
+        self.kid = f"sig-{secrets.token_hex(4)}"
+
     def jwks_requests(self) -> int:
         return sum(1 for r in self.requests if r.url.path.endswith("/certs"))
 
@@ -152,6 +159,8 @@ class FakeIdp:
         if path == base + "/.well-known/openid-configuration":
             return httpx.Response(200, json=self.discovery_document())
         if path == base + "/protocol/openid-connect/certs":
+            if self.jwks_status is not None:
+                return httpx.Response(self.jwks_status)
             keys = [public_jwk(self.key, self.kid), *self.extra_jwks]
             return httpx.Response(200, json={"keys": keys})
         if path == base + "/protocol/openid-connect/token":

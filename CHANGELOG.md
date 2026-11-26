@@ -21,8 +21,12 @@ Releases before 1.7.0 are described on the
   authenticates (HTTP routes and websocket connections), at every new chat and
   at every message. It renews the access token as it expires and stops the
   session once the IdP refuses, or once the user no longer holds an allowed
-  role. A user disabled, signed out or stripped of their role at the IdP no
-  longer keeps access until the cookie runs out. Signing out revokes the
+  role. Roles are read from the tokens each renewal brings, never carried
+  over from the sign-in's ID token. A user disabled, signed out or stripped
+  of their role at the IdP no longer keeps access until the cookie runs out.
+  New tokens that cannot be checked because the IdP's signing keys are out of
+  reach are held unused until they can be, so a key outage does not end the
+  sign-in. Signing out revokes the
   tokens at the IdP and ends the sign-in on the server, so a copy of the
   cookie kept from before is refused.
 - `OIDC_CLIENT_AUTH`: `client_secret_post` (default) or `client_secret_basic`,

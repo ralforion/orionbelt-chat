@@ -667,11 +667,16 @@ class SignIn:
     """One user's sign-in, as this process holds it."""
 
     tokens: TokenSet
-    # The latest verified ID token's claims. A renewal that brings no new ID
-    # token keeps these, and the roles they hold.
+    # The latest verified ID token's claims, for who the user is. Never for
+    # their roles after a renewal: those come from what the renewal brought.
     id_claims: dict[str, Any] = field(repr=False)
     roles: frozenset[str]
     created_at: float
+    # Tokens a renewal got but could not check yet, because the IdP's signing
+    # keys were out of reach. The refresh token that got them is spent, so
+    # these hold the only live one. Never handed out until they pass their
+    # checks, but revoked on sign-out.
+    pending: TokenSet | None = field(default=None, repr=False)
     # Renewal and removal both hold this, so a sign-out cannot slip in
     # between a refresh token being spent and its replacement being stored.
     lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
@@ -730,15 +735,20 @@ class TokenStore:
         async with sign_in.lock:
             sign_in.ended = True
             if revoke:
-                await self._revoke(sign_in.tokens)
+                await self._revoke(sign_in.pending, sign_in.tokens)
+            sign_in.pending = None
 
-    async def _revoke(self, tokens: TokenSet) -> None:
-        if tokens.refresh_token is None:
-            return
-        try:
-            await self._client.revoke(tokens.refresh_token)
-        except OidcError as e:
-            logger.info("OIDC: could not revoke a sign-in's refresh token: %s", e)
+    async def _revoke(self, *token_sets: TokenSet | None) -> None:
+        revoked: set[str] = set()
+        for tokens in token_sets:
+            refresh = tokens.refresh_token if tokens is not None else None
+            if refresh is None or refresh in revoked:
+                continue
+            revoked.add(refresh)
+            try:
+                await self._client.revoke(refresh)
+            except OidcError as e:
+                logger.info("OIDC: could not revoke a sign-in's refresh token: %s", e)
 
     def _end(self, handle: str, sign_in: SignIn) -> None:
         """Forget a sign-in from inside its lock."""
@@ -771,71 +781,102 @@ class TokenStore:
         return tokens.expires_at - self._clock() > RENEW_BEFORE_SECONDS
 
     async def _renew(self, handle: str, sign_in: SignIn) -> None:
-        tokens = sign_in.tokens
+        """Replace the sign-in's tokens with checked new ones, or end it.
+
+        Returns with the old tokens in place, still valid, when the IdP cannot
+        be reached; raises `IdpUnavailableError` when they have expired too.
+        """
         now = self._clock()
-        if tokens.refresh_token is None or (
-            tokens.refresh_expires_at is not None and tokens.refresh_expires_at <= now
-        ):
-            if tokens.expires_at > now:
-                return  # nothing to renew with yet, but still valid for a little while
-            self._end(handle, sign_in)
-            raise SignInEndedError("the access token expired and there is no refresh token")
-        try:
-            renewed = await self._client.refresh(tokens.refresh_token)
-        except TokenEndpointError as e:
-            self._end(handle, sign_in)
-            if e.error != "invalid_grant":
-                # Not the user's sign-in running out but this client failing:
-                # a wrong secret, a disabled client. Every renewal will fail.
-                logger.error("OIDC: the identity provider refused to renew a sign-in: %s", e)
-            raise SignInEndedError(str(e)) from e
-        except IdpUnavailableError:
-            if tokens.expires_at > now:
-                logger.warning("OIDC: could not renew a sign-in; using its token until it expires")
-                return
-            raise
-        # RFC 6749 §6: the IdP may keep the refresh token; then the old one stands.
-        if renewed.refresh_token is None:
-            renewed = replace(
-                renewed,
-                refresh_token=tokens.refresh_token,
-                refresh_expires_at=tokens.refresh_expires_at,
-            )
-        id_claims = sign_in.id_claims
-        if renewed.id_token:
-            # OIDC Core §12.2: a renewed ID token must be for the same user.
+        if sign_in.pending is None or not self._fresh(sign_in.pending):
+            # Renew from the newest refresh token: the waiting tokens' when a
+            # renewal is already waiting, since it spent the old one.
+            source = sign_in.pending or sign_in.tokens
+            if source.refresh_token is None or (
+                source.refresh_expires_at is not None and source.refresh_expires_at <= now
+            ):
+                if sign_in.tokens.expires_at > now:
+                    return  # nothing to renew with yet, but still valid for a little while
+                self._end(handle, sign_in)
+                raise SignInEndedError("the access token expired and there is no refresh token")
             try:
+                renewed = await self._client.refresh(source.refresh_token)
+            except TokenEndpointError as e:
+                self._end(handle, sign_in)
+                if e.error != "invalid_grant":
+                    # Not the user's sign-in running out but this client failing:
+                    # a wrong secret, a disabled client. Every renewal will fail.
+                    logger.error("OIDC: the identity provider refused to renew a sign-in: %s", e)
+                raise SignInEndedError(str(e)) from e
+            except IdpUnavailableError:
+                self._hold(sign_in, now)
+                return
+            # RFC 6749 §6: the IdP may keep the refresh token; then the old one stands.
+            if renewed.refresh_token is None:
+                renewed = replace(
+                    renewed,
+                    refresh_token=source.refresh_token,
+                    refresh_expires_at=source.refresh_expires_at,
+                )
+            sign_in.pending = renewed
+        await self._adopt(handle, sign_in, sign_in.pending, now)
+
+    async def _adopt(self, handle: str, sign_in: SignIn, renewed: TokenSet, now: float) -> None:
+        """Check `renewed`, the pending tokens, and make them the sign-in's, or end the sign-in."""
+        try:
+            id_claims: dict[str, Any] | None = None
+            if renewed.id_token:
+                # OIDC Core §12.2: a renewed ID token must be for the same user.
                 id_claims = await self._client.verify_id_token(renewed.id_token)
-            except TokenRejectedError as e:
-                await self._refuse(handle, sign_in, renewed)
-                raise SignInEndedError(f"the renewed ID token was rejected: {e}") from e
-            if id_claims["sub"] != sign_in.subject:
-                await self._refuse(handle, sign_in, renewed)
-                raise SignInEndedError("the renewed ID token is for a different user")
-        # Roles are taken again on every renewal, so one removed at the IdP
-        # ends the sign-in within an access token's lifetime.
-        roles = await self._client.roles(id_claims, renewed.access_token)
+            # Roles come only from what this renewal brought. The sign-in's own
+            # ID token is not asked again: its roles are as old as the sign-in,
+            # and an IdP that sends no new ID token would keep them forever.
+            roles = await self._client.roles(id_claims or {}, renewed.access_token)
+        except TokenRejectedError as e:
+            await self._refuse(handle, sign_in)
+            raise SignInEndedError(f"the renewed ID token was rejected: {e}") from e
+        except IdpUnavailableError:
+            self._hold(sign_in, now)
+            return
+        if id_claims is not None and id_claims["sub"] != sign_in.subject:
+            await self._refuse(handle, sign_in)
+            raise SignInEndedError("the renewed ID token is for a different user")
         if not is_admitted(roles, self._client.config.allowed_roles):
-            await self._refuse(handle, sign_in, renewed)
-            logger.info("OIDC: %s no longer holds an allowed role", sign_in.subject)
+            await self._refuse(handle, sign_in)
+            logger.info(
+                "OIDC: %s no longer holds an allowed role%s",
+                sign_in.subject,
+                ""
+                if id_claims
+                else " (the renewal brought no ID token, so only the access token's roles count)",
+            )
             raise SignInEndedError("the user no longer holds an allowed role")
         sign_in.tokens = renewed
-        sign_in.id_claims = id_claims
+        sign_in.pending = None
+        if id_claims is not None:
+            sign_in.id_claims = id_claims
         sign_in.roles = roles
 
-    async def _refuse(self, handle: str, sign_in: SignIn, renewed: TokenSet) -> None:
+    def _hold(self, sign_in: SignIn, now: float) -> None:
+        """The IdP is out of reach: carry on with the current token while it lasts."""
+        if sign_in.tokens.expires_at > now:
+            logger.warning("OIDC: could not renew a sign-in; using its token until it expires")
+            return
+        raise IdpUnavailableError("the sign-in's token expired and the IdP cannot be reached")
+
+    async def _refuse(self, handle: str, sign_in: SignIn) -> None:
         """End a sign-in whose renewal came back unacceptable, revoking what it brought."""
         self._end(handle, sign_in)
-        await self._revoke(renewed)
+        await self._revoke(sign_in.pending)
+        sign_in.pending = None
 
     def _prune(self) -> None:
         now = self._clock()
         for handle, sign_in in list(self._sign_ins.items()):
-            tokens = sign_in.tokens
+            tokens = sign_in.pending or sign_in.tokens
             renewable = tokens.refresh_token is not None and (
                 tokens.refresh_expires_at is None or tokens.refresh_expires_at > now
             )
             if now - sign_in.created_at > self._max_age or (
-                not renewable and tokens.expires_at <= now
+                not renewable and sign_in.tokens.expires_at <= now
             ):
                 self._end(handle, sign_in)

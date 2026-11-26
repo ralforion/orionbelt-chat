@@ -564,9 +564,14 @@ does, the login button answers 503.
   token is due for renewal (Keycloak's default lifetime is 5 minutes).
   Keycloak's *SSO Session Idle* and *SSO Session Max* set how long a sign-in
   lasts; add `offline_access` to `OIDC_SCOPES` for sign-ins that outlive them.
-- **Roles are checked again at every renewal.** With `OIDC_ALLOWED_ROLES` set,
-  a user whose last allowed role is taken away at the IdP is stopped at the
-  next renewal, as if they had been signed out.
+- **Roles are checked again at every renewal**, from the tokens that renewal
+  brings: the access token, and a new ID token if the IdP sends one. Roles
+  from the ID token issued at sign-in do not carry over. With
+  `OIDC_ALLOWED_ROLES` set, a user whose last allowed role is taken away at the
+  IdP is stopped at the next renewal, as if they had been signed out. So is a
+  user whose allowed role appears only in the ID token, if the IdP sends no new
+  ID token on renewal. Keycloak's realm roles are in the access token, so this
+  does not affect them.
 - **Tokens never reach the browser.** The session cookie is signed but not
   encrypted, so it carries only a random handle to the sign-in, which the chat
   holds in memory.
@@ -581,7 +586,10 @@ does, the login button answers 503.
   chat's log, and their tokens are revoked.
 - **When the IdP cannot be reached**, a session whose token is still valid goes
   on. Once the token has expired the chat waits for the IdP rather than letting
-  the session continue unchecked.
+  the session continue unchecked. If a renewal gets new tokens but cannot fetch
+  the IdP's signing keys to check them, the new tokens are held unused until
+  they can be checked. The sign-in survives the outage, and signing out revokes
+  the held tokens too.
 
 ### Other providers
 

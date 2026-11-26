@@ -521,19 +521,91 @@ class TestRolesOnRenewal:
         await store.access_token(handle)
         assert store.get(handle).roles == {"analyst", "admin"}
 
-    async def test_without_a_new_id_token_its_roles_stand(self, idp, clock):
+    async def test_an_old_id_tokens_roles_do_not_carry_over(self, idp, clock):
+        """Roles must come from what the renewal brought, not from the sign-in's ID token."""
         idp.refresh_returns_id_token = False
         config = _config(oidc_allowed_roles="staff", oidc_role_claims="groups,realm_access.roles")
         client = OidcClient(config, transport=idp.transport(), clock=clock)
         store = TokenStore(client, max_age_seconds=86_400, clock=clock)
         tokens = await _sign_in(client, idp)
-        # A group the ID token carried and the access token does not.
+        # A group only the ID token carried; the access tokens hold realm roles.
         handle = store.add(
             tokens, id_claims={"sub": ALICE.sub, "groups": ["staff"]}, roles=frozenset({"staff"})
         )
         clock.advance(290)
+        with pytest.raises(SignInEndedError, match="allowed role"):
+            await store.access_token(handle)
+        assert idp.revoked == [idp.issued_refresh_tokens[-1]]
+
+    async def test_without_a_new_id_token_the_access_token_can_vouch(self, idp, clock, gated):
+        client, store = gated
+        idp.refresh_returns_id_token = False
+        handle = await _stored(store, client, idp, User(sub="u-f", username="f", roles=["analyst"]))
+        for _ in range(3):
+            clock.advance(290)
+            await store.access_token(handle)
+        assert store.get(handle).roles == {"analyst"}
+        assert len(idp.token_requests("refresh_token")) == 3
+
+
+class TestKeyOutageDuringRenewal:
+    """Renewal spends the refresh token before the new tokens can be checked.
+
+    When the IdP's keys cannot be fetched to check them, the new tokens are
+    kept aside, unused, until they can be: never lost, never trusted early.
+    """
+
+    async def _outage_mid_renewal(self, idp, store, client, clock):
+        handle = await _stored(store, client, idp)
+        old_access = store.get(handle).tokens.access_token
+        idp.rotate_signing_key()  # the renewed ID token needs a key not cached yet
+        idp.jwks_status = 503
+        clock.advance(290)
+        return handle, old_access
+
+    async def test_the_old_token_serves_while_the_new_ones_wait(self, idp, client, store, clock):
+        handle, old_access = await self._outage_mid_renewal(idp, store, client, clock)
+        assert await store.access_token(handle) == old_access
+        assert store.get(handle).tokens.access_token == old_access
+
+    async def test_after_the_outage_the_waiting_tokens_are_adopted(self, idp, client, store, clock):
+        handle, old_access = await self._outage_mid_renewal(idp, store, client, clock)
         await store.access_token(handle)
-        assert "staff" in store.get(handle).roles
+        idp.jwks_status = None
+        clock.advance(20)  # the old token has now expired
+        renewed = await store.access_token(handle)
+        assert renewed != old_access
+        # No second refresh: the consumed refresh token is never presented again.
+        assert len(idp.token_requests("refresh_token")) == 1
+        assert store.get(handle).tokens.refresh_token == idp.issued_refresh_tokens[-1]
+
+    async def test_an_outage_past_expiry_waits_instead_of_ending(self, idp, client, store, clock):
+        handle, _ = await self._outage_mid_renewal(idp, store, client, clock)
+        clock.advance(20)
+        with pytest.raises(IdpUnavailableError):
+            await store.access_token(handle)
+        assert store.get(handle) is not None
+        idp.jwks_status = None
+        assert await store.access_token(handle)
+
+    async def test_a_long_outage_renews_with_the_waiting_refresh_token(
+        self, idp, client, store, clock
+    ):
+        handle, _ = await self._outage_mid_renewal(idp, store, client, clock)
+        await store.access_token(handle)
+        waiting_refresh = idp.issued_refresh_tokens[-1]
+        clock.advance(600)  # the waiting tokens have gone stale too
+        idp.jwks_status = None
+        assert await store.access_token(handle)
+        second = idp.token_requests("refresh_token")[-1]
+        assert second["refresh_token"] == waiting_refresh
+
+    async def test_logout_while_tokens_wait_revokes_them(self, idp, client, store, clock):
+        handle, _ = await self._outage_mid_renewal(idp, store, client, clock)
+        await store.access_token(handle)
+        await store.remove(handle)
+        assert idp.issued_refresh_tokens[-1] in idp.revoked
+        assert idp.refresh_tokens == {}  # nothing left that could renew the sign-in
 
 
 class TestRemovalDuringRenewal:
