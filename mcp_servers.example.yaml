@@ -49,6 +49,14 @@ servers:
   - name: World Bank Data360
     endpoint: https://maimcpext.worldbank.org/ext/data360/mcp
 
+  # ══ Acting as the signed-in user (needs OIDC sign-in) ═══════════
+
+  # The server gets the user's access token on every request instead of a
+  # shared key. HTTP only. See "Acting as the signed-in user" in the README.
+  # - name: OrionBelt Semantic Layer
+  #   endpoint: https://obsl-mcp.example.com/mcp
+  #   auth: user
+
   # ══ Demos: web search (free API key) ════════════════════════════
 
   # Tavily — search, extract, crawl. Remote, so nothing to install.

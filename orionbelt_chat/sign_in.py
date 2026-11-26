@@ -42,6 +42,7 @@ from .oidc import (
     OidcClient,
     OidcConfig,
     OidcError,
+    SignInBearerAuth,
     SignInEndedError,
     TokenStore,
     is_admitted,
@@ -318,6 +319,11 @@ async def _discover(client: OidcClient) -> None:
         delay = min(delay * 2, _DISCOVERY_RETRY_MAX)
 
 
+def _session_token() -> str | None:
+    token = getattr(context.session, "token", None)
+    return token if isinstance(token, str) else None
+
+
 async def check_signed_in() -> str | None:
     """None when this chat session may go on; otherwise what to tell the user.
 
@@ -327,9 +333,8 @@ async def check_signed_in() -> str | None:
     """
     if _state is None:
         return None
-    token = getattr(context.session, "token", None)
     try:
-        await _confirm(token if isinstance(token, str) else None)
+        await _confirm(_session_token())
     except SignInEndedError as e:
         logger.info("Sign-in ended: %s", e)
         return SIGN_IN_ENDED
@@ -337,3 +342,41 @@ async def check_signed_in() -> str | None:
         logger.warning("Sign-in could not be confirmed: %s", e)
         return IDP_UNAVAILABLE
     return None
+
+
+def session_auth() -> httpx.Auth | None:
+    """Bearer auth with this chat session's sign-in, for MCP servers in `auth: user`.
+
+    None while sign-in is off. Each request asks for a current access token,
+    so the servers see the token renewed as the session goes on, and requests
+    stop once the sign-in ends.
+    """
+    if _state is None:
+        return None
+    return SignInBearerAuth(_state.store, _handle_from_token(_session_token()))
+
+
+def problem_from(exc: BaseException) -> str | None:
+    """What to tell the user when `exc` comes from this session's sign-in, else None.
+
+    A request to an `auth: user` server fails with the sign-in's own error,
+    wrapped on its way out of the MCP client (exception groups, causes). Told
+    apart here so the chat asks the user to sign in again rather than trying
+    to reconnect a server that would only refuse again.
+    """
+    found: list[OidcError] = []
+    seen: set[int] = set()
+    pending: list[BaseException] = [exc]
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, OidcError):
+            found.append(current)
+        if isinstance(current, BaseExceptionGroup):
+            pending.extend(current.exceptions)
+        pending.extend(e for e in (current.__cause__, current.__context__) if e is not None)
+    if any(isinstance(e, SignInEndedError) for e in found):
+        return SIGN_IN_ENDED
+    return IDP_UNAVAILABLE if found else None

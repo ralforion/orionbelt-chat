@@ -477,7 +477,9 @@ async def _init_agent(provider: str, model: str) -> bool:
         except Exception:
             pass
 
-    named_servers = get_mcp_servers_named(elicitation_prompt=ask_user)
+    named_servers = get_mcp_servers_named(
+        elicitation_prompt=ask_user, user_auth=sign_in.session_auth()
+    )
     connected = []
     connected_names = []
     failed_names = []
@@ -1222,7 +1224,9 @@ async def _reconnect_mcp() -> bool:
     ).send()
 
     # Reconnect only failed servers
-    named_servers = get_mcp_servers_named(elicitation_prompt=ask_user)
+    named_servers = get_mcp_servers_named(
+        elicitation_prompt=ask_user, user_auth=sign_in.session_auth()
+    )
     reconnected: list[str] = []
     still_failed: list[tuple[str, Exception]] = []
     for name, server in named_servers:
@@ -1563,7 +1567,11 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
                             await step.update()
                         tool_steps.clear()
 
-                        if _is_mcp_session_error(tool_err):
+                        if problem := sign_in.problem_from(tool_err):
+                            # The sign-in ended mid-turn. Reconnecting would only
+                            # be refused again; the user has to sign in again.
+                            text_parts.append(f"\n\n{problem}")
+                        elif _is_mcp_session_error(tool_err):
                             needs_reconnect = True
                         else:
                             text_parts.append(f"\n\nTool error: {tool_err}")
@@ -1699,16 +1707,21 @@ async def on_message(message: cl.Message, *, _retried: bool = False):
         if isinstance(e, KeyboardInterrupt | SystemExit):
             raise
 
+        sign_in_msg = sign_in.problem_from(e)
         provider_msg = _format_provider_error(e)
 
-        if provider_msg is not None:
+        if sign_in_msg is not None:
+            logger.warning("Message stopped by the sign-in: %s", sign_in_msg)
+        elif provider_msg is not None:
             # Expected provider failure (402, 429, stream-level error) — short log, no traceback.
             logger.warning("Provider error: %s", str(e).strip() or type(e).__name__)
         else:
             logger.exception("Error in message handler")
 
         try:
-            if provider_msg is None and _is_mcp_session_error(e):
+            if sign_in_msg is not None:
+                await cl.Message(content=sign_in_msg, author="System").send()
+            elif provider_msg is None and _is_mcp_session_error(e):
                 if await _reconnect_mcp() and not _retried:
                     await on_message(message, _retried=True)
                     return

@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+import httpx
 import pytest
 from pydantic_ai.mcp import StdioTransport, StreamableHttpTransport
 from pydantic_ai.models.test import TestModel
@@ -129,7 +130,10 @@ def mock_settings():
         server_settings.mcp_allow_sampling = False
         config_settings.analytics_server_dir = ""
         config_settings.semantic_layer_server_dir = ""
+        config_settings.analytics_server_auth = ""
+        config_settings.semantic_layer_server_auth = ""
         config_settings.mcp_servers_file = ""
+        config_settings.oidc_issuer = ""
         yield config_settings
 
 
@@ -184,3 +188,30 @@ class TestSamplingIsPerServer:
                 for name, server in get_mcp_servers_named()
             }
         assert got == {"Quiet": False, "Sampler": True}
+
+
+class _UserAuth(httpx.Auth):
+    """Stands in for the signed-in user's bearer auth."""
+
+
+class TestUserAuth:
+    """The user's token goes to `auth: user` servers, and to no other."""
+
+    def test_an_auth_user_server_gets_the_users_auth(self):
+        auth = _UserAuth()
+        server = _make_server(_def(endpoint="https://x/mcp", auth="user"), None, None, auth)
+        assert server.client.transport.auth is auth
+
+    def test_any_other_server_does_not(self):
+        server = _make_server(_def(endpoint="https://x/mcp"), None, None, _UserAuth())
+        assert server.client.transport.auth is None
+
+    def test_without_a_user_an_auth_user_server_is_left_out(self, mock_settings):
+        defs = [
+            _def(name="As user", endpoint="https://a/mcp", auth="user"),
+            _def(name="Plain", endpoint="https://b/mcp"),
+        ]
+        with patch("orionbelt_chat.mcp_servers.load_server_defs", return_value=(defs, [])):
+            assert [name for name, _ in get_mcp_servers_named()] == ["Plain"]
+            with_user = get_mcp_servers_named(user_auth=_UserAuth())
+            assert [name for name, _ in with_user] == ["As user", "Plain"]

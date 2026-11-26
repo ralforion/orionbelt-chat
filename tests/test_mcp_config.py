@@ -43,7 +43,10 @@ def env(tmp_path):
     with patch("orionbelt_chat.mcp_config.settings") as settings:
         settings.analytics_server_dir = ""
         settings.semantic_layer_server_dir = ""
+        settings.analytics_server_auth = ""
+        settings.semantic_layer_server_auth = ""
         settings.mcp_servers_file = ""
+        settings.oidc_issuer = ""
         yield settings
 
 
@@ -541,3 +544,62 @@ class TestDotenvSearch:
                 defs, _ = load_server_defs()
 
         assert defs[0].endpoint == "https://t/mcp?k=from-environ"
+
+
+class TestUserAuth:
+    """`auth: user` sends the signed-in user's token; refused where it cannot work."""
+
+    @pytest.fixture
+    def signed_in(self, env):
+        env.oidc_issuer = "https://idp.example/realms/r"
+        return env
+
+    def test_an_http_server_acting_as_the_user(self, signed_in):
+        defn = parse_server({"name": "S", "endpoint": "https://s/mcp", "auth": "User"}, "cfg")
+        assert defn.auth == "user"
+
+    def test_no_auth_by_default(self, signed_in):
+        assert parse_server({"name": "S", "endpoint": "https://s/mcp"}, "cfg").auth == ""
+
+    @pytest.mark.parametrize(
+        ("entry", "message"),
+        [
+            ({"endpoint": "https://s/mcp", "auth": "bearer"}, "can only be 'user'"),
+            ({"command": "npx", "auth": "user"}, "needs an HTTP endpoint"),
+            ({"endpoint": "../srv", "module": "m", "auth": "user"}, "needs an HTTP endpoint"),
+            (
+                {"endpoint": "https://s/mcp", "auth": "user", "headers": {"authorization": "x"}},
+                "remove the 'Authorization' header",
+            ),
+        ],
+    )
+    def test_what_cannot_carry_the_users_token_is_refused(self, signed_in, entry, message):
+        with pytest.raises(McpConfigError, match=message):
+            parse_server({"name": "S", **entry}, "cfg")
+
+    def test_without_sign_in_there_is_no_user_to_act_as(self, env):
+        with pytest.raises(McpConfigError, match="OIDC_ISSUER"):
+            parse_server({"name": "S", "endpoint": "https://s/mcp", "auth": "user"}, "cfg")
+
+    def test_a_builtin_acts_as_the_user_from_its_setting(self, signed_in):
+        signed_in.semantic_layer_server_dir = "https://obsl-mcp/mcp"
+        signed_in.semantic_layer_server_auth = "user"
+        signed_in.analytics_server_dir = "https://analytics/mcp"
+        with patch("orionbelt_chat.mcp_config.config_path", return_value=None):
+            defs, errors = load_server_defs()
+        assert {d.name: d.auth for d in defs} == {
+            "OrionBelt Analytics": "",
+            "OrionBelt Semantic Layer": "user",
+        }
+        assert errors == []
+
+    def test_a_builtin_that_cannot_act_as_the_user_is_reported_and_left_out(self, signed_in):
+        signed_in.semantic_layer_server_dir = "../orionbelt-semantic-layer-mcp"
+        signed_in.semantic_layer_server_auth = "user"
+        signed_in.analytics_server_dir = "https://analytics/mcp"
+        with patch("orionbelt_chat.mcp_config.config_path", return_value=None):
+            defs, errors = load_server_defs()
+        assert [d.name for d in defs] == ["OrionBelt Analytics"]
+        assert len(errors) == 1
+        assert "SEMANTIC_LAYER_SERVER_AUTH" in errors[0]
+        assert "HTTP endpoint" in errors[0]
